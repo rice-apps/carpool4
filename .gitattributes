@@ -1,0 +1,4 @@
+# Generators write LF files on every platform.
+proto/** text eol=lf
+backend/internal/gen/** text eol=lf
+frontend/src/gen/** text eol=lf

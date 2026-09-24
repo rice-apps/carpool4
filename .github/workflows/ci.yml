@@ -1,0 +1,123 @@
+# Adapted from https://github.com/actions/starter-workflows/blob/main/ci/go.yml
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  dev-tools:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+
+    - run: npm ci
+    - run: npm test
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: backend/go.mod
+        cache-dependency-path: backend/go.sum
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Compile tests without running unfinished behavior
+      run: go test -run '^$' ./...
+
+    - name: Check package boundaries
+      run: go test ./internal/architecture
+
+
+  starter-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true # Starts red; pairs make their operation cases pass.
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v4
+      with:
+        go-version-file: backend/go.mod
+        cache-dependency-path: backend/go.sum
+    - name: Run starter behavior tests
+      run: go test -count=1 ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+    - uses: bufbuild/buf-setup-action@v1
+      with:
+        version: '1.73.0'
+    - run: npm ci
+    - run: npm run generate
+    - name: Confirm checked-in frontend generated code is up to date
+      run: git diff --exit-code -- src/gen
+    - run: npm run build
+
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - uses: bufbuild/buf-setup-action@v1
+      with:
+        version: '1.73.0'
+
+    - uses: bufbuild/buf-lint-action@v1
+      with:
+        input: proto
+
+    - name: Confirm checked-in generated code is up to date
+      working-directory: proto
+      run: |
+        buf generate
+        git diff --exit-code -- ../backend/internal/gen
+
+  sqlc:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: sqlc-dev/setup-sqlc@v3
+      with:
+        sqlc-version: '1.31.1'
+
+    - name: Confirm checked-in generated code is up to date
+      run: sqlc diff

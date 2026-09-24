@@ -1,0 +1,59 @@
+syntax = "proto3";
+package carpool.v1;
+
+option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
+
+import "buf/validate/validate.proto";
+
+// User is a profile projected for the viewer. Contact fields may be blank
+// when the viewer has not shared a ride with this user.
+message User {
+  string id = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string phone = 4;
+  string email = 5;
+}
+
+// UserService reads profiles and updates the authenticated caller's profile.
+service UserService {
+  // GetUser reads the caller or a requested user with contact privacy applied.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // UpdateUser creates or changes the caller's profile from verified identity.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+}
+
+// GetUserRequest selects another profile, or the caller's when user_id is absent.
+message GetUserRequest {
+  optional string user_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetUserResponse contains the profile authorized for the caller to see.
+message GetUserResponse {
+  User user = 1;
+}
+
+// UpdateUserRequest supplies editable profile fields; ID and email come from
+// the verified Supabase token rather than client input.
+message UpdateUserRequest {
+  string first_name = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100,
+    pattern: ".*\\S.*"
+  }];
+  string last_name = 2 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 100,
+    pattern: ".*\\S.*"
+  }];
+  // Phone may be empty, but a driver must provide one before creating a ride.
+  string phone = 3 [(buf.validate.field).string = {
+    max_len: 32,
+    pattern: "^$|.*\\S.*"
+  }];
+}
+
+// UpdateUserResponse contains the caller's saved profile and contact fields.
+message UpdateUserResponse {
+  User user = 1;
+}

@@ -1,0 +1,54 @@
+package rpc
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"connectrpc.com/connect"
+
+	"github.com/rice-apps/carpool4/backend/internal/app"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1/carpoolv1connect"
+)
+
+// Server adapts Connect requests to the application service.
+//
+// Fields:
+//   - service: the application use cases invoked by RPC handlers.
+type Server struct {
+	service *app.Service
+}
+
+var _ carpoolv1connect.UserServiceHandler = (*Server)(nil)
+var _ carpoolv1connect.RideServiceHandler = (*Server)(nil)
+
+// NewServer returns an RPC adapter for service.
+func NewServer(service *app.Service) *Server {
+	return &Server{service: service}
+}
+
+// Register adds the user and ride handlers with authentication, validation,
+// logging, and a request body limit.
+//
+// Inputs:
+//   - mux (*http.ServeMux): the HTTP router to register with.
+//   - server (*Server): the handlers' application adapter.
+//   - authInterceptor (connect.UnaryInterceptorFunc): supplies verified caller
+//     details or rejects unauthenticated requests.
+//   - logger (*slog.Logger): request and error logging.
+//
+// It returns an error if validation setup fails.
+func Register(mux *http.ServeMux, server *Server, authInterceptor connect.UnaryInterceptorFunc, logger *slog.Logger) error {
+	validateInterceptor, err := newValidationInterceptor()
+	if err != nil {
+		return fmt.Errorf("failed to create validation interceptor: %w", err)
+	}
+	// Apply shared request checks and cap the size of incoming bodies.
+	opts := []connect.HandlerOption{
+		connect.WithInterceptors(newLoggingInterceptor(logger), authInterceptor, validateInterceptor),
+		connect.WithReadMaxBytes(64 << 10),
+	}
+	mux.Handle(carpoolv1connect.NewUserServiceHandler(server, opts...))
+	mux.Handle(carpoolv1connect.NewRideServiceHandler(server, opts...))
+	return nil
+}

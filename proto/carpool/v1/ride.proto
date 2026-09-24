@@ -1,0 +1,169 @@
+syntax = "proto3";
+package carpool.v1;
+
+option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
+
+import "carpool/v1/user.proto";
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+// Location is a curated place riders can select; clients cannot create one.
+message Location {
+  string id = 1;
+  string title = 2;
+  string address = 3;
+}
+
+// RideStatus distinguishes active trips from retained cancellations.
+enum RideStatus {
+  RIDE_STATUS_UNSPECIFIED = 0;
+  RIDE_STATUS_ACTIVE = 1;
+  RIDE_STATUS_CANCELLED = 2;
+}
+
+// Ride is the viewer-authorized trip returned by the backend.
+// Contact fields on its users are present only when the viewer may see them.
+message Ride {
+  string id = 1;
+  google.protobuf.Timestamp departure_date = 2;
+  Location departure_location = 3;
+  Location arrival_location = 4;
+  User owner = 5;
+  // Riders includes the owner, who occupies one of the capacity seats.
+  repeated User riders = 6;
+  string notes = 7;
+  // Capacity counts all occupants, including the owner.
+  int32 capacity = 8;
+  RideStatus status = 9;
+}
+
+// RideService reads and changes trips for the authenticated Supabase user.
+service RideService {
+  // GetRide returns one trip with contact details projected for the caller.
+  rpc GetRide(GetRideRequest) returns (GetRideResponse);
+  // ListRides finds active trips matching optional route and time filters.
+  rpc ListRides(ListRidesRequest) returns (ListRidesResponse);
+  // ListMyRides returns trips the caller owns or occupies, including cancellations.
+  rpc ListMyRides(ListMyRidesRequest) returns (ListMyRidesResponse);
+  // CreateRide posts a trip and reserves the owner's seat in one transaction.
+  rpc CreateRide(CreateRideRequest) returns (CreateRideResponse);
+  // UpdateRide changes an active trip owned by the caller.
+  rpc UpdateRide(UpdateRideRequest) returns (UpdateRideResponse);
+  // CancelRide retains an owned trip but marks it cancelled.
+  rpc CancelRide(CancelRideRequest) returns (CancelRideResponse);
+  // JoinRide adds the caller if the trip is active and has a free seat.
+  rpc JoinRide(JoinRideRequest) returns (JoinRideResponse);
+  // LeaveRide removes the caller from a trip they joined; owners cannot leave.
+  rpc LeaveRide(LeaveRideRequest) returns (LeaveRideResponse);
+  // ListLocations returns the curated places accepted by ride requests.
+  rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
+}
+
+// GetRideRequest identifies the trip to read.
+message GetRideRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetRideResponse contains the trip after viewer-specific contact projection.
+message GetRideResponse {
+  Ride ride = 1;
+}
+
+// ListRidesRequest narrows discovery; omitted filters leave that dimension open.
+message ListRidesRequest {
+  optional string departure_location_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string arrival_location_id = 2 [(buf.validate.field).string.uuid = true];
+  // The backend enforces a one-hour lookback even when this bound is older.
+  optional google.protobuf.Timestamp departure_after = 3;
+  optional google.protobuf.Timestamp departure_before = 4;
+
+  reserved 5, 6;
+}
+
+// ListRidesResponse contains every matching trip in departure order.
+message ListRidesResponse {
+  repeated Ride rides = 1;
+
+  reserved 2;
+}
+
+// ListMyRidesRequest uses the authenticated caller as its only filter.
+message ListMyRidesRequest {
+  reserved 1, 2;
+}
+
+// ListMyRidesResponse includes owned and occupied trips, newest first.
+message ListMyRidesResponse {
+  repeated Ride rides = 1;
+
+  reserved 2;
+}
+
+// CreateRideRequest supplies trip details; the owner comes from the caller's token.
+message CreateRideRequest {
+  google.protobuf.Timestamp departure_date = 1 [(buf.validate.field).required = true];
+  string departure_location_id = 2 [(buf.validate.field).string.uuid = true];
+  string arrival_location_id = 3 [(buf.validate.field).string.uuid = true];
+  string notes = 4 [(buf.validate.field).string.max_len = 500];
+  // Total seats, including the driver's seat.
+  int32 capacity = 5 [(buf.validate.field).int32.gt = 0];
+}
+
+// CreateRideResponse contains the created trip with its owner already occupying it.
+message CreateRideResponse {
+  Ride ride = 1;
+}
+
+// UpdateRideRequest identifies an owned trip and supplies its replacement details.
+message UpdateRideRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  google.protobuf.Timestamp departure_date = 2 [(buf.validate.field).required = true];
+  string departure_location_id = 3 [(buf.validate.field).string.uuid = true];
+  string arrival_location_id = 4 [(buf.validate.field).string.uuid = true];
+  string notes = 5 [(buf.validate.field).string.max_len = 500];
+  // Cannot be smaller than the current number of occupants.
+  int32 capacity = 6 [(buf.validate.field).int32.gt = 0];
+}
+
+// UpdateRideResponse contains the updated trip projected for the caller.
+message UpdateRideResponse {
+  Ride ride = 1;
+}
+
+// CancelRideRequest identifies the trip to cancel.
+message CancelRideRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// CancelRideResponse contains the retained, cancelled trip.
+message CancelRideResponse {
+  Ride ride = 1;
+}
+
+// JoinRideRequest identifies the trip the authenticated caller wants to join.
+message JoinRideRequest {
+  string ride_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// JoinRideResponse contains the trip after adding the caller.
+message JoinRideResponse {
+  Ride ride = 1;
+}
+
+// LeaveRideRequest identifies the trip the authenticated caller wants to leave.
+message LeaveRideRequest {
+  string ride_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// LeaveRideResponse contains the trip after removing the caller.
+message LeaveRideResponse {
+  Ride ride = 1;
+}
+
+// ListLocationsRequest needs no filters.
+message ListLocationsRequest {}
+
+// ListLocationsResponse contains every curated location in title order.
+message ListLocationsResponse {
+  repeated Location locations = 1;
+}

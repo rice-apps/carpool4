@@ -1,0 +1,2 @@
+-- ListLocations: Return the curated locations in a stable order.
+-- TODO(student): Write the ListLocations SQL query.

@@ -1,0 +1,33 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "generate": "buf generate --include-imports ../proto",
+    "build": "next build",
+    "lint": "oxlint src",
+    "preview": "next start"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.14.1",
+    "@connectrpc/connect": "^2.1.2",
+    "@connectrpc/connect-query": "^2.3.1",
+    "@connectrpc/connect-web": "^2.1.2",
+    "@phosphor-icons/react": "^2.1.10",
+    "@supabase/supabase-js": "^2.114.0",
+    "@tanstack/react-query": "^5.102.8",
+    "next": "^16.3.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.14.1",
+    "@connectrpc/protoc-gen-connect-query": "^2.3.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2"
+  }
+}

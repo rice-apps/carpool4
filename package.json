@@ -1,0 +1,20 @@
+{
+  "name": "carpool4-tools",
+  "private": true,
+  "scripts": {
+    "setup": "node scripts/dev.mjs setup",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:stop": "supabase stop",
+    "backend": "node scripts/dev.mjs backend",
+    "frontend": "node scripts/dev.mjs frontend",
+    "dev": "node scripts/dev.mjs dev",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "supabase": "2.117.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

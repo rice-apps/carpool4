@@ -1,0 +1,9 @@
+version: v2
+plugins:
+  - local: ["npx", "protoc-gen-es"]
+    out: src/gen
+    opt: target=ts
+
+  - local: ["npx", "protoc-gen-connect-query"]
+    out: src/gen
+    opt: target=ts
