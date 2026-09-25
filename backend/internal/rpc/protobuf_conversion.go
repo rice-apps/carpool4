@@ -24,7 +24,7 @@ func rideToProto(ride app.Ride) *carpoolv1.Ride {
 		riders[i] = userToProto(rider)
 	}
 	return &carpoolv1.Ride{
-		Id: ride.ID.String(), DepartureDate: timestamppb.New(ride.DepartureDate),
+		Id: ride.ID.String(), DepartureTime: timestamppb.New(ride.DepartureTime),
 		DepartureLocation: locationToProto(ride.DepartureLocation),
 		ArrivalLocation:   locationToProto(ride.ArrivalLocation),
 		Owner:             userToProto(ride.Owner), Riders: riders, Notes: ride.Notes,

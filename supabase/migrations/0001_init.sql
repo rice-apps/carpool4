@@ -21,7 +21,7 @@ create table locations
 create table rides
 (
     id                    uuid primary key     default gen_random_uuid(),
-    departure_date        timestamptz not null,
+    departure_time        timestamptz not null,
     departure_location_id uuid        not null references locations (id),
     arrival_location_id   uuid        not null references locations (id),
     owner_id              uuid        not null references users (id),
@@ -33,11 +33,11 @@ create table rides
     constraint rides_locations_distinct check (departure_location_id <> arrival_location_id)
 );
 
-create index rides_departure_date_idx on rides (departure_date);
+create index rides_departure_time_idx on rides (departure_time);
 create index rides_departure_location_idx on rides (departure_location_id);
 create index rides_arrival_location_idx on rides (arrival_location_id);
 create index rides_status_idx on rides (status);
-create index rides_owner_departure_id_idx on rides (owner_id, departure_date desc, id desc);
+create index rides_owner_departure_id_idx on rides (owner_id, departure_time desc, id desc);
 
 create table ride_occupants
 (

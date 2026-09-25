@@ -18,7 +18,7 @@ message Location {
 enum RideStatus {
   RIDE_STATUS_UNSPECIFIED = 0;
   // Indicates an active non-cancelled trip. Note that active trips may have
-  // departure dates in the past if retained in history without cancellation.
+  // departure times in the past if retained in history without cancellation.
   RIDE_STATUS_ACTIVE = 1;
   // Indicates a trip cancelled by its owner, retained in history but closed to joining.
   RIDE_STATUS_CANCELLED = 2;
@@ -28,7 +28,7 @@ enum RideStatus {
 // Contact fields on its users are present only when the viewer may see them.
 message Ride {
   string id = 1;
-  google.protobuf.Timestamp departure_date = 2; // FIXME: rename to departure_time? or add separate time field?
+  google.protobuf.Timestamp departure_time = 2;
   Location departure_location = 3;
   Location arrival_location = 4;
   User owner = 5;
@@ -96,7 +96,7 @@ message ListMyRidesResponse {
 
 // CreateRideRequest supplies trip details; the owner comes from the caller's token.
 message CreateRideRequest {
-  google.protobuf.Timestamp departure_date = 1 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp departure_time = 1 [(buf.validate.field).required = true];
   string departure_location_id = 2 [(buf.validate.field).string.uuid = true];
   string arrival_location_id = 3 [(buf.validate.field).string.uuid = true];
   string notes = 4 [(buf.validate.field).string.max_len = 500];
@@ -112,7 +112,7 @@ message CreateRideResponse {
 // UpdateRideRequest identifies an owned trip and supplies its replacement details.
 message UpdateRideRequest {
   string id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.Timestamp departure_date = 2 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp departure_time = 2 [(buf.validate.field).required = true];
   string departure_location_id = 3 [(buf.validate.field).string.uuid = true];
   string arrival_location_id = 4 [(buf.validate.field).string.uuid = true];
   string notes = 5 [(buf.validate.field).string.max_len = 500];

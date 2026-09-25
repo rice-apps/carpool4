@@ -64,7 +64,7 @@ type User struct {
 //
 // Fields:
 //   - ID: stable ride ID.
-//   - DepartureDate: scheduled departure time.
+//   - DepartureTime: scheduled departure time.
 //   - DepartureLocation: selected starting place.
 //   - ArrivalLocation: selected destination.
 //   - Owner: driver profile with viewer-allowed contact details.
@@ -74,7 +74,7 @@ type User struct {
 //   - Status: whether the ride is active or cancelled.
 type Ride struct {
 	ID                uuid.UUID
-	DepartureDate     time.Time
+	DepartureTime     time.Time
 	DepartureLocation LocationRecord
 	ArrivalLocation   LocationRecord
 	Owner             User

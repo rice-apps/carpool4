@@ -53,7 +53,7 @@ func projectRides(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides
 		}
 		result[i] = Ride{
 			ID:                loaded.ID,
-			DepartureDate:     loaded.DepartureDate,
+			DepartureTime:     loaded.DepartureTime,
 			DepartureLocation: loaded.Departure,
 			ArrivalLocation:   loaded.Arrival,
 			Owner:             projectUser(loaded.Owner, ownerVisible || loaded.Owner.ID == viewerID),
