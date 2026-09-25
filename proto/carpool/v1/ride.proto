@@ -1,11 +1,11 @@
 syntax = "proto3";
 package carpool.v1;
 
-option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
-
+import "buf/validate/validate.proto";
 import "carpool/v1/user.proto";
 import "google/protobuf/timestamp.proto";
-import "buf/validate/validate.proto";
+
+option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
 
 // Location is a curated place riders can select; clients cannot create one.
 message Location {
