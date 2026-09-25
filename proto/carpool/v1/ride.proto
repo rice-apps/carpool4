@@ -17,7 +17,10 @@ message Location {
 // RideStatus distinguishes active trips from retained cancellations.
 enum RideStatus {
   RIDE_STATUS_UNSPECIFIED = 0;
+  // Indicates an active non-cancelled trip. Note that active trips may have
+  // departure dates in the past if retained in history without cancellation.
   RIDE_STATUS_ACTIVE = 1;
+  // Indicates a trip cancelled by its owner, retained in history but closed to joining.
   RIDE_STATUS_CANCELLED = 2;
 }
 
@@ -25,7 +28,7 @@ enum RideStatus {
 // Contact fields on its users are present only when the viewer may see them.
 message Ride {
   string id = 1;
-  google.protobuf.Timestamp departure_date = 2;
+  google.protobuf.Timestamp departure_date = 2; // FIXME: rename to departure_time? or add separate time field?
   Location departure_location = 3;
   Location arrival_location = 4;
   User owner = 5;
@@ -37,7 +40,7 @@ message Ride {
   RideStatus status = 9;
 }
 
-// RideService reads and changes trips for the authenticated Supabase user.
+// RideService reads and changes trips for the authenticated user.
 service RideService {
   // GetRide returns one trip with contact details projected for the caller.
   rpc GetRide(GetRideRequest) returns (GetRideResponse);
@@ -76,27 +79,19 @@ message ListRidesRequest {
   // The backend enforces a one-hour lookback even when this bound is older.
   optional google.protobuf.Timestamp departure_after = 3;
   optional google.protobuf.Timestamp departure_before = 4;
-
-  reserved 5, 6;
 }
 
 // ListRidesResponse contains every matching trip in departure order.
 message ListRidesResponse {
   repeated Ride rides = 1;
-
-  reserved 2;
 }
 
 // ListMyRidesRequest uses the authenticated caller as its only filter.
-message ListMyRidesRequest {
-  reserved 1, 2;
-}
+message ListMyRidesRequest {}
 
 // ListMyRidesResponse includes owned and occupied trips, newest first.
 message ListMyRidesResponse {
   repeated Ride rides = 1;
-
-  reserved 2;
 }
 
 // CreateRideRequest supplies trip details; the owner comes from the caller's token.

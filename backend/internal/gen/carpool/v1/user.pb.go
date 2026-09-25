@@ -196,8 +196,8 @@ type UpdateUserRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	FirstName string                 `protobuf:"bytes,1,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
 	LastName  string                 `protobuf:"bytes,2,opt,name=last_name,json=lastName,proto3" json:"last_name,omitempty"`
-	// Phone may be empty, but a driver must provide one before creating a ride.
-	Phone         string `protobuf:"bytes,3,opt,name=phone,proto3" json:"phone,omitempty"`
+	// Phone is optional, but a driver must provide one before creating a ride.
+	Phone         *string `protobuf:"bytes,3,opt,name=phone,proto3,oneof" json:"phone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -247,8 +247,8 @@ func (x *UpdateUserRequest) GetLastName() string {
 }
 
 func (x *UpdateUserRequest) GetPhone() string {
-	if x != nil {
-		return x.Phone
+	if x != nil && x.Phone != nil {
+		return *x.Phone
 	}
 	return ""
 }
@@ -316,12 +316,13 @@ const file_carpool_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_id\"7\n" +
 	"\x0fGetUserResponse\x12$\n" +
-	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user\"\x9f\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user\"\xad\x01\n" +
 	"\x11UpdateUserRequest\x120\n" +
 	"\n" +
 	"first_name\x18\x01 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\tfirstName\x12.\n" +
-	"\tlast_name\x18\x02 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\blastName\x12(\n" +
-	"\x05phone\x18\x03 \x01(\tB\x12\xbaH\x0fr\r\x18 2\t^$|.*\\S.*R\x05phone\":\n" +
+	"\tlast_name\x18\x02 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\blastName\x12,\n" +
+	"\x05phone\x18\x03 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18 2\x06.*\\S.*H\x00R\x05phone\x88\x01\x01B\b\n" +
+	"\x06_phone\":\n" +
 	"\x12UpdateUserResponse\x12$\n" +
 	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user2\x9e\x01\n" +
 	"\vUserService\x12B\n" +
@@ -369,6 +370,7 @@ func file_carpool_v1_user_proto_init() {
 		return
 	}
 	file_carpool_v1_user_proto_msgTypes[1].OneofWrappers = []any{}
+	file_carpool_v1_user_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
