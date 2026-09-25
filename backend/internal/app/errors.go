@@ -3,7 +3,7 @@ package app
 import "errors"
 
 var (
-	// ErrNotImplemented marks an operation students have not completed yet.
+	// ErrNotImplemented marks an operation that has not been developed yet.
 	ErrNotImplemented = errors.New("operation not implemented")
 	// ErrUnauthenticated means the caller has no verified user ID.
 	ErrUnauthenticated = errors.New("missing caller identity")
