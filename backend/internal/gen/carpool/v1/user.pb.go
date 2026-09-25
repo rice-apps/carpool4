@@ -316,12 +316,12 @@ const file_carpool_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"\b_user_id\"7\n" +
 	"\x0fGetUserResponse\x12$\n" +
-	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user\"\xa1\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user\"\x9f\x01\n" +
 	"\x11UpdateUserRequest\x120\n" +
 	"\n" +
 	"first_name\x18\x01 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\tfirstName\x12.\n" +
-	"\tlast_name\x18\x02 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\blastName\x12*\n" +
-	"\x05phone\x18\x03 \x01(\tB\x14\xbaH\x11r\x0f\x10\x01\x18 2\t^$|.*\\S.*R\x05phone\":\n" +
+	"\tlast_name\x18\x02 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\blastName\x12(\n" +
+	"\x05phone\x18\x03 \x01(\tB\x12\xbaH\x0fr\r\x18 2\t^$|.*\\S.*R\x05phone\":\n" +
 	"\x12UpdateUserResponse\x12$\n" +
 	"\x04user\x18\x01 \x01(\v2\x10.carpool.v1.UserR\x04user2\x9e\x01\n" +
 	"\vUserService\x12B\n" +
