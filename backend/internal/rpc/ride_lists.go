@@ -1,8 +1,10 @@
 package rpc
 
 import (
-	"connectrpc.com/connect"
 	"context"
+
+	"connectrpc.com/connect"
+
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )

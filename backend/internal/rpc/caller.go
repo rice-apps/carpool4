@@ -3,9 +3,11 @@ package rpc
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
+
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
-	"github.com/google/uuid"
 )
 
 // actorFromContext returns the verified user's ID and email as an application actor.

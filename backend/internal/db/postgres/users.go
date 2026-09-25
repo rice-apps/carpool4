@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
-	"github.com/rice-apps/carpool4/backend/internal/app"
+
 	"github.com/google/uuid"
+
+	"github.com/rice-apps/carpool4/backend/internal/app"
 )
 
 // FindUser returns a profile without contact projection.
