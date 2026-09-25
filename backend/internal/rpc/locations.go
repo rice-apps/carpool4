@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // ListLocations lists locations available to the verified caller.
@@ -14,10 +14,10 @@ import (
 // Inputs:
 //   - ctx (context.Context): supplies the verified caller and passes
 //     timeout/cancellation to the service call.
-//   - req (*connect.Request[v1.ListLocationsRequest]): an empty request.
+//   - req (*connect.Request[carpoolv1.ListLocationsRequest]): an empty request.
 //
 // It returns protobuf locations on success or a Connect error on failure.
-func (s *Server) ListLocations(ctx context.Context, req *connect.Request[v1.ListLocationsRequest]) (*connect.Response[v1.ListLocationsResponse], error) {
+func (s *Server) ListLocations(ctx context.Context, req *connect.Request[carpoolv1.ListLocationsRequest]) (*connect.Response[carpoolv1.ListLocationsResponse], error) {
 	// TODO(student): Implement ListLocations RPC adapter.
 	return nil, toConnectError(app.ErrNotImplemented)
 }
