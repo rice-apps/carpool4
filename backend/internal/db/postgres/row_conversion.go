@@ -43,7 +43,7 @@ func mapLoadedRide(ride sqlc.Ride, owner sqlc.User, departure, arrival sqlc.Loca
 		mappedRiders[i] = mapUser(rider)
 	}
 	return app.LoadedRide{
-		ID: ride.ID, DepartureDate: ride.DepartureDate,
+		ID: ride.ID, DepartureTime: ride.DepartureTime,
 		Owner: mapUser(owner), Departure: mapLocation(departure), Arrival: mapLocation(arrival), Riders: mappedRiders,
 		Notes: ride.Notes, Capacity: ride.Capacity, Status: app.RideStatus(ride.Status),
 	}, nil

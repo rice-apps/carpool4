@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
-	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
+
 	"github.com/google/uuid"
+
+	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
 
 // ListContactVisibleUserIDs returns target IDs whose contact details viewerID

@@ -48,7 +48,7 @@ type LocationRecord struct {
 //
 // Fields:
 //   - ID: stable ride ID.
-//   - DepartureDate: scheduled departure time.
+//   - DepartureTime: scheduled departure time.
 //   - Owner: driver's complete stored profile.
 //   - Departure: selected starting location.
 //   - Arrival: selected destination.
@@ -58,7 +58,7 @@ type LocationRecord struct {
 //   - Status: active or cancelled state.
 type LoadedRide struct {
 	ID            uuid.UUID
-	DepartureDate time.Time
+	DepartureTime time.Time
 	Owner         UserRecord
 	Departure     LocationRecord
 	Arrival       LocationRecord
@@ -82,13 +82,13 @@ var (
 // RideWriteParams contains the editable fields of a ride.
 //
 // Fields:
-//   - DepartureDate: requested departure time.
+//   - DepartureTime: requested departure time.
 //   - DepartureLocationID: selected starting location ID.
 //   - ArrivalLocationID: selected destination ID.
 //   - Notes: driver's trip details.
 //   - Capacity: total seats, including the driver's seat.
 type RideWriteParams struct {
-	DepartureDate       time.Time
+	DepartureTime       time.Time
 	DepartureLocationID uuid.UUID
 	ArrivalLocationID   uuid.UUID
 	Notes               string
@@ -148,8 +148,8 @@ type Transaction interface {
 // UserRepository reads and saves profiles and checks which contacts a viewer
 // may see.
 type UserRepository interface {
-	// FindUser loads id's profile or returns ErrUserNotFound.
-	FindUser(ctx context.Context, id uuid.UUID) (UserRecord, error)
+	// FindUser loads userID's profile or returns ErrUserNotFound.
+	FindUser(ctx context.Context, userID uuid.UUID) (UserRecord, error)
 	// UpsertUser stores params and returns the complete stored profile.
 	UpsertUser(ctx context.Context, params UserWriteParams) (UserRecord, error)
 	// ListContactVisibleUserIDs returns targetIDs whose contacts viewerID may see.

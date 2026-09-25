@@ -15,9 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/cors"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rs/cors"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"

@@ -1,77 +1,145 @@
-# RiceApps Studio Carpool
+# Rice Carpool
 
-Build a ridesharing app for Rice students. The frontend, API contract, database schema, authentication, and shared backend infrastructure are provided. Your pair implements its assigned operations through the RPC, application, Postgres, and SQL layers. Find your pair's tasks in the class tasking platform.
+Rice Carpool is a ridesharing platform built for the Rice University community. It connects students to coordinate shared travel, making it simple to organize and join rides between Rice, Houston airports, and surrounding areas.
 
-## Start locally
+---
 
-Install Go 1.27.1+, Node 20.19+, and Docker Desktop. Ask the leads for the shared Google OAuth development credentials. Start Docker Desktop, then make a local `.env` from `.env.example`:
+## Prerequisites
 
-```powershell
-# Windows PowerShell
-Copy-Item .env.example .env
-```
+Ensure you have the following installed before getting started:
 
-```bash
-# macOS or Linux
-cp .env.example .env
-```
+- **Go**
+- **Node.js**
+- **Docker Desktop**
 
-Add the supplied values for `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`. Do not commit `.env`.
+> [!NOTE]
+> Request the shared **Google OAuth development credentials** from the leads before starting local configuration.
 
-From the repository root:
+---
 
-```bash
-npm run setup   # first time; checks tools and installs dependencies
-npm run dev     # local database, backend, and frontend
-```
+## Getting Started
 
-Open <http://localhost:3000>. Press Ctrl+C to stop the local services. `npm run setup` starts Supabase briefly to validate the environment, then stops it. `npm run dev` starts Supabase on ports 54321 and 54322, the Go backend on 8080, and Next.js on 3000. All data stays in your local Docker environment.
+### 1. Environment Configuration
 
-The operation methods start as stubs. Search for `TODO(student)` to find the unfinished RPC, application, Postgres, and SQL work. Requests for unfinished operations return Connect `Unimplemented`; the starter behavior tests run and fail until your pair implements them.
+1. Start **Docker Desktop**.
+2. Create a local `.env` file from `.env.example`:
 
-## Find your code
+   ```bash
+   # macOS or Linux
+   cp .env.example .env
+   ```
 
-| Path | Purpose |
-| --- | --- |
-| `proto/carpool/v1/` | API messages and request validation |
-| `backend/internal/rpc/` | Parse requests, call the application service, and build responses |
-| `backend/internal/app/` | Business rules, authorization, transactions, and contact privacy |
-| `backend/internal/db/postgres/` | Convert application records to and from sqlc calls |
-| `backend/internal/db/queries/` | SQL query source; assigned queries have headers to fill |
-| `supabase/migrations/` | Database schema |
-| `frontend/src/` | Supplied client |
+   ```powershell
+   # Windows PowerShell
+   Copy-Item .env.example .env
+   ```
 
-Follow one request through files with matching names: `profile.go`, `locations.go`, `ride_details.go`, `ride_management.go`, `ride_membership.go`, or `ride_lists.go`. The application owns the repository interfaces in `backend/internal/app/repository.go`. Pairs can code against those interfaces while another pair completes a shared repository method. Coordinate early on `FindUser`, `GetRide`, and `AddRideOccupant`.
+3. Add the supplied Google OAuth values to your `.env` file:
+   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
+   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`
 
-## Backend rules
+> [!WARNING]
+> Do **not** commit `.env` to version control.
 
-- Read the verified caller through `rpc.actorFromContext`. Request IDs select targets; they do not establish caller identity.
-- Begin every storage operation through `app.Database.BeginTx`. Repositories from that transaction share one Serializable snapshot. Defer rollback; build an authorized mutation result before committing.
-- Use `app.projectUser` and `app.projectRides` for contact visibility. Do not add raw stored contacts to RPC responses.
-- Keep RPC methods focused on parsing, the service call, error mapping, and protobuf conversion. Business rules belong in `app`; sqlc conversion belongs in `db/postgres`.
-- Edit `.proto` and `.sql` sources, then regenerate. Do not edit `backend/internal/gen/`, `backend/internal/db/sqlc/`, or `frontend/src/gen/` by hand.
+### 2. Installation & Running
 
-## Tests and generation
-
-Run backend commands from `backend/` and frontend commands from `frontend/`:
+Run the following commands from the repository root:
 
 ```bash
-cd backend
-go build ./...
-go test ./...
-sqlc generate
-sqlc diff
+# First time setup: checks tools and installs dependencies
+npm run setup
+
+# Start local database, backend, and frontend
+npm run dev
 ```
 
-There are two active starter cases per operation. They are expected to fail at first. Make your assigned cases pass, then add tests for other rules and edge cases. The operation test check in CI is visible but initially does not block merges; build and generation checks must pass.
+_Press `Ctrl+C` to stop local services._
 
-For database integration tests, use `backend/internal/testutil.SetupTestDB`. It starts a disposable PostgreSQL container when Docker is available, or uses an explicitly disposable `TEST_DATABASE_URL`. It ignores `DATABASE_URL`.
+### Port & Service Overview
 
-For protobuf generation, run `buf generate` in `proto/`. For frontend generation, run `npm run generate` in `frontend/`. The repository pins buf 1.73.0 in CI and sqlc 1.31.1. Install those tools when you begin changing the contract or queries.
+| Service                 | Port(s)          | Description                                   |
+| :---------------------- | :--------------- | :-------------------------------------------- |
+| **Frontend**            | `3000`           | Next.js application (<http://localhost:3000>) |
+| **Backend**             | `8080`           | Go Connect RPC server                         |
+| **Supabase / Database** | `54321`, `54322` | Local PostgreSQL instance                     |
 
-Other root commands: `npm run db:start`, `npm run db:reset`, `npm run db:stop`, `npm run backend`, and `npm run frontend`.
+> [!NOTE]
+>
+> - `npm run setup` starts Supabase briefly to validate the environment, then stops it.
+> - `npm run dev` keeps all data localized within your local Docker environment.
+
+---
+
+## Finding Your Code
+
+### Workspace Structure
+
+| Path                            | Purpose                                                                   |
+| :------------------------------ | :------------------------------------------------------------------------ |
+| `proto/carpool/v1/`             | API Protocol Buffer messages and request validation schemas               |
+| `backend/internal/rpc/`         | Parse requests, invoke application services, and construct RPC responses  |
+| `backend/internal/app/`         | Business rules, authorization, database transactions, and contact privacy |
+| `backend/internal/db/postgres/` | Convert application records to and from `sqlc` database calls             |
+| `backend/internal/db/queries/`  | SQL query sources; assigned queries contain headers to fill               |
+| `supabase/migrations/`          | Database schema migrations                                                |
+| `frontend/src/`                 | Pre-built frontend client                                                 |
+
+---
+
+## Backend Rules
+
+> [!IMPORTANT]
+> Follow these guidelines strictly when writing backend logic:
+
+1. **Caller Verification**: Read the verified caller context through `rpc.actorFromContext`. Request IDs select target entities; they do **not** establish caller identity.
+2. **Transaction Integrity**: Begin every storage operation via `app.Database.BeginTx`. Repositories created from that transaction share a single `Serializable` snapshot. Defer rollback and build an authorized mutation result before committing.
+3. **Contact Privacy**: Enforce privacy rules using `app.projectUser` and `app.projectRides`. Do **not** expose raw stored contact information in RPC responses.
+4. **Layer Separation**:
+   - **RPC layer**: Parsing, service invocation, error mapping, and protobuf conversion.
+   - **App layer (`app/`)**: Business logic and domain rules.
+   - **DB layer (`db/postgres/`)**: `sqlc` data conversion.
+5. **Code Generation**: Edit `.proto` and `.sql` source files, then regenerate code. **Do not** manually edit generated files in `backend/internal/gen/`, `backend/internal/db/sqlc/`, or `frontend/src/gen/`.
+
+---
+
+## Testing & Code Generation
+
+### Commands Quick Reference
+
+#### Backend Development (run from `backend/`)
+
+```bash
+go build ./...    # Compile backend packages
+go test ./...     # Run backend test suite
+sqlc generate     # Generate Go code from SQL queries
+sqlc diff         # Verify SQL query changes against database schema
+```
+
+#### Code Generation Tools
+
+- **Protobuf**: Run `buf generate` in `proto/`.
+- **Frontend**: Run `npm run generate` in `frontend/`.
+
+#### Root Convenience Scripts
+
+```bash
+npm run db:start   # Start local Supabase database
+npm run db:stop    # Stop Supabase database
+npm run db:reset   # Reset local Supabase database
+npm run backend    # Run Go backend individually
+npm run frontend   # Run Next.js frontend individually
+```
+
+### Testing Guidelines
+
+- **Database Integration Tests**: Use `backend/internal/testutil.SetupTestDB`. It boots a disposable PostgreSQL container when Docker is available or uses an explicitly set `TEST_DATABASE_URL`. It ignores standard `DATABASE_URL`.
+- **CI Pipeline**: Operation test checks are visible in CI (initially non-blocking to allow incremental merges). Build and code generation checks **must** pass.
+
+---
 
 ## Contributors
+
+Built by [RiceApps Studio](https://riceapps.org/students) :>
 
 - Andrew Chu
 - Calvin Wong

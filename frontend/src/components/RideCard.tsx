@@ -3,14 +3,14 @@ import { ArrowUpRight, Clock, Users } from "@phosphor-icons/react";
 import type { Ride } from "../gen/carpool/v1/ride_pb";
 import {
   availableSeats,
-  departureDate,
+  departureTime,
   formatDeparture,
   rideState,
 } from "../lib/ride";
 
 export function RideCard({ ride }: { ride: Ride }) {
   const state = rideState(ride);
-  const departure = departureDate(ride);
+  const departure = departureTime(ride);
 
   return (
     <Link href={`/rides/${ride.id}`} className="ride-card">

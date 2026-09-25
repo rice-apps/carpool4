@@ -28,8 +28,11 @@ type RideStatus int32
 
 const (
 	RideStatus_RIDE_STATUS_UNSPECIFIED RideStatus = 0
-	RideStatus_RIDE_STATUS_ACTIVE      RideStatus = 1
-	RideStatus_RIDE_STATUS_CANCELLED   RideStatus = 2
+	// Indicates an active non-cancelled trip. Note that active trips may have
+	// departure times in the past if retained in history without cancellation.
+	RideStatus_RIDE_STATUS_ACTIVE RideStatus = 1
+	// Indicates a trip cancelled by its owner, retained in history but closed to joining.
+	RideStatus_RIDE_STATUS_CANCELLED RideStatus = 2
 )
 
 // Enum value maps for RideStatus.
@@ -139,7 +142,7 @@ func (x *Location) GetAddress() string {
 type Ride struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	DepartureDate     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=departure_date,json=departureDate,proto3" json:"departure_date,omitempty"`
+	DepartureTime     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=departure_time,json=departureTime,proto3" json:"departure_time,omitempty"`
 	DepartureLocation *Location              `protobuf:"bytes,3,opt,name=departure_location,json=departureLocation,proto3" json:"departure_location,omitempty"`
 	ArrivalLocation   *Location              `protobuf:"bytes,4,opt,name=arrival_location,json=arrivalLocation,proto3" json:"arrival_location,omitempty"`
 	Owner             *User                  `protobuf:"bytes,5,opt,name=owner,proto3" json:"owner,omitempty"`
@@ -190,9 +193,9 @@ func (x *Ride) GetId() string {
 	return ""
 }
 
-func (x *Ride) GetDepartureDate() *timestamppb.Timestamp {
+func (x *Ride) GetDepartureTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.DepartureDate
+		return x.DepartureTime
 	}
 	return nil
 }
@@ -536,7 +539,7 @@ func (x *ListMyRidesResponse) GetRides() []*Ride {
 // CreateRideRequest supplies trip details; the owner comes from the caller's token.
 type CreateRideRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	DepartureDate       *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=departure_date,json=departureDate,proto3" json:"departure_date,omitempty"`
+	DepartureTime       *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=departure_time,json=departureTime,proto3" json:"departure_time,omitempty"`
 	DepartureLocationId string                 `protobuf:"bytes,2,opt,name=departure_location_id,json=departureLocationId,proto3" json:"departure_location_id,omitempty"`
 	ArrivalLocationId   string                 `protobuf:"bytes,3,opt,name=arrival_location_id,json=arrivalLocationId,proto3" json:"arrival_location_id,omitempty"`
 	Notes               string                 `protobuf:"bytes,4,opt,name=notes,proto3" json:"notes,omitempty"`
@@ -576,9 +579,9 @@ func (*CreateRideRequest) Descriptor() ([]byte, []int) {
 	return file_carpool_v1_ride_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *CreateRideRequest) GetDepartureDate() *timestamppb.Timestamp {
+func (x *CreateRideRequest) GetDepartureTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.DepartureDate
+		return x.DepartureTime
 	}
 	return nil
 }
@@ -660,7 +663,7 @@ func (x *CreateRideResponse) GetRide() *Ride {
 type UpdateRideRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	DepartureDate       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=departure_date,json=departureDate,proto3" json:"departure_date,omitempty"`
+	DepartureTime       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=departure_time,json=departureTime,proto3" json:"departure_time,omitempty"`
 	DepartureLocationId string                 `protobuf:"bytes,3,opt,name=departure_location_id,json=departureLocationId,proto3" json:"departure_location_id,omitempty"`
 	ArrivalLocationId   string                 `protobuf:"bytes,4,opt,name=arrival_location_id,json=arrivalLocationId,proto3" json:"arrival_location_id,omitempty"`
 	Notes               string                 `protobuf:"bytes,5,opt,name=notes,proto3" json:"notes,omitempty"`
@@ -707,9 +710,9 @@ func (x *UpdateRideRequest) GetId() string {
 	return ""
 }
 
-func (x *UpdateRideRequest) GetDepartureDate() *timestamppb.Timestamp {
+func (x *UpdateRideRequest) GetDepartureTime() *timestamppb.Timestamp {
 	if x != nil {
-		return x.DepartureDate
+		return x.DepartureTime
 	}
 	return nil
 }
@@ -1144,14 +1147,14 @@ var File_carpool_v1_ride_proto protoreflect.FileDescriptor
 const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\n" +
 	"\x15carpool/v1/ride.proto\x12\n" +
-	"carpool.v1\x1a\x15carpool/v1/user.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"J\n" +
+	"carpool.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15carpool/v1/user.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"J\n" +
 	"\bLocation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
 	"\aaddress\x18\x03 \x01(\tR\aaddress\"\x93\x03\n" +
 	"\x04Ride\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12A\n" +
-	"\x0edeparture_date\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rdepartureDate\x12C\n" +
+	"\x0edeparture_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rdepartureTime\x12C\n" +
 	"\x12departure_location\x18\x03 \x01(\v2\x14.carpool.v1.LocationR\x11departureLocation\x12?\n" +
 	"\x10arrival_location\x18\x04 \x01(\v2\x14.carpool.v1.LocationR\x0farrivalLocation\x12&\n" +
 	"\x05owner\x18\x05 \x01(\v2\x10.carpool.v1.UserR\x05owner\x12(\n" +
@@ -1162,7 +1165,7 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x0eGetRideRequest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"7\n" +
 	"\x0fGetRideResponse\x12$\n" +
-	"\x04ride\x18\x01 \x01(\v2\x10.carpool.v1.RideR\x04ride\"\x91\x03\n" +
+	"\x04ride\x18\x01 \x01(\v2\x10.carpool.v1.RideR\x04ride\"\x85\x03\n" +
 	"\x10ListRidesRequest\x12A\n" +
 	"\x15departure_location_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x13departureLocationId\x88\x01\x01\x12=\n" +
 	"\x13arrival_location_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x11arrivalLocationId\x88\x01\x01\x12H\n" +
@@ -1171,14 +1174,14 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x16_departure_location_idB\x16\n" +
 	"\x14_arrival_location_idB\x12\n" +
 	"\x10_departure_afterB\x13\n" +
-	"\x11_departure_beforeJ\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"A\n" +
+	"\x11_departure_before\";\n" +
 	"\x11ListRidesResponse\x12&\n" +
-	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05ridesJ\x04\b\x02\x10\x03\" \n" +
-	"\x12ListMyRidesRequestJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03\"C\n" +
+	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05rides\"\x14\n" +
+	"\x12ListMyRidesRequest\"=\n" +
 	"\x13ListMyRidesResponse\x12&\n" +
-	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05ridesJ\x04\b\x02\x10\x03\"\x9b\x02\n" +
+	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05rides\"\x9b\x02\n" +
 	"\x11CreateRideRequest\x12I\n" +
-	"\x0edeparture_date\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\rdepartureDate\x12<\n" +
+	"\x0edeparture_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\rdepartureTime\x12<\n" +
 	"\x15departure_location_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x13departureLocationId\x128\n" +
 	"\x13arrival_location_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x11arrivalLocationId\x12\x1e\n" +
 	"\x05notes\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\x05notes\x12#\n" +
@@ -1187,7 +1190,7 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x04ride\x18\x01 \x01(\v2\x10.carpool.v1.RideR\x04ride\"\xb5\x02\n" +
 	"\x11UpdateRideRequest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12I\n" +
-	"\x0edeparture_date\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\rdepartureDate\x12<\n" +
+	"\x0edeparture_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\rdepartureTime\x12<\n" +
 	"\x15departure_location_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x13departureLocationId\x128\n" +
 	"\x13arrival_location_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x11arrivalLocationId\x12\x1e\n" +
 	"\x05notes\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\x05notes\x12#\n" +
@@ -1268,7 +1271,7 @@ var file_carpool_v1_ride_proto_goTypes = []any{
 	(*User)(nil),                  // 22: carpool.v1.User
 }
 var file_carpool_v1_ride_proto_depIdxs = []int32{
-	21, // 0: carpool.v1.Ride.departure_date:type_name -> google.protobuf.Timestamp
+	21, // 0: carpool.v1.Ride.departure_time:type_name -> google.protobuf.Timestamp
 	1,  // 1: carpool.v1.Ride.departure_location:type_name -> carpool.v1.Location
 	1,  // 2: carpool.v1.Ride.arrival_location:type_name -> carpool.v1.Location
 	22, // 3: carpool.v1.Ride.owner:type_name -> carpool.v1.User
@@ -1279,9 +1282,9 @@ var file_carpool_v1_ride_proto_depIdxs = []int32{
 	21, // 8: carpool.v1.ListRidesRequest.departure_before:type_name -> google.protobuf.Timestamp
 	2,  // 9: carpool.v1.ListRidesResponse.rides:type_name -> carpool.v1.Ride
 	2,  // 10: carpool.v1.ListMyRidesResponse.rides:type_name -> carpool.v1.Ride
-	21, // 11: carpool.v1.CreateRideRequest.departure_date:type_name -> google.protobuf.Timestamp
+	21, // 11: carpool.v1.CreateRideRequest.departure_time:type_name -> google.protobuf.Timestamp
 	2,  // 12: carpool.v1.CreateRideResponse.ride:type_name -> carpool.v1.Ride
-	21, // 13: carpool.v1.UpdateRideRequest.departure_date:type_name -> google.protobuf.Timestamp
+	21, // 13: carpool.v1.UpdateRideRequest.departure_time:type_name -> google.protobuf.Timestamp
 	2,  // 14: carpool.v1.UpdateRideResponse.ride:type_name -> carpool.v1.Ride
 	2,  // 15: carpool.v1.CancelRideResponse.ride:type_name -> carpool.v1.Ride
 	2,  // 16: carpool.v1.JoinRideResponse.ride:type_name -> carpool.v1.Ride

@@ -3,9 +3,11 @@ package rpc
 import (
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
+
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
-	"github.com/google/uuid"
 )
 
 // actorFromContext returns the verified user's ID and email as an application actor.
@@ -19,5 +21,5 @@ func actorFromContext(ctx context.Context) (app.Actor, error) {
 		return app.Actor{}, fmt.Errorf("%w: invalid caller ID", app.ErrUnauthenticated)
 	}
 	// Only authentication middleware can supply these fields; request IDs name targets.
-	return app.Actor{ID: user.ID, Email: user.Email}, nil
+	return app.Actor{UserID: user.ID, Email: user.Email}, nil
 }

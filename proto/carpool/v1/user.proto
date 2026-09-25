@@ -1,9 +1,9 @@
 syntax = "proto3";
 package carpool.v1;
 
-option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
-
 import "buf/validate/validate.proto";
+
+option go_package = "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1;carpoolv1";
 
 // User is a profile projected for the viewer. Contact fields may be blank
 // when the viewer has not shared a ride with this user.
@@ -37,18 +37,21 @@ message GetUserResponse {
 // the verified Supabase token rather than client input.
 message UpdateUserRequest {
   string first_name = 1 [(buf.validate.field).string = {
-    min_len: 1,
-    max_len: 100,
+    min_len: 1
+    max_len: 100
+    // Must contain at least one non-whitespace character.
     pattern: ".*\\S.*"
   }];
   string last_name = 2 [(buf.validate.field).string = {
-    min_len: 1,
-    max_len: 100,
+    min_len: 1
+    max_len: 100
+    // Must contain at least one non-whitespace character.
     pattern: ".*\\S.*"
   }];
   // Phone may be empty, but a driver must provide one before creating a ride.
   string phone = 3 [(buf.validate.field).string = {
-    max_len: 32,
+    max_len: 32
+    // Must contain at least one non-whitespace character or be empty.
     pattern: "^$|.*\\S.*"
   }];
 }
