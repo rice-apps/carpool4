@@ -148,8 +148,8 @@ type Transaction interface {
 // UserRepository reads and saves profiles and checks which contacts a viewer
 // may see.
 type UserRepository interface {
-	// FindUser loads id's profile or returns ErrUserNotFound.
-	FindUser(ctx context.Context, id uuid.UUID) (UserRecord, error)
+	// FindUser loads userID's profile or returns ErrUserNotFound.
+	FindUser(ctx context.Context, userID uuid.UUID) (UserRecord, error)
 	// UpsertUser stores params and returns the complete stored profile.
 	UpsertUser(ctx context.Context, params UserWriteParams) (UserRecord, error)
 	// ListContactVisibleUserIDs returns targetIDs whose contacts viewerID may see.

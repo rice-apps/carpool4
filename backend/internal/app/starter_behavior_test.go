@@ -16,7 +16,7 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("GetUser/self contact", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).GetUser(ctx, Actor{ID: f.owner.ID}, nil)
+		got, err := NewService(f.db).GetUser(ctx, Actor{UserID: f.owner.ID}, nil)
 		if err != nil || got.ID != f.owner.ID || got.Email != f.owner.Email {
 			t.Fatalf("GetUser = %#v, %v; want caller's full profile", got, err)
 		}
@@ -24,7 +24,7 @@ func TestStarterBehavior(t *testing.T) {
 	t.Run("GetUser/unrelated contact redacted", func(t *testing.T) {
 		f := newStarterFixture()
 		target := f.rider.ID
-		got, err := NewService(f.db).GetUser(ctx, Actor{ID: f.stranger.ID}, &target)
+		got, err := NewService(f.db).GetUser(ctx, Actor{UserID: f.stranger.ID}, &target)
 		if err != nil || got.ID != target || got.Email != "" || got.Phone != "" {
 			t.Fatalf("GetUser = %#v, %v; want target without contact fields", got, err)
 		}
@@ -32,15 +32,15 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("UpdateUser/saves verified actor", func(t *testing.T) {
 		f := newStarterFixture()
-		actor := Actor{ID: f.owner.ID, Email: "  owner@rice.edu  "}
+		actor := Actor{UserID: f.owner.ID, Email: "  owner@rice.edu  "}
 		got, err := NewService(f.db).UpdateUser(ctx, actor, UserInput{FirstName: "  Ada  ", LastName: "  Rice  ", Phone: "  713-555-0100  "})
-		if err != nil || got.ID != actor.ID || got.FirstName != "Ada" || got.Email != "owner@rice.edu" || f.db.saved.ID != actor.ID || f.db.commits != 1 {
+		if err != nil || got.ID != actor.UserID || got.FirstName != "Ada" || got.Email != "owner@rice.edu" || f.db.saved.ID != actor.UserID || f.db.commits != 1 {
 			t.Fatalf("UpdateUser = %#v, %v; saved = %#v, commits = %d", got, err, f.db.saved, f.db.commits)
 		}
 	})
 	t.Run("UpdateUser/rejects blank name", func(t *testing.T) {
 		f := newStarterFixture()
-		_, err := NewService(f.db).UpdateUser(ctx, Actor{ID: f.owner.ID, Email: f.owner.Email}, UserInput{LastName: "Rice"})
+		_, err := NewService(f.db).UpdateUser(ctx, Actor{UserID: f.owner.ID, Email: f.owner.Email}, UserInput{LastName: "Rice"})
 		if !errors.Is(err, ErrInvalidArgument) || f.db.commits != 0 {
 			t.Fatalf("UpdateUser error = %v, commits = %d; want invalid argument without commit", err, f.db.commits)
 		}
@@ -48,7 +48,7 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("ListLocations/returns ordered locations", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).ListLocations(ctx, Actor{ID: f.owner.ID})
+		got, err := NewService(f.db).ListLocations(ctx, Actor{UserID: f.owner.ID})
 		if err != nil || len(got) != 2 || got[0].Title != "Airport" || got[1].Title != "Rice" {
 			t.Fatalf("ListLocations = %#v, %v; want two ordered locations", got, err)
 		}
@@ -63,14 +63,14 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("GetRide/loads ride", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).GetRide(ctx, Actor{ID: f.owner.ID}, f.db.ride.ID)
+		got, err := NewService(f.db).GetRide(ctx, Actor{UserID: f.owner.ID}, f.db.ride.ID)
 		if err != nil || got.ID != f.db.ride.ID || got.Owner.Email != f.owner.Email || len(got.Riders) != 1 {
 			t.Fatalf("GetRide = %#v, %v; want owner-visible ride", got, err)
 		}
 	})
 	t.Run("GetRide/redacts stranger contacts", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).GetRide(ctx, Actor{ID: f.stranger.ID}, f.db.ride.ID)
+		got, err := NewService(f.db).GetRide(ctx, Actor{UserID: f.stranger.ID}, f.db.ride.ID)
 		if err != nil || got.ID != f.db.ride.ID || got.Owner.Email != "" || got.Owner.Phone != "" {
 			t.Fatalf("GetRide = %#v, %v; want ride without owner contact", got, err)
 		}
@@ -78,7 +78,7 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("CreateRide/owner takes first seat", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).CreateRide(ctx, Actor{ID: f.owner.ID}, f.input)
+		got, err := NewService(f.db).CreateRide(ctx, Actor{UserID: f.owner.ID}, f.input)
 		if err != nil || got.Owner.ID != f.owner.ID || len(got.Riders) != 1 || got.Riders[0].ID != f.owner.ID || f.db.commits != 1 {
 			t.Fatalf("CreateRide = %#v, %v; commits = %d", got, err, f.db.commits)
 		}
@@ -88,7 +88,7 @@ func TestStarterBehavior(t *testing.T) {
 		owner := f.owner
 		owner.Phone = ""
 		f.db.users[owner.ID] = owner
-		_, err := NewService(f.db).CreateRide(ctx, Actor{ID: owner.ID}, f.input)
+		_, err := NewService(f.db).CreateRide(ctx, Actor{UserID: owner.ID}, f.input)
 		if !errors.Is(err, ErrPhoneRequired) || f.db.commits != 0 {
 			t.Fatalf("CreateRide error = %v, commits = %d; want phone prerequisite", err, f.db.commits)
 		}
@@ -98,7 +98,7 @@ func TestStarterBehavior(t *testing.T) {
 		f := newStarterFixture()
 		f.input.Notes = "New pickup point"
 		f.input.Capacity = 4
-		got, err := NewService(f.db).UpdateRide(ctx, Actor{ID: f.owner.ID}, f.db.ride.ID, f.input)
+		got, err := NewService(f.db).UpdateRide(ctx, Actor{UserID: f.owner.ID}, f.db.ride.ID, f.input)
 		if err != nil || got.Notes != f.input.Notes || got.Capacity != 4 || f.db.commits != 1 {
 			t.Fatalf("UpdateRide = %#v, %v; commits = %d", got, err, f.db.commits)
 		}
@@ -107,7 +107,7 @@ func TestStarterBehavior(t *testing.T) {
 		f := newStarterFixture()
 		f.db.ride.Riders = append(f.db.ride.Riders, f.rider)
 		f.input.Capacity = 1
-		_, err := NewService(f.db).UpdateRide(ctx, Actor{ID: f.owner.ID}, f.db.ride.ID, f.input)
+		_, err := NewService(f.db).UpdateRide(ctx, Actor{UserID: f.owner.ID}, f.db.ride.ID, f.input)
 		if !errors.Is(err, ErrCapacityBelowOccupancy) || f.db.commits != 0 {
 			t.Fatalf("UpdateRide error = %v, commits = %d; want capacity rejection", err, f.db.commits)
 		}
@@ -115,14 +115,14 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("CancelRide/owner cancels", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).CancelRide(ctx, Actor{ID: f.owner.ID}, f.db.ride.ID)
+		got, err := NewService(f.db).CancelRide(ctx, Actor{UserID: f.owner.ID}, f.db.ride.ID)
 		if err != nil || got.Status != RideStatusCancelled || f.db.commits != 1 {
 			t.Fatalf("CancelRide = %#v, %v; commits = %d", got, err, f.db.commits)
 		}
 	})
 	t.Run("CancelRide/nonowner denied", func(t *testing.T) {
 		f := newStarterFixture()
-		_, err := NewService(f.db).CancelRide(ctx, Actor{ID: f.rider.ID}, f.db.ride.ID)
+		_, err := NewService(f.db).CancelRide(ctx, Actor{UserID: f.rider.ID}, f.db.ride.ID)
 		if !errors.Is(err, ErrPermissionDenied) || f.db.commits != 0 {
 			t.Fatalf("CancelRide error = %v, commits = %d; want permission denied", err, f.db.commits)
 		}
@@ -130,7 +130,7 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("JoinRide/adds rider", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).JoinRide(ctx, Actor{ID: f.rider.ID}, f.db.ride.ID)
+		got, err := NewService(f.db).JoinRide(ctx, Actor{UserID: f.rider.ID}, f.db.ride.ID)
 		if err != nil || len(got.Riders) != 2 || got.Riders[1].ID != f.rider.ID || f.db.commits != 1 {
 			t.Fatalf("JoinRide = %#v, %v; commits = %d", got, err, f.db.commits)
 		}
@@ -138,7 +138,7 @@ func TestStarterBehavior(t *testing.T) {
 	t.Run("JoinRide/full ride rejected", func(t *testing.T) {
 		f := newStarterFixture()
 		f.db.ride.Capacity = 1
-		_, err := NewService(f.db).JoinRide(ctx, Actor{ID: f.rider.ID}, f.db.ride.ID)
+		_, err := NewService(f.db).JoinRide(ctx, Actor{UserID: f.rider.ID}, f.db.ride.ID)
 		if !errors.Is(err, ErrFullCapacity) || f.db.commits != 0 {
 			t.Fatalf("JoinRide error = %v, commits = %d; want full capacity", err, f.db.commits)
 		}
@@ -147,14 +147,14 @@ func TestStarterBehavior(t *testing.T) {
 	t.Run("LeaveRide/removes rider", func(t *testing.T) {
 		f := newStarterFixture()
 		f.db.ride.Riders = append(f.db.ride.Riders, f.rider)
-		got, err := NewService(f.db).LeaveRide(ctx, Actor{ID: f.rider.ID}, f.db.ride.ID)
+		got, err := NewService(f.db).LeaveRide(ctx, Actor{UserID: f.rider.ID}, f.db.ride.ID)
 		if err != nil || len(got.Riders) != 1 || got.Riders[0].ID != f.owner.ID || f.db.commits != 1 {
 			t.Fatalf("LeaveRide = %#v, %v; commits = %d", got, err, f.db.commits)
 		}
 	})
 	t.Run("LeaveRide/owner stays on ride", func(t *testing.T) {
 		f := newStarterFixture()
-		_, err := NewService(f.db).LeaveRide(ctx, Actor{ID: f.owner.ID}, f.db.ride.ID)
+		_, err := NewService(f.db).LeaveRide(ctx, Actor{UserID: f.owner.ID}, f.db.ride.ID)
 		if !errors.Is(err, ErrOwnerCannotChangeMembership) || f.db.commits != 0 {
 			t.Fatalf("LeaveRide error = %v, commits = %d; want owner rejection", err, f.db.commits)
 		}
@@ -164,7 +164,7 @@ func TestStarterBehavior(t *testing.T) {
 		f := newStarterFixture()
 		f.db.listed = []LoadedRide{f.db.ride}
 		departureID := f.input.DepartureLocationID
-		got, err := NewService(f.db).ListRides(ctx, Actor{ID: f.stranger.ID}, ListRidesInput{DepartureLocationID: &departureID})
+		got, err := NewService(f.db).ListRides(ctx, Actor{UserID: f.stranger.ID}, ListRidesInput{DepartureLocationID: &departureID})
 		if err != nil || len(got) != 1 || f.db.query == nil || f.db.query.DepartureLocationID == nil || *f.db.query.DepartureLocationID != departureID {
 			t.Fatalf("ListRides = %#v, %v; query = %#v", got, err, f.db.query)
 		}
@@ -172,7 +172,7 @@ func TestStarterBehavior(t *testing.T) {
 	t.Run("ListRides/default lookback", func(t *testing.T) {
 		f := newStarterFixture()
 		before := time.Now().Add(-time.Hour - 5*time.Second)
-		_, err := NewService(f.db).ListRides(ctx, Actor{ID: f.owner.ID}, ListRidesInput{})
+		_, err := NewService(f.db).ListRides(ctx, Actor{UserID: f.owner.ID}, ListRidesInput{})
 		after := time.Now().Add(-time.Hour + 5*time.Second)
 		if err != nil || f.db.query == nil || f.db.query.DepartureAfter.Before(before) || f.db.query.DepartureAfter.After(after) {
 			t.Fatalf("ListRides error = %v, query = %#v; want one-hour lookback", err, f.db.query)
@@ -187,7 +187,7 @@ func TestStarterBehavior(t *testing.T) {
 		joined.Riders = []UserRecord{f.rider, f.owner}
 		joined.Status = RideStatusCancelled
 		f.db.listed = []LoadedRide{f.db.ride, joined}
-		got, err := NewService(f.db).ListMyRides(ctx, Actor{ID: f.owner.ID})
+		got, err := NewService(f.db).ListMyRides(ctx, Actor{UserID: f.owner.ID})
 		if err != nil || len(got) != 2 {
 			t.Fatalf("ListMyRides = %#v, %v; want owned and joined rides", got, err)
 		}
@@ -199,7 +199,7 @@ func TestStarterBehavior(t *testing.T) {
 		unrelated.Owner = f.stranger
 		unrelated.Riders = []UserRecord{f.stranger}
 		f.db.listed = []LoadedRide{f.db.ride, unrelated}
-		got, err := NewService(f.db).ListMyRides(ctx, Actor{ID: f.owner.ID})
+		got, err := NewService(f.db).ListMyRides(ctx, Actor{UserID: f.owner.ID})
 		if err != nil || f.db.myViewer != f.owner.ID || len(got) != 1 || got[0].ID != f.db.ride.ID {
 			t.Fatalf("ListMyRides = %#v, %v; viewer = %s", got, err, f.db.myViewer)
 		}

@@ -21,5 +21,5 @@ func actorFromContext(ctx context.Context) (app.Actor, error) {
 		return app.Actor{}, fmt.Errorf("%w: invalid caller ID", app.ErrUnauthenticated)
 	}
 	// Only authentication middleware can supply these fields; request IDs name targets.
-	return app.Actor{ID: user.ID, Email: user.Email}, nil
+	return app.Actor{UserID: user.ID, Email: user.Email}, nil
 }

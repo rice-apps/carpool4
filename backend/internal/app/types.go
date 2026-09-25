@@ -9,11 +9,11 @@ import (
 // Actor identifies the verified caller of an application method.
 //
 // Fields:
-//   - ID: Supabase user ID used for authorization and profile ownership.
+//   - UserID: Supabase user ID used for authorization and profile ownership.
 //   - Email: verified address stored when the caller saves their profile.
 type Actor struct {
-	ID    uuid.UUID
-	Email string
+	UserID uuid.UUID
+	Email  string
 }
 
 // UserInput contains the profile details a caller may change.

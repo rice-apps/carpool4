@@ -17,7 +17,7 @@ func NewService(database Database) *Service {
 
 // validateActor returns ErrUnauthenticated when actor has no verified ID.
 func validateActor(actor Actor) error {
-	if actor.ID == uuid.Nil {
+	if actor.UserID == uuid.Nil {
 		return ErrUnauthenticated
 	}
 	return nil
