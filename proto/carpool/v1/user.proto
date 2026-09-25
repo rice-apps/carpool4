@@ -48,12 +48,12 @@ message UpdateUserRequest {
     // Must contain at least one non-whitespace character.
     pattern: ".*\\S.*"
   }];
-  // Phone is optional, but a driver must provide one before creating a ride.
-  optional string phone = 3 [(buf.validate.field).string = {
+  // Phone may be empty, but a driver must provide one before creating a ride.
+  string phone = 3 [(buf.validate.field).string = {
     min_len: 1
     max_len: 32
-    // Must contain at least one non-whitespace character.
-    pattern: ".*\\S.*"
+    // Must contain at least one non-whitespace character or be empty.
+    pattern: "^$|.*\\S.*"
   }];
 }
 
