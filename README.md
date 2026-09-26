@@ -155,4 +155,4 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Angel  J Guerrero
 - Calvin Wong
 - Katherine Han
-
+- Megan Cung
