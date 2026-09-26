@@ -151,11 +151,12 @@ npm run frontend   # Run Next.js frontend individually
 
 Built by [RiceApps Studio](https://riceapps.org/students) :>
 
-- Liya Ferede
 - Andrew Chu
 - Angel  J Guerrero
 - Calvin Wong
 - Dara Odukoya
+- Eason Tang
 - Katherine Han
+- Liya Ferede
 - Megan Cung
 - Melody Cui
