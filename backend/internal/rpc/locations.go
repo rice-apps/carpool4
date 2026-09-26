@@ -9,11 +9,10 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
-// ListLocations lists locations available to the verified caller.
+// ListLocations lists public locations.
 //
 // Inputs:
-//   - ctx (context.Context): supplies the verified caller and passes
-//     timeout/cancellation to the service call.
+//   - ctx (context.Context): passes timeout/cancellation to the service call.
 //   - req (*connect.Request[carpoolv1.ListLocationsRequest]): an empty request.
 //
 // It returns protobuf locations on success or a Connect error on failure.

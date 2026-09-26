@@ -91,14 +91,23 @@ _Press `Ctrl+C` to stop local services._
 > [!IMPORTANT]
 > Follow these guidelines strictly when writing backend logic:
 
-1. **Caller Verification**: Read the verified caller context through `rpc.actorFromContext`. Request IDs select target entities; they do **not** establish caller identity.
+1. **Caller Verification**: `ListRides`, `GetRide`, and `ListLocations` allow a missing bearer token. A supplied invalid token is rejected. Every other RPC requires `rpc.actorFromContext`. Request IDs select target entities; they do **not** establish caller identity.
 2. **Transaction Integrity**: Begin every storage operation via `app.Database.BeginTx`. Repositories created from that transaction share a single `Serializable` snapshot. Defer rollback and build an authorized mutation result before committing.
-3. **Contact Privacy**: Enforce privacy rules using `app.projectUser` and `app.projectRides`. Do **not** expose raw stored contact information in RPC responses.
+3. **Contact Privacy**: Enforce privacy rules using `app.projectUser` and `app.projectRides`. Guest ride responses include trip facts and `occupied_seats`, but no owner, riders, or notes. Signed-in users see contacts only when permitted. Do **not** expose raw stored contact information in RPC responses.
 4. **Layer Separation**:
    - **RPC layer**: Parsing, service invocation, error mapping, and protobuf conversion.
    - **App layer (`app/`)**: Business logic and domain rules.
    - **DB layer (`db/postgres/`)**: `sqlc` data conversion.
 5. **Code Generation**: Edit `.proto` and `.sql` source files, then regenerate code. **Do not** manually edit generated files in `backend/internal/gen/`, `backend/internal/db/sqlc/`, or `frontend/src/gen/`.
+
+### Public browsing contract
+
+The assigned backend operations start as stubs. Their implementations must follow these rules:
+
+- Visitors can list locations and active rides without signing in. Discovery includes full rides and excludes departures more than one hour in the past.
+- A visitor can open a ride only while it qualifies for discovery. Cancelled and older rides return `NotFound` to visitors; signed-in users can still open their ride history.
+- Public ride results include the route, departure time, capacity, status, and occupied seats (including the driver). They omit the owner, riders, and notes. Signed-in results retain the existing contact privacy rules.
+- Discovery and ride detail pages are public. Profile, ride history, creation, editing, and ride actions require sign-in and a completed profile. After sign-in and onboarding, the frontend returns users to their intended page.
 
 ---
 
@@ -134,6 +143,7 @@ npm run frontend   # Run Next.js frontend individually
 
 - **Database Integration Tests**: Use `backend/internal/testutil.SetupTestDB`. It boots a disposable PostgreSQL container when Docker is available or uses an explicitly set `TEST_DATABASE_URL`. It ignores standard `DATABASE_URL`.
 - **CI Pipeline**: Operation test checks are visible in CI (initially non-blocking to allow incremental merges). Build and code generation checks **must** pass.
+- **Frontend Checks**: From `frontend/`, run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`. Install the browser once with `npx playwright install chromium`, then run `npm run test:e2e` for mocked public-browsing flows.
 
 ---
 

@@ -8,19 +8,19 @@ import (
 // rideDiscoveryLookback is how long departed rides remain in discovery results.
 const rideDiscoveryLookback = time.Hour
 
-// ListRides returns rides matching input for actor to view.
+// ListRides returns rides matching input for an authenticated or anonymous viewer.
 //
 // Inputs:
 //   - ctx (context.Context): passes the request's timeout or cancellation
 //     to the database calls.
-//   - actor (Actor): identifies who is viewing the rides.
+//   - actor (Actor): identifies the viewer, or is empty for a guest.
 //   - input (ListRidesInput): optionally filters departure and arrival
 //     locations and departure times.
 //
 // Results may include rides departed within the past hour, but never rides
 // older than input.DepartureAfter when that bound is later. Contacts are shown
-// only when actor may see them. A missing caller or storage failure returns
-// an error.
+// only when actor may see them. Guest results omit people and notes. Storage
+// failures return an error.
 func (s *Service) ListRides(ctx context.Context, actor Actor, input ListRidesInput) ([]Ride, error) {
 	// TODO(student): Implement ListRides application logic.
 	return nil, ErrNotImplemented

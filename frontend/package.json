@@ -6,7 +6,9 @@
     "dev": "next dev",
     "generate": "buf generate --include-imports ../proto",
     "build": "next build",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests playwright.config.ts",
+    "test": "node --import tsx --test src/lib/ride.test.ts src/lib/returnTo.test.ts",
+    "test:e2e": "playwright test",
     "preview": "next start"
   },
   "dependencies": {
@@ -24,10 +26,12 @@
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.14.1",
     "@connectrpc/protoc-gen-connect-query": "^2.3.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "oxlint": "^1.79.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2"
   }
 }

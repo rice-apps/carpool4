@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@connectrpc/connect-query";
 import {
@@ -15,8 +16,12 @@ import {
 } from "../../gen/carpool/v1/ride-RideService_connectquery";
 import { RideCard } from "../../components/RideCard";
 import { requestErrorMessage } from "../../lib/requestError";
+import { useAuth } from "../../lib/auth";
+import { returnToKey, safeReturnTo } from "../../lib/returnTo";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { session, loading } = useAuth();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const locations = useQuery(listLocations, {});
@@ -24,6 +29,13 @@ export default function HomePage() {
     departureLocationId: from || undefined,
     arrivalLocationId: to || undefined,
   });
+
+  useEffect(() => {
+    if (loading || !session) return;
+    const destination = safeReturnTo(sessionStorage.getItem(returnToKey));
+    sessionStorage.removeItem(returnToKey);
+    if (destination !== "/") router.replace(destination);
+  }, [loading, session, router]);
 
   return (
     <>

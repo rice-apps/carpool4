@@ -10,8 +10,11 @@ lerna-debug.log*
 node_modules
 *.local
 .next
+playwright-report/
+test-results/
 out
 next-env.d.ts
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*

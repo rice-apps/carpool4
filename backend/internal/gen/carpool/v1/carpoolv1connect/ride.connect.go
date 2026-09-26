@@ -56,9 +56,9 @@ const (
 
 // RideServiceClient is a client for the carpool.v1.RideService service.
 type RideServiceClient interface {
-	// GetRide returns one trip with contact details projected for the caller.
+	// GetRide returns one trip projected for an authenticated or anonymous viewer.
 	GetRide(context.Context, *connect.Request[v1.GetRideRequest]) (*connect.Response[v1.GetRideResponse], error)
-	// ListRides finds active trips matching optional route and time filters.
+	// ListRides finds active trips for authenticated or anonymous viewers.
 	ListRides(context.Context, *connect.Request[v1.ListRidesRequest]) (*connect.Response[v1.ListRidesResponse], error)
 	// ListMyRides returns trips the caller owns or occupies, including cancellations.
 	ListMyRides(context.Context, *connect.Request[v1.ListMyRidesRequest]) (*connect.Response[v1.ListMyRidesResponse], error)
@@ -72,7 +72,7 @@ type RideServiceClient interface {
 	JoinRide(context.Context, *connect.Request[v1.JoinRideRequest]) (*connect.Response[v1.JoinRideResponse], error)
 	// LeaveRide removes the caller from a trip they joined; owners cannot leave.
 	LeaveRide(context.Context, *connect.Request[v1.LeaveRideRequest]) (*connect.Response[v1.LeaveRideResponse], error)
-	// ListLocations returns the curated places accepted by ride requests.
+	// ListLocations publicly returns the curated places accepted by ride requests.
 	ListLocations(context.Context, *connect.Request[v1.ListLocationsRequest]) (*connect.Response[v1.ListLocationsResponse], error)
 }
 
@@ -204,9 +204,9 @@ func (c *rideServiceClient) ListLocations(ctx context.Context, req *connect.Requ
 
 // RideServiceHandler is an implementation of the carpool.v1.RideService service.
 type RideServiceHandler interface {
-	// GetRide returns one trip with contact details projected for the caller.
+	// GetRide returns one trip projected for an authenticated or anonymous viewer.
 	GetRide(context.Context, *connect.Request[v1.GetRideRequest]) (*connect.Response[v1.GetRideResponse], error)
-	// ListRides finds active trips matching optional route and time filters.
+	// ListRides finds active trips for authenticated or anonymous viewers.
 	ListRides(context.Context, *connect.Request[v1.ListRidesRequest]) (*connect.Response[v1.ListRidesResponse], error)
 	// ListMyRides returns trips the caller owns or occupies, including cancellations.
 	ListMyRides(context.Context, *connect.Request[v1.ListMyRidesRequest]) (*connect.Response[v1.ListMyRidesResponse], error)
@@ -220,7 +220,7 @@ type RideServiceHandler interface {
 	JoinRide(context.Context, *connect.Request[v1.JoinRideRequest]) (*connect.Response[v1.JoinRideResponse], error)
 	// LeaveRide removes the caller from a trip they joined; owners cannot leave.
 	LeaveRide(context.Context, *connect.Request[v1.LeaveRideRequest]) (*connect.Response[v1.LeaveRideResponse], error)
-	// ListLocations returns the curated places accepted by ride requests.
+	// ListLocations publicly returns the curated places accepted by ride requests.
 	ListLocations(context.Context, *connect.Request[v1.ListLocationsRequest]) (*connect.Response[v1.ListLocationsResponse], error)
 }
 

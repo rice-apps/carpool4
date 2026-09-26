@@ -53,18 +53,19 @@ func TestStarterBehavior(t *testing.T) {
 
 	t.Run("ListLocations/returns ordered locations", func(t *testing.T) {
 		f := newStarterFixture()
-		got, err := NewService(f.db).ListLocations(ctx, Actor{UserID: f.owner.ID})
+		got, err := NewService(f.db).ListLocations(ctx)
 		skipIfUnimplemented(t, err)
 		if err != nil || len(got) != 2 || got[0].Title != "Airport" || got[1].Title != "Rice" {
 			t.Fatalf("ListLocations = %#v, %v; want two ordered locations", got, err)
 		}
 	})
-	t.Run("ListLocations/requires caller", func(t *testing.T) {
+	t.Run("ListLocations/empty list", func(t *testing.T) {
 		f := newStarterFixture()
-		_, err := NewService(f.db).ListLocations(ctx, Actor{})
+		f.db.locations = nil
+		got, err := NewService(f.db).ListLocations(ctx)
 		skipIfUnimplemented(t, err)
-		if !errors.Is(err, ErrUnauthenticated) {
-			t.Fatalf("ListLocations error = %v, want unauthenticated", err)
+		if err != nil || len(got) != 0 {
+			t.Fatalf("empty ListLocations = %#v, %v", got, err)
 		}
 	})
 
@@ -82,6 +83,35 @@ func TestStarterBehavior(t *testing.T) {
 		skipIfUnimplemented(t, err)
 		if err != nil || got.ID != f.db.ride.ID || got.Owner.Email != "" || got.Owner.Phone != "" {
 			t.Fatalf("GetRide = %#v, %v; want ride without owner contact", got, err)
+		}
+	})
+	t.Run("GetRide/guest sees only trip facts", func(t *testing.T) {
+		f := newStarterFixture()
+		got, err := NewService(f.db).GetRide(ctx, Actor{}, f.db.ride.ID)
+		skipIfUnimplemented(t, err)
+		if err != nil || got.Owner != (User{}) || len(got.Riders) != 0 || got.Notes != "" || got.OccupiedSeats != 1 {
+			t.Fatalf("public GetRide = %#v, %v", got, err)
+		}
+	})
+	t.Run("GetRide/guest cannot open history", func(t *testing.T) {
+		for _, history := range []struct {
+			name      string
+			status    RideStatus
+			departure time.Time
+		}{
+			{"cancelled", RideStatusCancelled, time.Now().Add(time.Hour)},
+			{"old", RideStatusActive, time.Now().Add(-2 * time.Hour)},
+		} {
+			t.Run(history.name, func(t *testing.T) {
+				f := newStarterFixture()
+				f.db.ride.Status = history.status
+				f.db.ride.DepartureTime = history.departure
+				_, err := NewService(f.db).GetRide(ctx, Actor{}, f.db.ride.ID)
+				skipIfUnimplemented(t, err)
+				if !errors.Is(err, ErrRideNotFound) {
+					t.Fatalf("guest GetRide = %v, want not found", err)
+				}
+			})
 		}
 	})
 
@@ -199,6 +229,15 @@ func TestStarterBehavior(t *testing.T) {
 			t.Fatalf("ListRides error = %v, query = %#v; want one-hour lookback", err, f.db.query)
 		}
 	})
+	t.Run("ListRides/guest sees only trip facts", func(t *testing.T) {
+		f := newStarterFixture()
+		f.db.listed = []LoadedRide{f.db.ride}
+		got, err := NewService(f.db).ListRides(ctx, Actor{}, ListRidesInput{})
+		skipIfUnimplemented(t, err)
+		if err != nil || len(got) != 1 || got[0].Owner != (User{}) || len(got[0].Riders) != 0 || got[0].Notes != "" || got[0].OccupiedSeats != 1 {
+			t.Fatalf("public ListRides = %#v, %v", got, err)
+		}
+	})
 
 	t.Run("ListMyRides/includes owned and joined history", func(t *testing.T) {
 		f := newStarterFixture()
@@ -265,14 +304,15 @@ func newStarterFixture() starterFixture {
 // starterDB supplies storage results without enforcing application rules.
 // Its methods are deliberately small so the tests focus on service behavior.
 type starterDB struct {
-	users     map[uuid.UUID]UserRecord
-	locations []LocationRecord
-	ride      LoadedRide
-	listed    []LoadedRide
-	saved     UserWriteParams
-	query     *ListRidesQuery
-	myViewer  uuid.UUID
-	commits   int
+	users          map[uuid.UUID]UserRecord
+	locations      []LocationRecord
+	ride           LoadedRide
+	listed         []LoadedRide
+	saved          UserWriteParams
+	query          *ListRidesQuery
+	myViewer       uuid.UUID
+	commits        int
+	contactLookups int
 }
 
 func (db *starterDB) BeginTx(context.Context) (Transaction, error) { return db, nil }
@@ -296,6 +336,7 @@ func (db *starterDB) UpsertUser(_ context.Context, params UserWriteParams) (User
 	return record, nil
 }
 func (db *starterDB) ListContactVisibleUserIDs(_ context.Context, viewer uuid.UUID, targets []uuid.UUID) ([]uuid.UUID, error) {
+	db.contactLookups++
 	var visible []uuid.UUID
 	for _, id := range targets {
 		if id == viewer {

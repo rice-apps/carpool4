@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Actor identifies the verified caller of an application method.
+// Actor identifies a verified caller. Public ride reads use its zero value for guests.
 //
 // Fields:
 //   - UserID: Supabase user ID used for authorization and profile ownership.
@@ -71,6 +71,7 @@ type User struct {
 //   - Riders: occupant profiles, including the owner, with viewer-allowed contacts.
 //   - Notes: trip details supplied by the driver.
 //   - Capacity: total seats, including the driver's seat.
+//   - OccupiedSeats: number of occupants, including the driver.
 //   - Status: whether the ride is active or cancelled.
 type Ride struct {
 	ID                uuid.UUID
@@ -81,5 +82,6 @@ type Ride struct {
 	Riders            []User
 	Notes             string
 	Capacity          int32
+	OccupiedSeats     int32
 	Status            RideStatus
 }

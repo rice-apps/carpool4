@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -43,12 +44,34 @@ func Register(mux *http.ServeMux, server *Server, authInterceptor connect.UnaryI
 	if err != nil {
 		return fmt.Errorf("failed to create validation interceptor: %w", err)
 	}
+	// Missing credentials are allowed only for public ride reads. Supplied
+	// credentials and all other procedures still use strict authentication.
+	authenticate := connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		strict := authInterceptor(next)
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			if isPublicRideRead(req.Spec().Procedure) && len(req.Header().Values("Authorization")) == 0 {
+				return next(ctx, req)
+			}
+			return strict(ctx, req)
+		}
+	})
 	// Apply shared request checks and cap the size of incoming bodies.
 	opts := []connect.HandlerOption{
-		connect.WithInterceptors(newLoggingInterceptor(logger), authInterceptor, validateInterceptor),
+		connect.WithInterceptors(newLoggingInterceptor(logger), authenticate, validateInterceptor),
 		connect.WithReadMaxBytes(64 << 10),
 	}
 	mux.Handle(carpoolv1connect.NewUserServiceHandler(server, opts...))
 	mux.Handle(carpoolv1connect.NewRideServiceHandler(server, opts...))
 	return nil
+}
+
+func isPublicRideRead(procedure string) bool {
+	switch procedure {
+	case carpoolv1connect.RideServiceListRidesProcedure,
+		carpoolv1connect.RideServiceGetRideProcedure,
+		carpoolv1connect.RideServiceListLocationsProcedure:
+		return true
+	default:
+		return false
+	}
 }

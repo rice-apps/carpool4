@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowRight, GoogleLogo } from "@phosphor-icons/react";
 import { Brand } from "../../components/AppShell";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
+import { returnToKey, safeReturnTo } from "../../lib/returnTo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,12 +16,19 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!loading && session) router.replace("/");
+    if (!loading && session) {
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(safeReturnTo(next));
+    }
   }, [loading, session, router]);
 
   async function signIn() {
     setPending(true);
     setError("");
+    sessionStorage.setItem(
+      returnToKey,
+      safeReturnTo(new URLSearchParams(window.location.search).get("next")),
+    );
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -66,6 +75,9 @@ export default function LoginPage() {
           <p className="login-footnote">
             A Rice-managed Google account is required.
           </p>
+          <Link className="text-link" href="/">
+            Browse rides without signing in
+          </Link>
         </div>
         <span className="login-footer">Rice rides together.</span>
       </section>

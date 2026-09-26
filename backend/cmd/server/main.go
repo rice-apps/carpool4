@@ -43,7 +43,7 @@ func run() error {
 		return fmt.Errorf("config: %w", err)
 	}
 
-	// Build the database and authenticated RPC routes before listening.
+	// Build the database and RPC routes before listening.
 	db, err := setupDatabase(ctx, cfg)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func setupDatabase(ctx context.Context, cfg *config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-// setupRouter builds the health and authenticated RPC routes.
+// setupRouter builds the health and RPC routes.
 //
 // Inputs:
 //   - ctx (context.Context): controls signing-key fetches and refreshes.
