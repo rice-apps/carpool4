@@ -138,7 +138,8 @@ func (x *Location) GetAddress() string {
 }
 
 // Ride is the viewer-authorized trip returned by the backend.
-// Contact fields on its users are present only when the viewer may see them.
+// Anonymous responses omit owner, riders, and notes. Contact fields on users
+// are present only when the authenticated viewer may see them.
 type Ride struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -150,8 +151,10 @@ type Ride struct {
 	Riders []*User `protobuf:"bytes,6,rep,name=riders,proto3" json:"riders,omitempty"`
 	Notes  string  `protobuf:"bytes,7,opt,name=notes,proto3" json:"notes,omitempty"`
 	// Capacity counts all occupants, including the owner.
-	Capacity      int32      `protobuf:"varint,8,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	Status        RideStatus `protobuf:"varint,9,opt,name=status,proto3,enum=carpool.v1.RideStatus" json:"status,omitempty"`
+	Capacity int32      `protobuf:"varint,8,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Status   RideStatus `protobuf:"varint,9,opt,name=status,proto3,enum=carpool.v1.RideStatus" json:"status,omitempty"`
+	// Number of occupied seats, including the driver, even for anonymous viewers.
+	OccupiedSeats int32 `protobuf:"varint,10,opt,name=occupied_seats,json=occupiedSeats,proto3" json:"occupied_seats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -247,6 +250,13 @@ func (x *Ride) GetStatus() RideStatus {
 		return x.Status
 	}
 	return RideStatus_RIDE_STATUS_UNSPECIFIED
+}
+
+func (x *Ride) GetOccupiedSeats() int32 {
+	if x != nil {
+		return x.OccupiedSeats
+	}
+	return 0
 }
 
 // GetRideRequest identifies the trip to read.
@@ -1151,7 +1161,7 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\bLocation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
-	"\aaddress\x18\x03 \x01(\tR\aaddress\"\x93\x03\n" +
+	"\aaddress\x18\x03 \x01(\tR\aaddress\"\xba\x03\n" +
 	"\x04Ride\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12A\n" +
 	"\x0edeparture_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rdepartureTime\x12C\n" +
@@ -1161,7 +1171,9 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x06riders\x18\x06 \x03(\v2\x10.carpool.v1.UserR\x06riders\x12\x14\n" +
 	"\x05notes\x18\a \x01(\tR\x05notes\x12\x1a\n" +
 	"\bcapacity\x18\b \x01(\x05R\bcapacity\x12.\n" +
-	"\x06status\x18\t \x01(\x0e2\x16.carpool.v1.RideStatusR\x06status\"*\n" +
+	"\x06status\x18\t \x01(\x0e2\x16.carpool.v1.RideStatusR\x06status\x12%\n" +
+	"\x0eoccupied_seats\x18\n" +
+	" \x01(\x05R\roccupiedSeats\"*\n" +
 	"\x0eGetRideRequest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"7\n" +
 	"\x0fGetRideResponse\x12$\n" +

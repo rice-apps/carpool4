@@ -25,7 +25,7 @@ export function formatDeparture(
 }
 
 export function availableSeats(ride: Ride): number {
-  return Math.max(0, ride.capacity - ride.riders.length);
+  return Math.max(0, ride.capacity - ride.occupiedSeats);
 }
 
 export function rideState(ride: Ride): "cancelled" | "past" | "full" | "open" {

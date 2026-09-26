@@ -13,6 +13,7 @@ import {
 import { type User } from "../gen/carpool/v1/user_pb";
 import { useAuth } from "../lib/auth";
 import { requestErrorMessage } from "../lib/requestError";
+import { safeReturnTo } from "../lib/returnTo";
 import { Brand } from "./AppShell";
 
 export function ProfileForm({ onboarding = false }: { onboarding?: boolean }) {
@@ -76,8 +77,12 @@ function ProfileFields({
         phone: phone.trim(),
       });
       await queryClient.invalidateQueries();
-      if (onboarding) router.replace("/");
-      else setSaved(true);
+      if (onboarding) {
+        const next = new URLSearchParams(window.location.search).get("next");
+        router.replace(safeReturnTo(next));
+      } else {
+        setSaved(true);
+      }
     } catch (cause) {
       setError(
         requestErrorMessage(

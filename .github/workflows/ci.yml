@@ -84,6 +84,11 @@ jobs:
     - run: npm run generate
     - name: Confirm checked-in frontend generated code is up to date
       run: git diff --exit-code -- src/gen
+    - run: npx playwright install --with-deps chromium
+    - run: npm test
+    - run: npm run test:e2e
+    - run: npm run lint
+    - run: npx tsc --noEmit
     - run: npm run build
 
   proto:

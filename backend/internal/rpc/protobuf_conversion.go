@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/google/uuid"
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,20 +16,25 @@ func userToProto(user app.User) *carpoolv1.User {
 	}
 }
 
-// rideToProto returns a protobuf ride with its people, route, departure, notes,
-// capacity, and status. Contacts must already be projected for the viewer.
+// rideToProto returns a protobuf ride with the trip fields projected for the
+// viewer. Personal fields must already be omitted for anonymous viewers.
 func rideToProto(ride app.Ride) *carpoolv1.Ride {
 	// Riders and owner carry the service's viewer-specific contact projection.
 	riders := make([]*carpoolv1.User, len(ride.Riders))
 	for i, rider := range ride.Riders {
 		riders[i] = userToProto(rider)
 	}
+	var owner *carpoolv1.User
+	if ride.Owner.ID != uuid.Nil {
+		owner = userToProto(ride.Owner)
+	}
 	return &carpoolv1.Ride{
 		Id: ride.ID.String(), DepartureTime: timestamppb.New(ride.DepartureTime),
 		DepartureLocation: locationToProto(ride.DepartureLocation),
 		ArrivalLocation:   locationToProto(ride.ArrivalLocation),
-		Owner:             userToProto(ride.Owner), Riders: riders, Notes: ride.Notes,
-		Capacity: ride.Capacity, Status: rideStatusToProto(ride.Status),
+		Owner:             owner, Riders: riders, Notes: ride.Notes,
+		Capacity: ride.Capacity, OccupiedSeats: ride.OccupiedSeats,
+		Status: rideStatusToProto(ride.Status),
 	}
 }
 

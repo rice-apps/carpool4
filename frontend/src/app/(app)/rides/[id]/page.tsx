@@ -31,6 +31,7 @@ import {
   rideState,
 } from "../../../../lib/ride";
 import { requestErrorMessage } from "../../../../lib/requestError";
+import { RequireProfile } from "../../../../components/RouteGate";
 
 export default function RideDetailsPage() {
   const id = useParams<{ id: string }>()?.id || "";
@@ -166,11 +167,11 @@ export default function RideDetailsPage() {
               </span>
               <span>
                 <Users size={20} />
-                {ride.riders.length} of {ride.capacity} seats taken
+                {ride.occupiedSeats} of {ride.capacity} seats taken
               </span>
             </div>
           </section>
-          {ride.notes && (
+          {session && ride.notes && (
             <section className="detail-card notes-card">
               <h2>
                 <NotePencil size={21} /> A note from the driver
@@ -178,123 +179,141 @@ export default function RideDetailsPage() {
               <p>{ride.notes}</p>
             </section>
           )}
-          <section className="detail-card people-card">
-            <h2>
-              People on this ride <span>{ride.riders.length}</span>
-            </h2>
-            <div className="people-list">
-              {ride.riders.map((rider) => (
-                <div className="person-row" key={rider.id}>
-                  <span className="person-avatar">
-                    {rider.firstName?.[0]}
-                    {rider.lastName?.[0]}
-                  </span>
-                  <div>
-                    <strong>
-                      {rider.firstName} {rider.lastName}
-                    </strong>
-                    <span>
-                      {rider.id === ride.owner?.id ? "Driver" : "Rider"}
+          {session && (
+            <section className="detail-card people-card">
+              <h2>
+                People on this ride <span>{ride.riders.length}</span>
+              </h2>
+              <div className="people-list">
+                {ride.riders.map((rider) => (
+                  <div className="person-row" key={rider.id}>
+                    <span className="person-avatar">
+                      {rider.firstName?.[0]}
+                      {rider.lastName?.[0]}
                     </span>
+                    <div>
+                      <strong>
+                        {rider.firstName} {rider.lastName}
+                      </strong>
+                      <span>
+                        {rider.id === ride.owner?.id ? "Driver" : "Rider"}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
         <aside className="detail-sidebar">
-          <section className="detail-card driver-card">
-            <span className="section-kicker">Your driver</span>
-            <div className="driver-summary">
-              <span className="driver-avatar">
-                {ride.owner?.firstName?.[0]}
-                {ride.owner?.lastName?.[0]}
-              </span>
-              <div>
-                <strong>
-                  {ride.owner?.firstName} {ride.owner?.lastName}
-                </strong>
-                <span>Rice student</span>
+          {session && (
+            <section className="detail-card driver-card">
+              <span className="section-kicker">Your driver</span>
+              <div className="driver-summary">
+                <span className="driver-avatar">
+                  {ride.owner?.firstName?.[0]}
+                  {ride.owner?.lastName?.[0]}
+                </span>
+                <div>
+                  <strong>
+                    {ride.owner?.firstName} {ride.owner?.lastName}
+                  </strong>
+                  <span>Rice student</span>
+                </div>
               </div>
-            </div>
-            {ride.owner?.phone || ride.owner?.email ? (
-              <div className="driver-contact">
-                {ride.owner?.phone && (
-                  <p>
-                    <Phone size={18} />
-                    {ride.owner.phone}
-                  </p>
-                )}
-                {ride.owner?.email && (
-                  <p>
-                    <EnvelopeSimple size={18} />
-                    {ride.owner.email}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="privacy-note">
-                Contact details are visible when you share a ride with this driver.
-              </p>
-            )}
-          </section>
-          {ride.status !== RideStatus.CANCELLED && (
+              {ride.owner?.phone || ride.owner?.email ? (
+                <div className="driver-contact">
+                  {ride.owner?.phone && (
+                    <p>
+                      <Phone size={18} />
+                      {ride.owner.phone}
+                    </p>
+                  )}
+                  {ride.owner?.email && (
+                    <p>
+                      <EnvelopeSimple size={18} />
+                      {ride.owner.email}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="privacy-note">
+                  Contact details are visible when you share a ride with this driver.
+                </p>
+              )}
+            </section>
+          )}
+          {!session && state === "open" && (
             <section className="action-card">
-              <h2>
-                {isOwner
-                  ? "You’re driving"
-                  : isRider
-                    ? "You’re on this ride"
-                    : "Come along?"}
-              </h2>
-              <p>
-                {isOwner
-                  ? "Edit the details or cancel if plans change."
-                  : isRider
-                    ? "Your seat is saved. You can leave if your plans change."
-                    : state === "full"
-                      ? "This ride is full right now."
-                      : "Join to save a seat and see your driver’s contact details."}
-              </p>
-              {isOwner ? (
-                <div className="action-stack">
-                  <Link
-                    href={`/rides/${id}/edit`}
-                    className="button button-primary"
-                  >
-                    <PencilSimple size={18} /> Edit ride
-                  </Link>
+              <h2>Come along?</h2>
+              <p>Sign in with your Rice account to join this ride.</p>
+              <Link
+                className="button button-primary"
+                href={`/login?next=${encodeURIComponent(`/rides/${id}`)}`}
+              >
+                Sign in to join <ArrowRight size={17} />
+              </Link>
+            </section>
+          )}
+          {session && ride.status !== RideStatus.CANCELLED && (
+            <RequireProfile>
+              <section className="action-card">
+                <h2>
+                  {isOwner
+                    ? "You’re driving"
+                    : isRider
+                      ? "You’re on this ride"
+                      : "Come along?"}
+                </h2>
+                <p>
+                  {isOwner
+                    ? "Edit the details or cancel if plans change."
+                    : isRider
+                      ? "Your seat is saved. You can leave if your plans change."
+                      : state === "full"
+                        ? "This ride is full right now."
+                        : "Join to save a seat and see your driver’s contact details."}
+                </p>
+                {isOwner ? (
+                  <div className="action-stack">
+                    <Link
+                      href={`/rides/${id}/edit`}
+                      className="button button-primary"
+                    >
+                      <PencilSimple size={18} /> Edit ride
+                    </Link>
+                    <button
+                      className="button button-outline-danger"
+                      disabled={pending}
+                      onClick={() => void act("cancel")}
+                    >
+                      Cancel ride
+                    </button>
+                  </div>
+                ) : isRider ? (
                   <button
                     className="button button-outline-danger"
                     disabled={pending}
-                    onClick={() => void act("cancel")}
+                    onClick={() => void act("leave")}
                   >
-                    Cancel ride
+                    {pending ? "Leaving…" : "Leave ride"}
                   </button>
-                </div>
-              ) : isRider ? (
-                <button
-                  className="button button-outline-danger"
-                  disabled={pending}
-                  onClick={() => void act("leave")}
-                >
-                  {pending ? "Leaving…" : "Leave ride"}
-                </button>
-              ) : (
-                <button
-                  className="button button-primary"
-                  disabled={pending || state === "full" || state === "past"}
-                  onClick={() => void act("join")}
-                >
-                  {pending
-                    ? "Joining…"
-                    : state === "full"
-                      ? "Ride is full"
-                      : "Join this ride"}{" "}
-                  <ArrowRight size={17} />
-                </button>
-              )}
-            </section>
+                ) : (
+                  <button
+                    className="button button-primary"
+                    disabled={pending || state === "full" || state === "past"}
+                    onClick={() => void act("join")}
+                  >
+                    {pending
+                      ? "Joining…"
+                      : state === "full"
+                        ? "Ride is full"
+                        : "Join this ride"}{" "}
+                    <ArrowRight size={17} />
+                  </button>
+                )}
+              </section>
+            </RequireProfile>
           )}
           {actionError && (
             <p className="form-error" role="alert">

@@ -25,7 +25,8 @@ enum RideStatus {
 }
 
 // Ride is the viewer-authorized trip returned by the backend.
-// Contact fields on its users are present only when the viewer may see them.
+// Anonymous responses omit owner, riders, and notes. Contact fields on users
+// are present only when the authenticated viewer may see them.
 message Ride {
   string id = 1;
   google.protobuf.Timestamp departure_time = 2;
@@ -38,13 +39,16 @@ message Ride {
   // Capacity counts all occupants, including the owner.
   int32 capacity = 8;
   RideStatus status = 9;
+  // Number of occupied seats, including the driver, even for anonymous viewers.
+  int32 occupied_seats = 10;
 }
 
-// RideService reads and changes trips for the authenticated user.
+// RideService reads trips for guests or authenticated users and changes trips
+// for authenticated Supabase users.
 service RideService {
-  // GetRide returns one trip with contact details projected for the caller.
+  // GetRide returns one trip projected for an authenticated or anonymous viewer.
   rpc GetRide(GetRideRequest) returns (GetRideResponse);
-  // ListRides finds active trips matching optional route and time filters.
+  // ListRides finds active trips for authenticated or anonymous viewers.
   rpc ListRides(ListRidesRequest) returns (ListRidesResponse);
   // ListMyRides returns trips the caller owns or occupies, including cancellations.
   rpc ListMyRides(ListMyRidesRequest) returns (ListMyRidesResponse);
@@ -58,7 +62,7 @@ service RideService {
   rpc JoinRide(JoinRideRequest) returns (JoinRideResponse);
   // LeaveRide removes the caller from a trip they joined; owners cannot leave.
   rpc LeaveRide(LeaveRideRequest) returns (LeaveRideResponse);
-  // ListLocations returns the curated places accepted by ride requests.
+  // ListLocations publicly returns the curated places accepted by ride requests.
   rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
 }
 

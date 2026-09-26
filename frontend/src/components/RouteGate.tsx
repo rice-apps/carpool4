@@ -3,10 +3,11 @@
 import { useEffect, type ReactNode } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { getUser } from "../gen/carpool/v1/user-UserService_connectquery";
 import { useAuth } from "../lib/auth";
 import { isUnimplemented } from "../lib/requestError";
+import { safeReturnTo } from "../lib/returnTo";
 
 export function LoadingScreen() {
   return (
@@ -20,10 +21,14 @@ export function LoadingScreen() {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !session) router.replace("/login");
-  }, [loading, session, router]);
+    if (!loading && !session) {
+      const next = encodeURIComponent(safeReturnTo(pathname));
+      router.replace(`/login?next=${next}`);
+    }
+  }, [loading, session, router, pathname]);
 
   if (loading || !session) return <LoadingScreen />;
   return children;
@@ -31,13 +36,17 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 function ProfileGate({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { data, error, isLoading, refetch } = useQuery(getUser, {});
   const missing = error && ConnectError.from(error).code === Code.NotFound;
   const needsProfile = missing || (data && !data.user?.firstName);
 
   useEffect(() => {
-    if (needsProfile) router.replace("/onboarding");
-  }, [needsProfile, router]);
+    if (needsProfile) {
+      const next = encodeURIComponent(safeReturnTo(pathname));
+      router.replace(`/onboarding?next=${next}`);
+    }
+  }, [needsProfile, router, pathname]);
 
   if (isLoading || needsProfile) return <LoadingScreen />;
   // Other operations can still be used while profile lookup is being built.

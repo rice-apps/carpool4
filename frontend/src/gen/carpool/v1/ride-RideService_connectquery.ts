@@ -5,14 +5,14 @@
 import { RideService } from "./ride_pb";
 
 /**
- * GetRide returns one trip with contact details projected for the caller.
+ * GetRide returns one trip projected for an authenticated or anonymous viewer.
  *
  * @generated from rpc carpool.v1.RideService.GetRide
  */
 export const getRide = RideService.method.getRide;
 
 /**
- * ListRides finds active trips matching optional route and time filters.
+ * ListRides finds active trips for authenticated or anonymous viewers.
  *
  * @generated from rpc carpool.v1.RideService.ListRides
  */
@@ -61,7 +61,7 @@ export const joinRide = RideService.method.joinRide;
 export const leaveRide = RideService.method.leaveRide;
 
 /**
- * ListLocations returns the curated places accepted by ride requests.
+ * ListLocations publicly returns the curated places accepted by ride requests.
  *
  * @generated from rpc carpool.v1.RideService.ListLocations
  */

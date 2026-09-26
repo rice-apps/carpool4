@@ -51,14 +51,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-          <Link
-            href="/profile"
-            className="header-account"
-            aria-label="Your profile"
-          >
-            <span>{firstName || "My account"}</span>
-            <span className="header-avatar">{(firstName || "R")[0]}</span>
-          </Link>
+          {session ? (
+            <Link
+              href="/profile"
+              className="header-account"
+              aria-label="Your profile"
+            >
+              <span>{firstName || "My account"}</span>
+              <span className="header-avatar">{(firstName || "R")[0]}</span>
+            </Link>
+          ) : (
+            <Link href="/login" className="header-account">
+              Sign in
+            </Link>
+          )}
         </div>
       </header>
       <main id="main-content">{children}</main>
