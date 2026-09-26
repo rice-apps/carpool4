@@ -152,3 +152,5 @@ npm run frontend   # Run Next.js frontend individually
 Built by [RiceApps Studio](https://riceapps.org/students) :>
 
 - Zimo Wang
+- Andrew Chu
+- Calvin Wong
