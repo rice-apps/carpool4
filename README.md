@@ -154,6 +154,7 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Andrew Chu
 - Angel  J Guerrero
 - Calvin Wong
+- Claire Li
 - Dara Odukoya
 - Eason Tang
 - Katherine Han
