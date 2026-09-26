@@ -150,7 +150,6 @@ npm run frontend   # Run Next.js frontend individually
 ## Contributors
 
 Built by [RiceApps Studio](https://riceapps.org/students) :>
-Marianna Argeiti
 
 - Andrew Chu
 - Angel  J Guerrero
@@ -160,7 +159,9 @@ Marianna Argeiti
 - Eason Tang
 - Emily Zheng
 - Katherine Han
+- Joya Roy
 - Liya Ferede
+- Marianna Argeiti
 - Megan Cung
 - Melody Cui
 - Yiyi Sun
