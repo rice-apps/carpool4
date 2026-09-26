@@ -153,4 +153,12 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 
 - Zimo Wang
 - Andrew Chu
+- Angel  J Guerrero
 - Calvin Wong
+- Claire Li
+- Dara Odukoya
+- Eason Tang
+- Katherine Han
+- Liya Ferede
+- Megan Cung
+- Melody Cui
