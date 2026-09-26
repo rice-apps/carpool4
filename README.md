@@ -153,4 +153,15 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 Marianna Argeiti
 
 - Andrew Chu
+- Angel  J Guerrero
 - Calvin Wong
+- Claire Li
+- Dara Odukoya
+- Eason Tang
+- Emily Zheng
+- Katherine Han
+- Liya Ferede
+- Megan Cung
+- Melody Cui
+- Yiyi Sun
+- Zimo Wang
