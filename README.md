@@ -151,14 +151,16 @@ npm run frontend   # Run Next.js frontend individually
 
 Built by [RiceApps Studio](https://riceapps.org/students) :>
 
-- Zimo Wang
+
 - Andrew Chu
 - Angel  J Guerrero
 - Calvin Wong
 - Claire Li
 - Dara Odukoya
 - Eason Tang
+- Emily Zheng
 - Katherine Han
 - Liya Ferede
 - Megan Cung
 - Melody Cui
+- Zimo Wang
