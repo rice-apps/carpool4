@@ -153,4 +153,7 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 
 - Yiyi Sun
 - Andrew Chu
+- Angel  J Guerrero
 - Calvin Wong
+- Katherine Han
+
