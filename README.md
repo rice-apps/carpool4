@@ -151,4 +151,4 @@ npm run frontend   # Run Next.js frontend individually
 
 Built by [RiceApps Studio](https://riceapps.org/students) :>
 
-Eason Tang
+- Eason Tang
