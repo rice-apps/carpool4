@@ -157,3 +157,4 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Dara Odukoya
 - Katherine Han
 - Megan Cung
+- Melody Cui
