@@ -157,6 +157,7 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Claire Li
 - Dara Odukoya
 - Eason Tang
+- Ella Wang
 - Emily Zheng
 - Katherine Han
 - Joya Roy
