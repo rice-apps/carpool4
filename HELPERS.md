@@ -184,31 +184,34 @@ This check only establishes that a user ID is present. It does not check ownersh
 
 GetRide and ListRides allow an empty CurrentUser for guests. ListLocations has no current-user argument.
 
-### Build a profile result: buildUserResult(record, includeContact)
+### Get a visible profile: getVisibleProfile(ctx, tx, currentUser, record)
 
-Builds a User result from a stored UserRecord. It copies the ID and names, and includes email and phone only when includeContact is true.
+Returns a User result from a stored UserRecord. It always includes the ID and names, and decides whether to include email and phone using the identity of the person asking.
 
-includeContact is the permission decision supplied by the calling function. This helper does not look up that permission in the database.
+Pass currentUser, the person making the request, and record, the profile you already loaded. The helper checks the contact privacy rule for you. Use the same tx that read or saved the profile.
 
 **Inputs and outputs**
 
-`func buildUserResult(record UserRecord, includeContact bool) User`
+`func getVisibleProfile(ctx context.Context, tx Transaction, currentUser CurrentUser, record UserRecord) (User, error)`
 
 **Example**
 
 ```go
-result := buildUserResult(record, canSeeContact)
+profile, err := getVisibleProfile(ctx, tx, currentUser, record)
+if err != nil {
+    return User{}, err
+}
 ```
 
-record is the saved profile. canSeeContact says whether the person asking may receive its email and phone. result is the profile prepared for that person. For Alex Chen's profile, false produces Alex's ID and names with empty contact fields; true also copies Alex's saved email and phone.
+record is the saved profile, currentUser identifies the person asking, and profile is the result prepared for that person. If Mia opens Alex Chen's profile, the helper includes Alex's contacts only when Mia shares a ride with Alex. Otherwise, it returns Alex's ID and names with empty contact fields.
 
-Both calls leave record unchanged. Showing an empty phone number in a response does not delete Alex's saved phone number. A true value includes the stored contact fields; it cannot supply a phone number if none was saved.
+The helper leaves record unchanged. An empty phone number in the response does not delete Alex's saved phone number. When contacts are allowed, it copies whatever was saved; a missing phone number stays empty.
 
 - ID, FirstName, and LastName are always copied.
 
-- Email and Phone are copied when includeContact is true. When it is false, both fields are empty.
+- Email and Phone are included for the current user's own profile or someone with whom they share a ride. Past and cancelled rides count too. Otherwise, both fields are empty.
 
-- The current user's own contacts are allowed. For another person's profile, ListContactVisibleUserIDs supplies the permission decision.
+- Guests receive no contacts. A failed permission lookup returns an error and no profile. Own-profile and guest results do not need a permission lookup.
 
 ### Build ride results: buildRidesForViewer(ctx, tx, viewerID, rides)
 
@@ -229,7 +232,7 @@ if err != nil {
 }
 ```
 
-loadedRides contains the rides read from the database. currentUser.UserID identifies the person asking, and results contains the rides prepared for that person. The helper checks contact permission for all owners and riders in one database call, then uses buildUserResult for their profiles.
+loadedRides contains the rides read from the database. currentUser.UserID identifies the person asking, and results contains the rides prepared for that person. The helper checks contact permission for all owners and riders in one database call, then prepares their profiles with only the allowed contacts.
 
 tx is the same transaction that loaded the rides. The ride data and contact decisions therefore use a consistent view of the database.
 
@@ -360,7 +363,7 @@ May return ErrTransactionConflict when simultaneous operations prevent the trans
 
 Returns the requested profile IDs whose contacts the viewer may see. The inputs identify the viewer and the profiles being checked.
 
-If Mia asks about Alex and Jordan but only shares a ride with Alex, visibleIDs contains Alex's ID and leaves out Jordan's. The answer contains IDs, not profiles or contact details. buildRidesForViewer makes this check for the people in its ride results.
+If Mia asks about Alex and Jordan but only shares a ride with Alex, visibleIDs contains Alex's ID and leaves out Jordan's. The answer contains IDs, not profiles or contact details. getVisibleProfile and buildRidesForViewer use this lookup to check contact permission.
 
 **Inputs and outputs**
 
@@ -373,13 +376,13 @@ visibleIDs, err := tx.Users().ListContactVisibleUserIDs(
     ctx, currentUser.UserID, []uuid.UUID{record.ID},
 )
 if err != nil {
-    return User{}, err
+    return nil, err
 }
-canSeeContact := slices.Contains(visibleIDs, record.ID)
-result := buildUserResult(record, canSeeContact)
+// The returned IDs identify the profiles whose contacts are allowed.
+return visibleIDs, nil
 ```
 
-visibleIDs contains the allowed profile IDs. canSeeContact says whether record.ID is in that list. result is the profile built with that permission decision.
+visibleIDs contains the allowed profile IDs. You do not need to turn this list into a contact-permission flag when returning a profile: getVisibleProfile handles the check and builds the profile result. buildRidesForViewer handles it for ride results.
 
 - viewerID identifies the person receiving the information. targetIDs contains the IDs of the people whose contacts are being checked.
 
@@ -407,7 +410,7 @@ record := convertUserRow(row)
 
 row contains the profile returned by the database. record is that profile in the application's stored-record format.
 
-The helper copies ID, FirstName, LastName, Email, and Phone. It includes the full stored contacts. The application will use buildUserResult later to prepare a profile for the person who asked.
+The helper copies ID, FirstName, LastName, Email, and Phone. It includes the full stored contacts. For a profile response, getVisibleProfile checks permission and prepares the profile for the person who asked.
 
 ### Convert a location row: convertLocationRow(row)
 
@@ -451,7 +454,7 @@ row contains the pieces returned by the ride query. loaded is the assembled Load
 
 - Invalid rider JSON returns an error.
 
-- LoadedRide retains the owner's and riders' stored contacts. Contact privacy is applied when the application builds the Ride result for a viewer.
+- **LoadedRide** retains the owner's and riders' stored contacts. Contact privacy is applied when the application builds the Ride result for a viewer.
 
 ### Translate a user query error: translateUserError(err)
 

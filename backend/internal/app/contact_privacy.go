@@ -2,13 +2,31 @@ package app
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 )
 
-// buildUserResult copies a stored profile into the result returned to a viewer.
-// It includes email and phone only when includeContact is true. The caller must
-// decide that permission first; this helper does not look it up or change storage.
+// getVisibleProfile returns a stored profile with contacts allowed for currentUser.
+// Self can see their contacts; shared-ride permission is checked through tx.
+// Guests receive no contacts. A failed permission check returns no profile and
+// the lookup error. The stored record is unchanged.
+func getVisibleProfile(ctx context.Context, tx Transaction, currentUser CurrentUser, record UserRecord) (User, error) {
+	if currentUser.UserID == uuid.Nil {
+		return buildUserResult(record, false), nil
+	}
+	if currentUser.UserID == record.ID {
+		return buildUserResult(record, true), nil
+	}
+	visibleIDs, err := tx.Users().ListContactVisibleUserIDs(ctx, currentUser.UserID, []uuid.UUID{record.ID})
+	if err != nil {
+		return User{}, err
+	}
+	return buildUserResult(record, slices.Contains(visibleIDs, record.ID)), nil
+}
+
+// buildUserResult is the internal copying step used by the privacy helpers.
+// They decide contact permission before calling it. It does not query storage.
 func buildUserResult(record UserRecord, includeContact bool) User {
 	user := User{ID: record.ID, FirstName: record.FirstName, LastName: record.LastName}
 	// Names stay visible even when contact details do not.
