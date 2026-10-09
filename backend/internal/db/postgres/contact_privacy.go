@@ -21,5 +21,5 @@ import (
 func (u userRepository) ListContactVisibleUserIDs(ctx context.Context, viewerID uuid.UUID, targetIDs []uuid.UUID) ([]uuid.UUID, error) {
 	// Ask the query for self and shared-ride contacts in one batch.
 	ids, err := u.queries.ListContactVisibleUserIDs(ctx, sqlc.ListContactVisibleUserIDsParams{ViewerID: viewerID, TargetIds: targetIDs})
-	return ids, classifyTransactionError(err)
+	return ids, translateTransactionError(err)
 }

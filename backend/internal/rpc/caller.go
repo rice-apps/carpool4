@@ -10,16 +10,17 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/auth"
 )
 
-// actorFromContext returns the verified user's ID and email as an application actor.
-// If ctx has no user or its ID is nil, it returns ErrUnauthenticated.
-func actorFromContext(ctx context.Context) (app.Actor, error) {
-	user, ok := auth.UserFromContext(ctx)
+// requireSignedInUser returns the ID and email of the person making this request.
+// It reads the identity already verified by authentication, not a saved profile.
+// Missing identity or an empty user ID returns app.ErrUnauthenticated.
+func requireSignedInUser(ctx context.Context) (app.CurrentUser, error) {
+	user, ok := auth.GetSignedInUser(ctx)
 	if !ok {
-		return app.Actor{}, app.ErrUnauthenticated
+		return app.CurrentUser{}, app.ErrUnauthenticated
 	}
 	if user.ID == uuid.Nil {
-		return app.Actor{}, fmt.Errorf("%w: invalid caller ID", app.ErrUnauthenticated)
+		return app.CurrentUser{}, fmt.Errorf("%w: invalid caller ID", app.ErrUnauthenticated)
 	}
 	// Only authentication middleware can supply these fields; request IDs name targets.
-	return app.Actor{UserID: user.ID, Email: user.Email}, nil
+	return app.CurrentUser{UserID: user.ID, Email: user.Email}, nil
 }

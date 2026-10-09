@@ -88,12 +88,15 @@ _Press `Ctrl+C` to stop local services._
 
 ## Backend Rules
 
+See [What the provided helpers do](HELPERS.md) for explanations and examples of sign-in identity,
+contact privacy, database access, conversion, and error handling.
+
 > [!IMPORTANT]
 > Follow these guidelines strictly when writing backend logic:
 
-1. **Caller Verification**: `ListRides`, `GetRide`, and `ListLocations` allow a missing bearer token. A supplied invalid token is rejected. Every other RPC requires `rpc.actorFromContext`. Request IDs select target entities; they do **not** establish caller identity.
+1. **Caller Verification**: `ListRides`, `GetRide`, and `ListLocations` allow a missing bearer token. A supplied invalid token is rejected. Every other RPC requires `rpc.requireSignedInUser`. Request IDs select target entities; they do **not** establish caller identity.
 2. **Transaction Integrity**: Begin every storage operation via `app.Database.BeginTx`. Repositories created from that transaction share a single `Serializable` snapshot. Defer rollback and build an authorized mutation result before committing.
-3. **Contact Privacy**: Enforce privacy rules using `app.projectUser` and `app.projectRides`. Guest ride responses include trip facts and `occupied_seats`, but no owner, riders, or notes. Signed-in users see contacts only when permitted. Do **not** expose raw stored contact information in RPC responses.
+3. **Contact Privacy**: Enforce privacy rules using `app.buildUserResult` and `app.buildRidesForViewer`. Guest ride responses include trip facts and `occupied_seats`, but no owner, riders, or notes. Signed-in users see contacts only when permitted. Do **not** expose raw stored contact information in RPC responses.
 4. **Layer Separation**:
    - **RPC layer**: Parsing, service invocation, error mapping, and protobuf conversion.
    - **App layer (`app/`)**: Business logic and domain rules.

@@ -6,9 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// projectUser returns a User from record. When includeContact is false, the
-// returned profile omits email and phone.
-func projectUser(record UserRecord, includeContact bool) User {
+// buildUserResult copies a stored profile into the result returned to a viewer.
+// It includes email and phone only when includeContact is true. The caller must
+// decide that permission first; this helper does not look it up or change storage.
+func buildUserResult(record UserRecord, includeContact bool) User {
 	user := User{ID: record.ID, FirstName: record.FirstName, LastName: record.LastName}
 	// Names stay visible even when contact details do not.
 	if !includeContact {
@@ -19,10 +20,11 @@ func projectUser(record UserRecord, includeContact bool) User {
 	return user
 }
 
-// projectRides returns rides with owner and rider contacts visible to viewerID
-// only when that viewer is allowed to see them. Anonymous results contain no
-// people or notes. It uses tx for authenticated visibility checks.
-func projectRides(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides []LoadedRide) ([]Ride, error) {
+// buildRidesForViewer builds ride results with the fields viewerID may receive.
+// A guest (uuid.Nil) receives trip facts without people or notes. For a signed-in
+// viewer, it uses tx to check contact permissions in one query. A failed lookup
+// returns an error. It preserves ride order and leaves the stored data unchanged.
+func buildRidesForViewer(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides []LoadedRide) ([]Ride, error) {
 	visibleSet := make(map[uuid.UUID]struct{})
 	if viewerID != uuid.Nil {
 		// Resolve every contact decision in the same snapshot as the loaded rides.
@@ -61,9 +63,9 @@ func projectRides(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides
 		riders := make([]User, len(loaded.Riders))
 		for j, rider := range loaded.Riders {
 			_, contactVisible := visibleSet[rider.ID]
-			riders[j] = projectUser(rider, contactVisible || rider.ID == viewerID)
+			riders[j] = buildUserResult(rider, contactVisible || rider.ID == viewerID)
 		}
-		result[i].Owner = projectUser(loaded.Owner, ownerVisible || loaded.Owner.ID == viewerID)
+		result[i].Owner = buildUserResult(loaded.Owner, ownerVisible || loaded.Owner.ID == viewerID)
 		result[i].Riders = riders
 		result[i].Notes = loaded.Notes
 	}

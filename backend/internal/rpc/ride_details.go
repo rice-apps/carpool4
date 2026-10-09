@@ -20,5 +20,5 @@ import (
 // results omit people and notes.
 func (s *Server) GetRide(ctx context.Context, req *connect.Request[carpoolv1.GetRideRequest]) (*connect.Response[carpoolv1.GetRideResponse], error) {
 	// TODO(student): Implement GetRide RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }

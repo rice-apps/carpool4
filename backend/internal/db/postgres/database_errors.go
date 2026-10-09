@@ -10,29 +10,29 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/app"
 )
 
-// classifyUserError maps a missing user row to the application sentinel and
+// translateUserError maps a missing user row to the application sentinel and
 // passes other errors through transaction conflict classification.
-func classifyUserError(err error) error {
+func translateUserError(err error) error {
 	// Translate a missing SQL row into the application-level user error.
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("%w: %w", app.ErrUserNotFound, err)
 	}
-	return classifyTransactionError(err)
+	return translateTransactionError(err)
 }
 
-// classifyRideError maps a missing ride row to the application sentinel and
+// translateRideError maps a missing ride row to the application sentinel and
 // passes other errors through transaction conflict classification.
-func classifyRideError(err error) error {
+func translateRideError(err error) error {
 	// Translate a missing SQL row into the application-level ride error.
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("%w: %w", app.ErrRideNotFound, err)
 	}
-	return classifyTransactionError(err)
+	return translateTransactionError(err)
 }
 
-// classifyRideWriteErrorForApp maps foreign-key and check failures to invalid
+// translateRideWriteError maps foreign-key and check failures to invalid
 // ride input, leaving the PostgreSQL cause available through errors.Is/As.
-func classifyRideWriteErrorForApp(err error) error {
+func translateRideWriteError(err error) error {
 	if err == nil {
 		return nil
 	}
@@ -41,12 +41,12 @@ func classifyRideWriteErrorForApp(err error) error {
 	if errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "23514") {
 		return fmt.Errorf("%w: %w", app.ErrInvalidRideWrite, err)
 	}
-	return classifyTransactionError(err)
+	return translateTransactionError(err)
 }
 
-// classifyTransactionError maps SQLSTATE 40001 to a retryable application
+// translateTransactionError maps SQLSTATE 40001 to a retryable application
 // conflict while retaining the original error; all other errors pass through.
-func classifyTransactionError(err error) error {
+func translateTransactionError(err error) error {
 	// Preserve the database cause while giving callers a conflict they can retry.
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "40001" {

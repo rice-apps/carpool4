@@ -15,9 +15,10 @@ func NewService(database Database) *Service {
 	return &Service{database: database}
 }
 
-// validateActor returns ErrUnauthenticated when actor has no verified ID.
-func validateActor(actor Actor) error {
-	if actor.UserID == uuid.Nil {
+// requireSignIn checks that this operation received a signed-in user's ID.
+// An empty ID returns ErrUnauthenticated; token verification happens before RPC.
+func requireSignIn(currentUser CurrentUser) error {
+	if currentUser.UserID == uuid.Nil {
 		return ErrUnauthenticated
 	}
 	return nil

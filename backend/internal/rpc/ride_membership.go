@@ -19,7 +19,7 @@ import (
 // It returns the joined ride with caller-visible contacts or a Connect error.
 func (s *Server) JoinRide(ctx context.Context, req *connect.Request[carpoolv1.JoinRideRequest]) (*connect.Response[carpoolv1.JoinRideResponse], error) {
 	// TODO(student): Implement JoinRide RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }
 
 // LeaveRide removes the verified caller from a ride.
@@ -32,5 +32,5 @@ func (s *Server) JoinRide(ctx context.Context, req *connect.Request[carpoolv1.Jo
 // It returns the ride with caller-visible contacts or a Connect error.
 func (s *Server) LeaveRide(ctx context.Context, req *connect.Request[carpoolv1.LeaveRideRequest]) (*connect.Response[carpoolv1.LeaveRideResponse], error) {
 	// TODO(student): Implement LeaveRide RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }

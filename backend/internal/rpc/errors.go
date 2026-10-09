@@ -27,10 +27,10 @@ func (e *safeRPCError) Error() string { return e.public.Error() }
 // Unwrap exposes the public Connect error and original cause to errors.Is and errors.As.
 func (e *safeRPCError) Unwrap() []error { return []error{e.public, e.cause} }
 
-// toConnectError turns err into a Connect error, or returns nil for nil input.
+// convertToConnectError turns err into a Connect error, or returns nil for nil input.
 // It maps known application and context failures to public codes; unknown causes
 // get a generic client message while remaining available to server logs.
-func toConnectError(err error) error {
+func convertToConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
