@@ -8,14 +8,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestProjectRidesHidesPeopleAndNotesFromGuests(t *testing.T) {
+func TestBuildRidesForViewerHidesPeopleAndNotesFromGuests(t *testing.T) {
 	owner := UserRecord{ID: uuid.New(), FirstName: "Alex", Email: "alex@rice.edu", Phone: "7135550100"}
 	loaded := LoadedRide{
 		ID: uuid.New(), DepartureTime: time.Now().Add(time.Hour), Owner: owner,
 		Riders: []UserRecord{owner}, Notes: "Private pickup details", Capacity: 2,
 	}
 	db := &starterDB{}
-	got, err := projectRides(context.Background(), db, uuid.Nil, []LoadedRide{loaded})
+	got, err := buildRidesForViewer(context.Background(), db, uuid.Nil, []LoadedRide{loaded})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,10 +27,10 @@ func TestProjectRidesHidesPeopleAndNotesFromGuests(t *testing.T) {
 	}
 }
 
-func TestProjectRidesKeepsSignedInPeople(t *testing.T) {
+func TestBuildRidesForViewerKeepsSignedInPeople(t *testing.T) {
 	owner := UserRecord{ID: uuid.New(), FirstName: "Alex", Email: "alex@rice.edu"}
 	loaded := LoadedRide{ID: uuid.New(), Owner: owner, Riders: []UserRecord{owner}, Notes: "Pickup at gate", Capacity: 2}
-	got, err := projectRides(context.Background(), &starterDB{}, owner.ID, []LoadedRide{loaded})
+	got, err := buildRidesForViewer(context.Background(), &starterDB{}, owner.ID, []LoadedRide{loaded})
 	if err != nil {
 		t.Fatal(err)
 	}

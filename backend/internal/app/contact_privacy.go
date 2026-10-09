@@ -2,13 +2,32 @@ package app
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 )
 
-// projectUser returns a User from record. When includeContact is false, the
-// returned profile omits email and phone.
-func projectUser(record UserRecord, includeContact bool) User {
+// getVisibleProfile returns a stored profile with contacts allowed for currentUser.
+// Self can see their contacts; shared-ride permission is checked through tx.
+// Guests receive no contacts. A failed permission check returns no profile and
+// the lookup error. The stored record is unchanged.
+func getVisibleProfile(ctx context.Context, tx Transaction, currentUser CurrentUser, record UserRecord) (User, error) {
+	if currentUser.UserID == uuid.Nil {
+		return buildUserResult(record, false), nil
+	}
+	if currentUser.UserID == record.ID {
+		return buildUserResult(record, true), nil
+	}
+	visibleIDs, err := tx.Users().ListContactVisibleUserIDs(ctx, currentUser.UserID, []uuid.UUID{record.ID})
+	if err != nil {
+		return User{}, err
+	}
+	return buildUserResult(record, slices.Contains(visibleIDs, record.ID)), nil
+}
+
+// buildUserResult is the internal copying step used by the privacy helpers.
+// They decide contact permission before calling it. It does not query storage.
+func buildUserResult(record UserRecord, includeContact bool) User {
 	user := User{ID: record.ID, FirstName: record.FirstName, LastName: record.LastName}
 	// Names stay visible even when contact details do not.
 	if !includeContact {
@@ -19,10 +38,11 @@ func projectUser(record UserRecord, includeContact bool) User {
 	return user
 }
 
-// projectRides returns rides with owner and rider contacts visible to viewerID
-// only when that viewer is allowed to see them. Anonymous results contain no
-// people or notes. It uses tx for authenticated visibility checks.
-func projectRides(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides []LoadedRide) ([]Ride, error) {
+// buildRidesForViewer builds ride results with the fields viewerID may receive.
+// A guest (uuid.Nil) receives trip facts without people or notes. For a signed-in
+// viewer, it uses tx to check contact permissions in one query. A failed lookup
+// returns an error. It preserves ride order and leaves the stored data unchanged.
+func buildRidesForViewer(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides []LoadedRide) ([]Ride, error) {
 	visibleSet := make(map[uuid.UUID]struct{})
 	if viewerID != uuid.Nil {
 		// Resolve every contact decision in the same snapshot as the loaded rides.
@@ -61,9 +81,9 @@ func projectRides(ctx context.Context, tx Transaction, viewerID uuid.UUID, rides
 		riders := make([]User, len(loaded.Riders))
 		for j, rider := range loaded.Riders {
 			_, contactVisible := visibleSet[rider.ID]
-			riders[j] = projectUser(rider, contactVisible || rider.ID == viewerID)
+			riders[j] = buildUserResult(rider, contactVisible || rider.ID == viewerID)
 		}
-		result[i].Owner = projectUser(loaded.Owner, ownerVisible || loaded.Owner.ID == viewerID)
+		result[i].Owner = buildUserResult(loaded.Owner, ownerVisible || loaded.Owner.ID == viewerID)
 		result[i].Riders = riders
 		result[i].Notes = loaded.Notes
 	}

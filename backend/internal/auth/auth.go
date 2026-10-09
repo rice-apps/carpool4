@@ -37,9 +37,9 @@ func WithUser(ctx context.Context, u User) context.Context {
 	return context.WithValue(ctx, contextKey{}, u)
 }
 
-// UserFromContext reads the verified caller from ctx. The bool is false when
-// no authentication interceptor stored a User.
-func UserFromContext(ctx context.Context) (User, bool) {
+// GetSignedInUser reads the sign-in identity authentication stored in ctx.
+// It returns false when no user was stored, so public handlers can allow guests.
+func GetSignedInUser(ctx context.Context) (User, bool) {
 	u, ok := ctx.Value(contextKey{}).(User)
 	return u, ok
 }

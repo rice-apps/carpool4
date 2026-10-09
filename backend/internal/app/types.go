@@ -6,12 +6,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// Actor identifies a verified caller. Public ride reads use its zero value for guests.
+// CurrentUser identifies the person making the request using their verified
+// sign-in ID and email. It is separate from that person's saved profile.
+// Public ride reads use an empty CurrentUser for guests.
 //
 // Fields:
 //   - UserID: Supabase user ID used for authorization and profile ownership.
 //   - Email: verified address stored when the caller saves their profile.
-type Actor struct {
+type CurrentUser struct {
 	UserID uuid.UUID
 	Email  string
 }
@@ -23,7 +25,7 @@ type Actor struct {
 //   - LastName: caller's family name; must not be blank.
 //   - Phone: optional contact number, needed before posting a ride.
 //
-// The profile ID and email come from Actor instead.
+// The profile ID and email come from CurrentUser instead.
 type UserInput struct {
 	FirstName string
 	LastName  string

@@ -21,7 +21,7 @@ import (
 // results omit people and notes.
 func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.ListRidesRequest]) (*connect.Response[carpoolv1.ListRidesResponse], error) {
 	// TODO(student): Implement ListRides RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }
 
 // ListMyRides reads the verified caller's ride history.
@@ -34,5 +34,5 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 // It returns the caller's rides with visible contacts or a Connect error.
 func (s *Server) ListMyRides(ctx context.Context, req *connect.Request[carpoolv1.ListMyRidesRequest]) (*connect.Response[carpoolv1.ListMyRidesResponse], error) {
 	// TODO(student): Implement ListMyRides RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }

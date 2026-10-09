@@ -20,7 +20,7 @@ import (
 // It returns a user with caller-visible contacts or a Connect error on failure.
 func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.GetUserRequest]) (*connect.Response[carpoolv1.GetUserResponse], error) {
 	// TODO(student): Implement GetUser RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }
 
 // UpdateUser saves the verified caller's profile.
@@ -33,5 +33,5 @@ func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.Get
 // It returns the updated user on success or a Connect error on failure.
 func (s *Server) UpdateUser(ctx context.Context, req *connect.Request[carpoolv1.UpdateUserRequest]) (*connect.Response[carpoolv1.UpdateUserResponse], error) {
 	// TODO(student): Implement UpdateUser RPC adapter.
-	return nil, toConnectError(app.ErrNotImplemented)
+	return nil, convertToConnectError(app.ErrNotImplemented)
 }

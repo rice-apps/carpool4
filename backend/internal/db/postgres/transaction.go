@@ -100,7 +100,7 @@ func (t *Transaction) Locations() app.LocationRepository {
 // Commit persists the transaction. A serialization abort returns
 // app.ErrTransactionConflict while preserving the PostgreSQL cause.
 func (t *Transaction) Commit() error {
-	return classifyTransactionError(t.tx.Commit())
+	return translateTransactionError(t.tx.Commit())
 }
 
 // Rollback abandons an open transaction. It also returns nil after a prior
