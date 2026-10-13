@@ -170,3 +170,4 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Melody Cui
 - Yiyi Sun
 - Zimo Wang
+- Michael Wang
