@@ -5,7 +5,7 @@ import "./globals.css";
 
 // oxlint-disable-next-line react/only-export-components -- Next.js expects metadata beside the layout.
 export const metadata: Metadata = {
-  title: "Carpool | Rice rides together",
+  title: "Carpool",
   description: "Find a seat or share a trip with Rice students.",
 };
 

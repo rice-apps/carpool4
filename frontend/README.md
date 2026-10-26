@@ -8,4 +8,6 @@ For a standalone frontend process, set `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_
 
 `npm run generate` regenerates `src/gen` from `../proto`. Do not edit generated files by hand.
 
-Run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` to check frontend changes. For the mocked sign-out privacy and onboarding browser tests, run `npx playwright install chromium` once, then `npm run test:e2e`. These browser tests do not need a running backend or Google credentials.
+The UI uses neutral shadcn/ui components in `src/components/ui`, configured by `components.json`, with Tailwind CSS. Shared colors and page layouts live in `src/app/globals.css`. Keep the standard components and core ride flows simple until the designer supplies the final design. The local `cn` utility combines component classes without raising the project's Node version requirement.
+
+Run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` to check frontend changes. For the mocked browser flows, run `npx playwright install chromium` once, then `npm run test:e2e`. These cover public browsing, sign-out privacy, onboarding, profile updates, posting, editing, joining, leaving, cancellation, and error recovery at desktop and phone widths. They do not need a running backend or Google credentials.

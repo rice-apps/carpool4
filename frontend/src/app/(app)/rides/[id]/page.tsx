@@ -6,18 +6,6 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarBlank,
-  CheckCircle,
-  Clock,
-  EnvelopeSimple,
-  NotePencil,
-  PencilSimple,
-  Phone,
-  Users,
-} from "@phosphor-icons/react";
-import {
   cancelRide,
   getRide,
   joinRide,
@@ -32,6 +20,20 @@ import {
 } from "../../../../lib/ride";
 import { requestErrorMessage } from "../../../../lib/requestError";
 import { RequireProfile } from "../../../../components/RouteGate";
+import { Badge } from "../../../../components/ui/badge";
+import { Button } from "../../../../components/ui/button";
+import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../../../components/ui/alert-dialog";
 
 export default function RideDetailsPage() {
   const id = useParams<{ id: string }>()?.id || "";
@@ -45,13 +47,6 @@ export default function RideDetailsPage() {
   const [actionSuccess, setActionSuccess] = useState("");
 
   async function act(action: "join" | "leave" | "cancel") {
-    if (
-      action === "cancel" &&
-      !window.confirm(
-        "Cancel this ride? Everyone on it will see that it was cancelled.",
-      )
-    )
-      return;
     setActionError("");
     setActionSuccess("");
     try {
@@ -92,12 +87,16 @@ export default function RideDetailsPage() {
   if (error)
     return (
       <div className="page-container list-message" role="alert">
-        {requestErrorMessage(
-          error,
-          "Getting ride details",
-          "Couldn’t load this ride.",
-        )}{" "}
-        <button onClick={() => void refetch()}>Try again</button>
+        <p>
+          {requestErrorMessage(
+            error,
+            "Getting ride details",
+            "Couldn’t load this ride.",
+          )}
+        </p>
+        <Button variant="outline" onClick={() => void refetch()}>
+          Try again
+        </Button>
       </div>
     );
   if (!data?.ride)
@@ -105,6 +104,7 @@ export default function RideDetailsPage() {
 
   const ride = data.ride;
   const state = rideState(ride);
+  const seats = availableSeats(ride);
   const isOwner = ride.owner?.id === session?.user.id;
   const isRider = ride.riders.some((rider) => rider.id === session?.user.id);
   const pending = join.isPending || leave.isPending || cancel.isPending;
@@ -112,195 +112,208 @@ export default function RideDetailsPage() {
   return (
     <div className="page-container detail-page">
       <Link href="/" className="back-link">
-        <ArrowLeft size={17} /> Back to rides
+        Back to rides
       </Link>
-      <div className="detail-header">
-        <div>
-          <span className="section-kicker">Ride details</span>
-          <h1>
-            {ride.departureLocation?.title || "Departure"} <span>to</span>{" "}
-            {ride.arrivalLocation?.title || "Arrival"}
-          </h1>
-        </div>
-        <span className={`status-pill status-${state}`}>
+      <div className="page-heading">
+        <h1>
+          {ride.departureLocation?.title || "Departure"} to{" "}
+          {ride.arrivalLocation?.title || "Arrival"}
+        </h1>
+        <Badge variant={state === "cancelled" ? "outline" : "secondary"}>
           {state === "open"
-            ? `${availableSeats(ride)} ${availableSeats(ride) === 1 ? "seat" : "seats"} left`
+            ? `${seats} ${seats === 1 ? "seat" : "seats"} left`
             : state}
-        </span>
+        </Badge>
       </div>
-      <div className="detail-grid">
-        <div className="detail-main">
-          <section className="detail-card trip-card">
-            <h2>The trip</h2>
-            <div className="trip-route">
-              <div className="trip-stop">
-                <span className="trip-dot" />
-                <div>
-                  <small>Leaving from</small>
-                  <strong>{ride.departureLocation?.title}</strong>
-                  <span>{ride.departureLocation?.address}</span>
-                </div>
+      <div className="grid gap-5">
+        <Card className="shadow-none">
+          <CardHeader>
+            <h2>Trip details</h2>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <dt className="text-sm text-muted-foreground">Leaving from</dt>
+                <dd className="mt-1 font-medium">
+                  {ride.departureLocation?.title}
+                </dd>
+                <dd className="text-sm text-muted-foreground">
+                  {ride.departureLocation?.address}
+                </dd>
               </div>
-              <div className="trip-connector" />
-              <div className="trip-stop">
-                <span className="trip-dot trip-dot-end" />
-                <div>
-                  <small>Arriving at</small>
-                  <strong>{ride.arrivalLocation?.title}</strong>
-                  <span>{ride.arrivalLocation?.address}</span>
-                </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Going to</dt>
+                <dd className="mt-1 font-medium">
+                  {ride.arrivalLocation?.title}
+                </dd>
+                <dd className="text-sm text-muted-foreground">
+                  {ride.arrivalLocation?.address}
+                </dd>
               </div>
-            </div>
-            <div className="trip-facts">
-              <span>
-                <CalendarBlank size={20} />
-                {formatDeparture(ride, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-              <span>
-                <Clock size={20} />
-                {formatDeparture(ride, { hour: "numeric", minute: "2-digit" })}
-              </span>
-              <span>
-                <Users size={20} />
-                {ride.occupiedSeats} of {ride.capacity} seats taken
-              </span>
-            </div>
-          </section>
-          {session && ride.notes && (
-            <section className="detail-card notes-card">
-              <h2>
-                <NotePencil size={21} /> A note from the driver
-              </h2>
-              <p>{ride.notes}</p>
-            </section>
-          )}
-          {session && (
-            <section className="detail-card people-card">
-              <h2>
-                People on this ride <span>{ride.riders.length}</span>
-              </h2>
-              <div className="people-list">
-                {ride.riders.map((rider) => (
-                  <div className="person-row" key={rider.id}>
-                    <span className="person-avatar">
-                      {rider.firstName?.[0]}
-                      {rider.lastName?.[0]}
-                    </span>
-                    <div>
-                      <strong>
+              <div>
+                <dt className="text-sm text-muted-foreground">Departure</dt>
+                <dd className="mt-1 font-medium">
+                  {formatDeparture(ride, {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm text-muted-foreground">Seats</dt>
+                <dd className="mt-1 font-medium">
+                  {ride.occupiedSeats} of {ride.capacity} seats taken, including
+                  the driver
+                </dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+        {session && ride.notes && (
+          <Card className="shadow-none">
+            <CardHeader>
+              <h2>Notes from the driver</h2>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap break-words">{ride.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+        {session && (
+          <>
+            <Card className="shadow-none">
+              <CardHeader>
+                <h2>People on this ride ({ride.riders.length})</h2>
+              </CardHeader>
+              <CardContent>
+                <ul className="divide-y">
+                  {ride.riders.map((rider) => (
+                    <li
+                      className="flex flex-wrap justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                      key={rider.id}
+                    >
+                      <span className="break-words">
                         {rider.firstName} {rider.lastName}
-                      </strong>
-                      <span>
+                      </span>
+                      <span className="text-sm text-muted-foreground">
                         {rider.id === ride.owner?.id ? "Driver" : "Rider"}
                       </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-        <aside className="detail-sidebar">
-          {session && (
-            <section className="detail-card driver-card">
-              <span className="section-kicker">Your driver</span>
-              <div className="driver-summary">
-                <span className="driver-avatar">
-                  {ride.owner?.firstName?.[0]}
-                  {ride.owner?.lastName?.[0]}
-                </span>
-                <div>
-                  <strong>
-                    {ride.owner?.firstName} {ride.owner?.lastName}
-                  </strong>
-                  <span>Rice student</span>
-                </div>
-              </div>
-              {ride.owner?.phone || ride.owner?.email ? (
-                <div className="driver-contact">
-                  {ride.owner?.phone && (
-                    <p>
-                      <Phone size={18} />
-                      {ride.owner.phone}
-                    </p>
-                  )}
-                  {ride.owner?.email && (
-                    <p>
-                      <EnvelopeSimple size={18} />
-                      {ride.owner.email}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="privacy-note">
-                  Contact details are visible when you share a ride with this driver.
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="shadow-none">
+              <CardHeader>
+                <h2>Driver contact</h2>
+              </CardHeader>
+              <CardContent className="space-y-2 break-words">
+                <p className="font-medium">
+                  {ride.owner?.firstName} {ride.owner?.lastName}
                 </p>
-              )}
-            </section>
-          )}
-          {!session && state === "open" && (
-            <section className="action-card">
-              <h2>Come along?</h2>
-              <p>Sign in with your Rice account to join this ride.</p>
-              <Link
-                className="button button-primary"
-                href={`/login?next=${encodeURIComponent(`/rides/${id}`)}`}
-              >
-                Sign in to join <ArrowRight size={17} />
-              </Link>
-            </section>
-          )}
-          {session && ride.status !== RideStatus.CANCELLED && (
-            <RequireProfile>
-              <section className="action-card">
+                {ride.owner?.phone || ride.owner?.email ? (
+                  <>
+                    {ride.owner.phone && <p>{ride.owner.phone}</p>}
+                    {ride.owner.email && <p>{ride.owner.email}</p>}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Contact details are visible when you share a ride with this
+                    driver.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+        {!session && state === "open" && (
+          <Card className="shadow-none">
+            <CardHeader>
+              <h2>Join this ride</h2>
+              <p className="text-muted-foreground">
+                Sign in with your Rice account to join this ride.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link
+                  href={`/login?next=${encodeURIComponent(`/rides/${id}`)}`}
+                >
+                  Sign in to join
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        {session && ride.status !== RideStatus.CANCELLED && (
+          <RequireProfile>
+            <Card className="shadow-none">
+              <CardHeader>
                 <h2>
                   {isOwner
                     ? "You’re driving"
                     : isRider
                       ? "You’re on this ride"
-                      : "Come along?"}
+                      : "Join this ride"}
                 </h2>
-                <p>
+                <p className="text-muted-foreground">
                   {isOwner
                     ? "Edit the details or cancel if plans change."
                     : isRider
                       ? "Your seat is saved. You can leave if your plans change."
                       : state === "full"
-                        ? "This ride is full right now."
-                        : "Join to save a seat and see your driver’s contact details."}
+                        ? "This ride is full."
+                        : state === "past"
+                          ? "This ride has departed."
+                          : "Join to save a seat and see your driver’s contact details."}
                 </p>
+              </CardHeader>
+              <CardContent>
                 {isOwner ? (
-                  <div className="action-stack">
-                    <Link
-                      href={`/rides/${id}/edit`}
-                      className="button button-primary"
-                    >
-                      <PencilSimple size={18} /> Edit ride
-                    </Link>
-                    <button
-                      className="button button-outline-danger"
-                      disabled={pending}
-                      onClick={() => void act("cancel")}
-                    >
-                      Cancel ride
-                    </button>
+                  <div className="form-actions">
+                    <Button asChild>
+                      <Link href={`/rides/${id}/edit`}>Edit ride</Link>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" disabled={pending}>
+                          Cancel ride
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel this ride?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Everyone on it will see that it was cancelled.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep ride</AlertDialogCancel>
+                          <AlertDialogAction
+                            variant="destructive"
+                            disabled={pending}
+                            onClick={() => void act("cancel")}
+                          >
+                            Cancel ride
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 ) : isRider ? (
-                  <button
-                    className="button button-outline-danger"
+                  <Button
+                    variant="outline"
                     disabled={pending}
                     onClick={() => void act("leave")}
                   >
                     {pending ? "Leaving…" : "Leave ride"}
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    className="button button-primary"
+                  <Button
                     disabled={pending || state === "full" || state === "past"}
                     onClick={() => void act("join")}
                   >
@@ -308,25 +321,23 @@ export default function RideDetailsPage() {
                       ? "Joining…"
                       : state === "full"
                         ? "Ride is full"
-                        : "Join this ride"}{" "}
-                    <ArrowRight size={17} />
-                  </button>
+                        : "Join this ride"}
+                  </Button>
                 )}
-              </section>
-            </RequireProfile>
-          )}
-          {actionError && (
-            <p className="form-error" role="alert">
-              {actionError}
-            </p>
-          )}
-          {actionSuccess && (
-            <p className="form-success" role="status">
-              <CheckCircle size={18} />
-              {actionSuccess}
-            </p>
-          )}
-        </aside>
+              </CardContent>
+            </Card>
+          </RequireProfile>
+        )}
+        {actionError && (
+          <p className="form-error" role="alert">
+            {actionError}
+          </p>
+        )}
+        {actionSuccess && (
+          <p className="form-success" role="status">
+            {actionSuccess}
+          </p>
+        )}
       </div>
     </div>
   );

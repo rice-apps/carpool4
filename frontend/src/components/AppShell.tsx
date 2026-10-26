@@ -2,30 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CarProfile,
-  Compass,
-  Plus,
-  UserCircle,
-  ArrowUpRight,
-} from "@phosphor-icons/react";
 import { useAuth } from "../lib/auth";
+import { Button } from "./ui/button";
 
 const navigation = [
-  { href: "/", label: "Find a ride", icon: Compass },
-  { href: "/my-rides", label: "My rides", icon: CarProfile },
-  { href: "/rides/new", label: "Post a ride", icon: Plus },
-  { href: "/profile", label: "Profile", icon: UserCircle },
+  { href: "/", label: "Find a ride" },
+  { href: "/my-rides", label: "My rides" },
+  { href: "/rides/new", label: "Post a ride" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export function Brand() {
   return (
-    <Link href="/" className="brand" aria-label="Carpool home">
-      <span className="brand-mark" aria-hidden="true">
-        <span />
-        <span />
-      </span>
-      <span>carpool</span>
+    <Link
+      href="/"
+      className="text-lg font-semibold tracking-tight"
+      aria-label="Carpool home"
+    >
+      Carpool
     </Link>
   );
 }
@@ -33,62 +27,43 @@ export function Brand() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { session } = useAuth();
-  const firstName = session?.user.user_metadata?.full_name?.split(" ")[0];
 
   return (
-    <div className="app-frame">
-      <header className="site-header">
-        <div className="header-inner">
+    <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:block focus:p-3"
+      >
+        Skip to content
+      </a>
+      <header className="border-b bg-card">
+        <div className="page-container flex flex-wrap items-center justify-between gap-3 py-4">
           <Brand />
-          <nav className="desktop-nav" aria-label="Main navigation">
+          <nav className="flex flex-wrap gap-1" aria-label="Main navigation">
             {navigation.map(({ href, label }) => (
-              <Link
+              <Button
                 key={href}
-                href={href}
-                className={`nav-link ${pathname === href ? "is-active" : ""}`}
+                variant={pathname === href ? "secondary" : "ghost"}
+                size="sm"
+                asChild
               >
-                {label}
-              </Link>
+                <Link
+                  href={href}
+                  aria-current={pathname === href ? "page" : undefined}
+                >
+                  {label}
+                </Link>
+              </Button>
             ))}
+            {!session && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/login">Sign in</Link>
+              </Button>
+            )}
           </nav>
-          {session ? (
-            <Link
-              href="/profile"
-              className="header-account"
-              aria-label="Your profile"
-            >
-              <span>{firstName || "My account"}</span>
-              <span className="header-avatar">{(firstName || "R")[0]}</span>
-            </Link>
-          ) : (
-            <Link href="/login" className="header-account">
-              Sign in
-            </Link>
-          )}
         </div>
       </header>
       <main id="main-content">{children}</main>
-      <footer className="site-footer">
-        <div className="page-container footer-inner">
-          <span>Made for the ride from Rice to everywhere.</span>
-          <Link href="/rides/new">
-            Share your next trip <ArrowUpRight size={16} />
-          </Link>
-        </div>
-      </footer>
-      <nav className="mobile-nav" aria-label="Main navigation">
-        {navigation.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={pathname === href ? "is-active" : ""}
-            aria-current={pathname === href ? "page" : undefined}
-          >
-            <Icon size={22} weight={pathname === href ? "fill" : "regular"} />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </nav>
-    </div>
+    </>
   );
 }

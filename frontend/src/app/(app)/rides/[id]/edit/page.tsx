@@ -7,6 +7,7 @@ import { RideForm } from "../../../../../components/RideForm";
 import { useAuth } from "../../../../../lib/auth";
 import { RideStatus } from "../../../../../gen/carpool/v1/ride_pb";
 import { requestErrorMessage } from "../../../../../lib/requestError";
+import { Button } from "../../../../../components/ui/button";
 
 export default function EditRidePage() {
   const id = useParams<{ id: string }>()?.id || "";
@@ -26,7 +27,9 @@ export default function EditRidePage() {
           "Getting ride details",
           "Couldn’t load this ride.",
         )}{" "}
-        <button onClick={() => void refetch()}>Try again</button>
+        <Button variant="outline" onClick={() => void refetch()}>
+          Try again
+        </Button>
       </div>
     );
   if (!data?.ride)

@@ -3,14 +3,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@connectrpc/connect-query";
-import { ArrowRight, CarProfile } from "@phosphor-icons/react";
 import { listMyRides } from "../../../gen/carpool/v1/ride-RideService_connectquery";
 import { RideCard } from "../../../components/RideCard";
+import { Button } from "../../../components/ui/button";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../../../components/ui/tabs";
 import { rideState } from "../../../lib/ride";
 import { requestErrorMessage } from "../../../lib/requestError";
 
 export default function MyRidesPage() {
-  const [view, setView] = useState<"upcoming" | "history">("upcoming");
+  const [view, setView] = useState("upcoming");
   const { data, error, isLoading, refetch } = useQuery(listMyRides, {});
   const rides =
     data?.rides.filter((ride) =>
@@ -23,71 +29,63 @@ export default function MyRidesPage() {
     <div className="page-container interior-page">
       <div className="page-heading">
         <div>
-          <span className="section-kicker">Your journeys</span>
           <h1>My rides</h1>
-          <p>Every ride you’ve posted or joined, all in one place.</p>
+          <p>Rides you have posted or joined.</p>
         </div>
-        <Link className="button button-primary" href="/rides/new">
-          Post a ride <ArrowRight size={18} />
-        </Link>
+        <Button asChild>
+          <Link href="/rides/new">Post a ride</Link>
+        </Button>
       </div>
-      <div className="tabs" role="tablist" aria-label="Ride history">
-        <button
-          role="tab"
-          aria-selected={view === "upcoming"}
-          className={view === "upcoming" ? "is-active" : ""}
-          onClick={() => setView("upcoming")}
-        >
-          Upcoming
-        </button>
-        <button
-          role="tab"
-          aria-selected={view === "history"}
-          className={view === "history" ? "is-active" : ""}
-          onClick={() => setView("history")}
-        >
-          Past & cancelled
-        </button>
-      </div>
-      {isLoading ? (
-        <div className="list-message" role="status">
-          Loading your rides…
-        </div>
-      ) : error ? (
-        <div className="list-message" role="alert">
-          {requestErrorMessage(
-            error,
-            "Getting your rides",
-            "Couldn’t load your rides.",
-          )}{" "}
-          <button onClick={() => void refetch()}>Try again</button>
-        </div>
-      ) : rides.length ? (
-        <div className="ride-list my-ride-list">
-          {rides.map((ride) => (
-            <RideCard key={ride.id} ride={ride} />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <span className="empty-icon">
-            <CarProfile size={30} />
-          </span>
-          <h3>
-            {view === "upcoming" ? "No upcoming rides" : "No past rides yet"}
-          </h3>
-          <p>
-            {view === "upcoming"
-              ? "Find a seat or share a trip to get moving."
-              : "Your completed and cancelled rides will appear here."}
-          </p>
-          {view === "upcoming" && (
-            <Link className="text-link" href="/">
-              Find a ride <ArrowRight size={17} />
-            </Link>
+      <Tabs value={view} onValueChange={setView}>
+        <TabsList aria-label="Ride history">
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="history">Past &amp; cancelled</TabsTrigger>
+        </TabsList>
+        <TabsContent value={view} className="mt-4">
+          {isLoading ? (
+            <div className="list-message" role="status">
+              Loading your rides…
+            </div>
+          ) : error ? (
+            <div className="list-message" role="alert">
+              <p>
+                {requestErrorMessage(
+                  error,
+                  "Getting your rides",
+                  "Couldn’t load your rides.",
+                )}
+              </p>
+              <Button variant="outline" onClick={() => void refetch()}>
+                Try again
+              </Button>
+            </div>
+          ) : rides.length ? (
+            <div className="ride-list">
+              {rides.map((ride) => (
+                <RideCard key={ride.id} ride={ride} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <h2>
+                {view === "upcoming"
+                  ? "No upcoming rides"
+                  : "No past rides yet"}
+              </h2>
+              <p>
+                {view === "upcoming"
+                  ? "Find a ride or post your own trip."
+                  : "Your past and cancelled rides will appear here."}
+              </p>
+              {view === "upcoming" && (
+                <Button variant="outline" asChild>
+                  <Link href="/">Find a ride</Link>
+                </Button>
+              )}
+            </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
