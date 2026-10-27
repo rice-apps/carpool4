@@ -34,8 +34,7 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 //   - currentUser (CurrentUser): identifies whose rides to return and which contacts
 //     they may see.
 //
-// The returned rides show only allowed contacts. A missing caller or storage
-// failure returns an error.
+// The returned rides show only allowed contacts. A storage failure returns an error.
 func (s *Service) ListMyRides(ctx context.Context, currentUser CurrentUser) ([]Ride, error) {
 	// TODO(student): Implement ListMyRides application logic.
 	return nil, ErrNotImplemented

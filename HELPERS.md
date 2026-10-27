@@ -2,7 +2,7 @@
 
 ## RPC helpers
 
-### Require sign-in: requireSignedInUser(ctx)
+### Get the current user: getCurrentUser(ctx)
 
 Gets the signed-in person's user ID and email from ctx and returns them as app.CurrentUser. This identifies the person making the request.
 
@@ -10,12 +10,12 @@ The identity in ctx has already been checked by the sign-in code. This helper re
 
 **Inputs and outputs**
 
-`func requireSignedInUser(ctx context.Context) (app.CurrentUser, error)`
+`func getCurrentUser(ctx context.Context) (app.CurrentUser, error)`
 
 **Example**
 
 ```go
-currentUser, err := requireSignedInUser(ctx)
+currentUser, err := getCurrentUser(ctx)
 if err != nil {
     return nil, convertToConnectError(err)
 }
@@ -25,27 +25,27 @@ The person asking and the profile being requested can be different. If Mia opens
 
 - ctx contains the checked identity associated with this request.
 
-- currentUser has UserID and Email from sign-in. Names and phone numbers come from the person's saved profile instead.
+- currentUser has ID and Email from sign-in. Names and phone numbers come from the person's saved profile instead.
 
 - Missing identity or an empty ID returns app.ErrUnauthenticated.
 
-### Allow guests: auth.GetSignedInUser(ctx)
+### Check sign-in: auth.IsSignedIn(ctx)
 
 Checks whether ctx contains a signed-in identity. GetRide and ListRides allow guests, so the absence of an identity is an allowed case for those requests.
 
-Returns the auth.User from ctx and a boolean saying whether one was present. ListLocations needs no identity lookup; other RPC operations require sign-in.
+Returns a boolean saying whether authentication supplied an identity. Retrieve the current user with getCurrentUser(ctx) when you need their ID or email. ListLocations needs no identity lookup; other RPC operations require sign-in.
 
 **Inputs and outputs**
 
-`func GetSignedInUser(ctx context.Context) (User, bool)`
+`func IsSignedIn(ctx context.Context) bool`
 
 **Example**
 
 ```go
 currentUser := app.CurrentUser{}
-if _, signedIn := auth.GetSignedInUser(ctx); signedIn {
+if auth.IsSignedIn(ctx) {
     var err error
-    currentUser, err = requireSignedInUser(ctx)
+    currentUser, err = getCurrentUser(ctx)
     if err != nil {
         return nil, convertToConnectError(err)
     }
@@ -54,9 +54,9 @@ if _, signedIn := auth.GetSignedInUser(ctx); signedIn {
 
 An empty app.CurrentUser{} represents a guest. A signed-in request has a CurrentUser containing that person's checked ID and email.
 
-- auth.User contains the ID and email checked by the sign-in code. app.CurrentUser contains the identity in the form expected by the application functions.
+- getCurrentUser returns the checked ID and email as app.CurrentUser, the identity value expected by application functions.
 
-- signedIn is false when no identity was supplied. The request can then be handled as a guest request.
+- The result is false when no identity was supplied. The request can then be handled as a guest request.
 
 - An invalid sign-in token is rejected before the handler runs. It does not become a guest request.
 
@@ -150,7 +150,7 @@ A viewer is the person receiving the information: the current user or a guest. A
 
 ### What the user and ride values mean
 
-**CurrentUser** describes the person making the request. It has their UserID and Email from checked sign-in information. It does not contain their full saved profile. If Mia opens Alex's profile, CurrentUser describes Mia. An empty CurrentUser{} represents a guest.
+**CurrentUser** describes the person making the request. It has their ID and Email from checked sign-in information. It does not contain their full saved profile. If Mia opens Alex's profile, CurrentUser describes Mia. An empty CurrentUser{} represents a guest.
 
 **UserRecord** describes a profile read from the database. It includes the ID, first name, last name, email, and phone number that are stored there. In Mia's request to open Alex's profile, the UserRecord describes Alex. Having Alex's phone number in this record does not mean Mia is allowed to receive it.
 
@@ -162,27 +162,7 @@ A viewer is the person receiving the information: the current user or a guest. A
 
 The privacy rule is that a signed-in person may see their own contacts and those of people with whom they share any ride. Past and cancelled rides count too. Hiding contacts means leaving them out of the returned copy; it does not erase them from the database.
 
-### Require sign-in: requireSignIn(currentUser)
-
-Checks that currentUser has a user ID. An empty ID returns ErrUnauthenticated; a present ID returns nil.
-
-requireSignedInUser gets the checked identity from ctx. requireSignIn checks the CurrentUser it was given.
-
-**Inputs and outputs**
-
-`func requireSignIn(currentUser CurrentUser) error`
-
-**Example**
-
-```go
-if err := requireSignIn(currentUser); err != nil {
-    return Ride{}, err
-}
-```
-
-This check only establishes that a user ID is present. It does not check ownership, available seats, or other rules for the requested action.
-
-GetRide and ListRides allow an empty CurrentUser for guests. ListLocations has no current-user argument.
+RPC enforces sign-in for protected operations. Application methods receive verified CurrentUser values; guest-enabled reads use an empty CurrentUser and branch on its ID to choose visible fields. Direct service callers must supply the same verified identity for protected operations.
 
 ### Get a visible profile: getVisibleProfile(ctx, tx, currentUser, record)
 
@@ -226,19 +206,19 @@ For example, Mia may be allowed to see Alex's contacts but not Jordan's. A ride 
 **Example**
 
 ```go
-results, err := buildRidesForViewer(ctx, tx, currentUser.UserID, loadedRides)
+results, err := buildRidesForViewer(ctx, tx, currentUser.ID, loadedRides)
 if err != nil {
     return nil, err
 }
 ```
 
-loadedRides contains the rides read from the database. currentUser.UserID identifies the person asking, and results contains the rides prepared for that person. The helper checks contact permission for all owners and riders in one database call, then prepares their profiles with only the allowed contacts.
+loadedRides contains the rides read from the database. currentUser.ID identifies the person asking, and results contains the rides prepared for that person. The helper checks contact permission for all owners and riders in one database call, then prepares their profiles with only the allowed contacts.
 
 tx is the same transaction that loaded the rides. The ride data and contact decisions therefore use a consistent view of the database.
 
 - ctx carries cancellation and the request's time limit. The helper uses the existing tx rather than opening another transaction.
 
-- viewerID identifies the person receiving the result. uuid.Nil represents a guest; an empty CurrentUser has that value in UserID.
+- viewerID identifies the person receiving the result. uuid.Nil represents a guest; an empty CurrentUser has that value in ID.
 
 - The returned rides stay in the same order as the input. A failed contact permission lookup returns an error.
 
@@ -373,7 +353,7 @@ If Mia asks about Alex and Jordan but only shares a ride with Alex, visibleIDs c
 
 ```go
 visibleIDs, err := tx.Users().ListContactVisibleUserIDs(
-    ctx, currentUser.UserID, []uuid.UUID{record.ID},
+    ctx, currentUser.ID, []uuid.UUID{record.ID},
 )
 if err != nil {
     return nil, err
@@ -410,7 +390,7 @@ record := convertUserRow(row)
 
 row contains the profile returned by the database. record is that profile in the application's stored-record format.
 
-The helper copies ID, FirstName, LastName, Email, and Phone. It includes the full stored contacts. For a profile response, getVisibleProfile checks permission and prepares the profile for the person who asked.
+The helper copies ID, FirstName, LastName, Email, and Phone. It includes the full stored contacts. The application will use its privacy helpers later to prepare a profile for the person who asked.
 
 ### Convert a location row: convertLocationRow(row)
 
@@ -454,7 +434,7 @@ row contains the pieces returned by the ride query. loaded is the assembled Load
 
 - Invalid rider JSON returns an error.
 
-- **LoadedRide** retains the owner's and riders' stored contacts. Contact privacy is applied when the application builds the Ride result for a viewer.
+- LoadedRide retains the owner's and riders' stored contacts. Contact privacy is applied when the application builds the Ride result for a viewer.
 
 ### Translate a user query error: translateUserError(err)
 

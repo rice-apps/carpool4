@@ -45,7 +45,7 @@ func validateRideWrite(input RideWriteParams) error {
 //     capacity, and notes.
 //
 // The ride must be active, input must be valid, and capacity must fit current
-// occupants. A missing caller or ride, denied owner, cancelled ride, invalid
+// occupants. A missing ride, denied owner, cancelled ride, invalid
 // input, or storage failure returns an empty Ride and an error.
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement UpdateRide application logic.
@@ -60,7 +60,7 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 //   - currentUser (CurrentUser): identifies the caller who must own the ride.
 //   - id (uuid.UUID): identifies the ride to cancel.
 //
-// A missing caller or ride, denied owner, or storage failure returns an empty
+// A missing ride, denied owner, or storage failure returns an empty
 // Ride and an error.
 func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID) (Ride, error) {
 	// TODO(student): Implement CancelRide application logic.

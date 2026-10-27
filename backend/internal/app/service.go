@@ -1,8 +1,8 @@
 package app
 
-import "github.com/google/uuid"
-
 // Service provides carpool operations using application-owned storage.
+// Protected operations require a verified, nonempty CurrentUser from the caller.
+// Public ride reads also accept guests. Authentication belongs to the RPC layer.
 //
 // Fields:
 //   - database: starts a transaction for each operation that reads or writes data.
@@ -13,13 +13,4 @@ type Service struct {
 // NewService returns a Service that uses database for its storage access.
 func NewService(database Database) *Service {
 	return &Service{database: database}
-}
-
-// requireSignIn checks that this operation received a signed-in user's ID.
-// An empty ID returns ErrUnauthenticated; token verification happens before RPC.
-func requireSignIn(currentUser CurrentUser) error {
-	if currentUser.UserID == uuid.Nil {
-		return ErrUnauthenticated
-	}
-	return nil
 }

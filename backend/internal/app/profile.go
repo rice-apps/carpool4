@@ -16,7 +16,7 @@ import (
 //     caller's own profile.
 //
 // The returned User includes contact details only for the caller or someone
-// who has shared a ride with them. A missing caller, empty target ID, missing
+// who has shared a ride with them. An empty target ID, missing
 // profile, or storage failure returns an empty User and an error.
 func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID *uuid.UUID) (User, error) {
 	// TODO(student): Implement GetUser application logic.
@@ -32,9 +32,8 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 //   - input (UserInput): the name and phone number to save. It cannot change
 //     the profile owner or email.
 //
-// Returns the saved User, including the caller's contact details. If the
-// caller is unknown, the information is invalid, or saving fails, it returns
-// an empty User and an error.
+// Returns the saved User, including the caller's contact details. Invalid
+// information or a storage failure returns an empty User and an error.
 func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input UserInput) (User, error) {
 	// TODO(student): Implement UpdateUser application logic.
 	return User{}, ErrNotImplemented

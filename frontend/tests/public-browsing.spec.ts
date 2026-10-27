@@ -16,7 +16,7 @@ const rider = {
 };
 const trip = {
   id: rideID,
-  departureTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  departureDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   departureLocation: rice,
   arrivalLocation: airport,
   capacity: 3,
@@ -27,7 +27,7 @@ const trip = {
 type RideInput = {
   departureLocationId: string;
   arrivalLocationId: string;
-  departureTime: string;
+  departureDate: string;
   capacity: number;
   notes: string;
 };
@@ -60,8 +60,8 @@ async function mockServices(
       scenario.state === "cancelled"
         ? "RIDE_STATUS_CANCELLED"
         : "RIDE_STATUS_ACTIVE",
-    departureTime:
-      scenario.state === "past" ? "2020-01-01T12:00:00Z" : trip.departureTime,
+    departureDate:
+      scenario.state === "past" ? "2020-01-01T12:00:00Z" : trip.departureDate,
   };
   let notes = "Private pickup instructions";
 
@@ -145,7 +145,7 @@ async function mockServices(
         isOwner = true;
         currentTrip = {
           ...currentTrip,
-          departureTime: input.departureTime,
+          departureDate: input.departureDate,
           departureLocation:
             input.departureLocationId === rice.id ? rice : airport,
           arrivalLocation: input.arrivalLocationId === rice.id ? rice : airport,

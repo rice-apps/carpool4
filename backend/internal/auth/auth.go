@@ -37,6 +37,13 @@ func WithUser(ctx context.Context, u User) context.Context {
 	return context.WithValue(ctx, contextKey{}, u)
 }
 
+// IsSignedIn reports whether authentication supplied a caller in ctx.
+// It does not verify credentials or load a saved profile.
+func IsSignedIn(ctx context.Context) bool {
+	_, signedIn := GetSignedInUser(ctx)
+	return signedIn
+}
+
 // GetSignedInUser reads the sign-in identity authentication stored in ctx.
 // It returns false when no user was stored, so public handlers can allow guests.
 func GetSignedInUser(ctx context.Context) (User, bool) {

@@ -2,9 +2,7 @@ package postgres
 
 import (
 	"context"
-
 	"github.com/google/uuid"
-
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
 

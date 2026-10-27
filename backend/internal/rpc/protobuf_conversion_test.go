@@ -9,7 +9,7 @@ import (
 )
 
 func TestConvertRideToProtoKeepsGuestOwnerAbsent(t *testing.T) {
-	ride := app.Ride{ID: uuid.New(), DepartureTime: time.Now(), Capacity: 2, OccupiedSeats: 1}
+	ride := app.Ride{ID: uuid.New(), DepartureDate: time.Now(), Capacity: 2, OccupiedSeats: 1}
 	got := convertRideToProto(ride)
 	if got.Owner != nil || len(got.Riders) != 0 || got.OccupiedSeats != 1 {
 		t.Fatalf("guest ride = %#v", got)
@@ -19,7 +19,7 @@ func TestConvertRideToProtoKeepsGuestOwnerAbsent(t *testing.T) {
 func TestConvertRideToProtoKeepsSignedInOwner(t *testing.T) {
 	ownerID := uuid.New()
 	ride := app.Ride{
-		ID: uuid.New(), DepartureTime: time.Now(),
+		ID: uuid.New(), DepartureDate: time.Now(),
 		Owner: app.User{ID: ownerID, FirstName: "Alex"}, OccupiedSeats: 1,
 	}
 	got := convertRideToProto(ride)

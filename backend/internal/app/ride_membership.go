@@ -16,7 +16,7 @@ import (
 //
 // It returns the updated Ride with contacts currentUser may see. The ride must be
 // active and have room; its owner and current riders cannot join again. A
-// missing caller or ride, disallowed membership, or storage failure returns
+// missing ride, disallowed membership, or storage failure returns
 // an empty Ride and an error.
 func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
 	// TODO(student): Implement JoinRide application logic.
@@ -32,7 +32,7 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 //   - rideID (uuid.UUID): identifies the ride to leave.
 //
 // It returns the updated Ride with contacts currentUser may still see. A rider may
-// leave a cancelled ride; its owner cannot leave. A missing caller or ride,
+// leave a cancelled ride; its owner cannot leave. A missing ride,
 // absent membership, or storage failure returns an empty Ride and an error.
 func (s *Service) LeaveRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
 	// TODO(student): Implement LeaveRide application logic.

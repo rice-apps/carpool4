@@ -12,13 +12,13 @@ import (
 // Guests receive no contacts. A failed permission check returns no profile and
 // the lookup error. The stored record is unchanged.
 func getVisibleProfile(ctx context.Context, tx Transaction, currentUser CurrentUser, record UserRecord) (User, error) {
-	if currentUser.UserID == uuid.Nil {
+	if currentUser.ID == uuid.Nil {
 		return buildUserResult(record, false), nil
 	}
-	if currentUser.UserID == record.ID {
+	if currentUser.ID == record.ID {
 		return buildUserResult(record, true), nil
 	}
-	visibleIDs, err := tx.Users().ListContactVisibleUserIDs(ctx, currentUser.UserID, []uuid.UUID{record.ID})
+	visibleIDs, err := tx.Users().ListContactVisibleUserIDs(ctx, currentUser.ID, []uuid.UUID{record.ID})
 	if err != nil {
 		return User{}, err
 	}
@@ -67,7 +67,7 @@ func buildRidesForViewer(ctx context.Context, tx Transaction, viewerID uuid.UUID
 	for i, loaded := range rides {
 		result[i] = Ride{
 			ID:                loaded.ID,
-			DepartureTime:     loaded.DepartureTime,
+			DepartureDate:     loaded.DepartureDate,
 			DepartureLocation: loaded.Departure,
 			ArrivalLocation:   loaded.Arrival,
 			Capacity:          loaded.Capacity,

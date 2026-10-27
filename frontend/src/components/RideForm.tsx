@@ -18,7 +18,7 @@ import {
 } from "../gen/carpool/v1/ride-RideService_connectquery";
 import { getUser } from "../gen/carpool/v1/user-UserService_connectquery";
 import type { Ride } from "../gen/carpool/v1/ride_pb";
-import { departureTime, localDateTime } from "../lib/ride";
+import { departureDate, localDateTime } from "../lib/ride";
 import { requestErrorMessage } from "../lib/requestError";
 
 export function RideForm({ ride }: { ride?: Ride }) {
@@ -32,7 +32,7 @@ export function RideForm({ ride }: { ride?: Ride }) {
   const [from, setFrom] = useState(ride?.departureLocation?.id || "");
   const [to, setTo] = useState(ride?.arrivalLocation?.id || "");
   const [when, setWhen] = useState(
-    ride && departureTime(ride) ? localDateTime(departureTime(ride)!) : "",
+    ride && departureDate(ride) ? localDateTime(departureDate(ride)!) : "",
   );
   const [capacity, setCapacity] = useState(ride?.capacity || 4);
   const [notes, setNotes] = useState(ride?.notes || "");
@@ -68,7 +68,7 @@ export function RideForm({ ride }: { ride?: Ride }) {
       const input = {
         departureLocationId: from,
         arrivalLocationId: to,
-        departureTime: timestampFromDate(departure),
+        departureDate: timestampFromDate(departure),
         capacity,
         notes: notes.trim(),
       };

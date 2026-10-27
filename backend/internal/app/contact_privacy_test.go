@@ -11,7 +11,7 @@ import (
 func TestBuildRidesForViewerHidesPeopleAndNotesFromGuests(t *testing.T) {
 	owner := UserRecord{ID: uuid.New(), FirstName: "Alex", Email: "alex@rice.edu", Phone: "7135550100"}
 	loaded := LoadedRide{
-		ID: uuid.New(), DepartureTime: time.Now().Add(time.Hour), Owner: owner,
+		ID: uuid.New(), DepartureDate: time.Now().Add(time.Hour), Owner: owner,
 		Riders: []UserRecord{owner}, Notes: "Private pickup details", Capacity: 2,
 	}
 	db := &starterDB{}

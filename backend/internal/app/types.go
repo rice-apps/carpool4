@@ -11,11 +11,11 @@ import (
 // Public ride reads use an empty CurrentUser for guests.
 //
 // Fields:
-//   - UserID: Supabase user ID used for authorization and profile ownership.
+//   - ID: Supabase user ID used for authorization and profile ownership.
 //   - Email: verified address stored when the caller saves their profile.
 type CurrentUser struct {
-	UserID uuid.UUID
-	Email  string
+	ID    uuid.UUID
+	Email string
 }
 
 // UserInput contains the profile details a caller may change.
@@ -66,7 +66,7 @@ type User struct {
 //
 // Fields:
 //   - ID: stable ride ID.
-//   - DepartureTime: scheduled departure time.
+//   - DepartureDate: scheduled departure time.
 //   - DepartureLocation: selected starting place.
 //   - ArrivalLocation: selected destination.
 //   - Owner: driver profile with viewer-allowed contact details.
@@ -77,7 +77,7 @@ type User struct {
 //   - Status: whether the ride is active or cancelled.
 type Ride struct {
 	ID                uuid.UUID
-	DepartureTime     time.Time
+	DepartureDate     time.Time
 	DepartureLocation LocationRecord
 	ArrivalLocation   LocationRecord
 	Owner             User
