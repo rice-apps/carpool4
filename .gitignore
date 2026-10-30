@@ -32,7 +32,3 @@ go.work.sum
 
 # Local backend executable
 /backend/server
-
-.local/
-
-.env.admin

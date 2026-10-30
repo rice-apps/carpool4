@@ -82,18 +82,18 @@ func (d *Database) BeginTx(ctx context.Context) (app.Transaction, error) {
 	return &Transaction{tx: tx, queries: sqlc.New(tx)}, nil
 }
 
-// UsersRepo returns user storage scoped to this transaction.
-func (t *Transaction) UsersRepo() app.UserRepository {
+// Users returns user storage scoped to this transaction.
+func (t *Transaction) Users() app.UserRepository {
 	return userRepository{queries: t.queries}
 }
 
-// RidesRepo returns ride storage scoped to this transaction.
-func (t *Transaction) RidesRepo() app.RideRepository {
+// Rides returns ride storage scoped to this transaction.
+func (t *Transaction) Rides() app.RideRepository {
 	return rideRepository{queries: t.queries}
 }
 
-// LocationsRepo returns location storage scoped to this transaction.
-func (t *Transaction) LocationsRepo() app.LocationRepository {
+// Locations returns location storage scoped to this transaction.
+func (t *Transaction) Locations() app.LocationRepository {
 	return locationRepository{queries: t.queries}
 }
 

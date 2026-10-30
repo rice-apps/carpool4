@@ -316,9 +316,9 @@ type starterDB struct {
 }
 
 func (db *starterDB) BeginTx(context.Context) (Transaction, error) { return db, nil }
-func (db *starterDB) UsersRepo() UserRepository                    { return db }
-func (db *starterDB) RidesRepo() RideRepository                    { return db }
-func (db *starterDB) LocationsRepo() LocationRepository            { return db }
+func (db *starterDB) Users() UserRepository                        { return db }
+func (db *starterDB) Rides() RideRepository                        { return db }
+func (db *starterDB) Locations() LocationRepository                { return db }
 func (db *starterDB) Commit() error                                { db.commits++; return nil }
 func (db *starterDB) Rollback() error                              { return nil }
 

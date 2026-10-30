@@ -133,12 +133,12 @@ type Database interface {
 
 // Transaction groups the repositories that share one consistent snapshot.
 type Transaction interface {
-	// UsersRepo returns the user repository bound to this transaction.
-	UsersRepo() UserRepository
-	// RidesRepo returns the ride repository bound to this transaction.
-	RidesRepo() RideRepository
-	// LocationsRepo returns the location repository bound to this transaction.
-	LocationsRepo() LocationRepository
+	// Users returns the user repository bound to this transaction.
+	Users() UserRepository
+	// Rides returns the ride repository bound to this transaction.
+	Rides() RideRepository
+	// Locations returns the location repository bound to this transaction.
+	Locations() LocationRepository
 	// Commit makes all transaction writes durable or returns an error.
 	Commit() error
 	// Rollback closes the transaction without publishing uncommitted writes.

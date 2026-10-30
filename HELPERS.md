@@ -146,8 +146,6 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-`getVisibleProfile` and `buildRidesForViewer` are already implemented. Students implement `validateUserWrite` (Profile pair), `validateRideWrite` (Creation and Editing), and `getUserViewableRide` (Ride detail). The starter code supplies signatures and TODO bodies for those functions.
-
 A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
 
 ### What the user and ride values mean
@@ -228,20 +226,6 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
 
-### Get a ride for a viewer: getUserViewableRide
-
-Student helper implemented by the Ride detail pair and reused by ride mutations.
-
-Loads one ride through `tx.RidesRepo().GetRide` and uses `buildRidesForViewer` to return a `Ride` with fields the viewer may receive. The repository's `GetRide` returns a `LoadedRide` containing full stored contacts; this helper applies contact privacy and guest discovery rules.
-
-**Inputs and outputs**
-
-`func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
-
-Use the operation's existing `tx`. The helper does not start, commit, or roll back a transaction. `Service.GetRide` opens a transaction and calls it. Mutations reuse their own transaction and prepare the result before committing.
-
-`LeaveRide` calls it before removal for the ownership check and again afterward for the updated occupants and remaining contact permissions. `viewerID` is `currentUser.ID`; `uuid.Nil` represents a guest.
-
 ## Storage access
 
 ### Start a transaction: s.database.BeginTx(ctx)
@@ -264,53 +248,53 @@ defer tx.Rollback()
 
 ctx supplies the request's cancellation and time limit. BeginTx uses Serializable isolation.
 
-### Get profile methods: tx.UsersRepo()
+### Get profile methods: tx.Users()
 
 Returns the profile repository for tx. Its methods find or save profiles and check contact permission. Getting the repository does not load any profiles.
 
 **Inputs and outputs**
 
-`UsersRepo() UserRepository`
+`Users() UserRepository`
 
 **Example**
 
 ```go
-usersRepo := tx.UsersRepo()
+users := tx.Users()
 ```
 
-usersRepo provides profile access within tx. It is not a list of user profiles.
+users provides profile access within tx. It is not a list of user profiles.
 
-### Get ride methods: tx.RidesRepo()
+### Get ride methods: tx.Rides()
 
 Returns the ride repository for tx. Its methods read, list, create, update, or cancel rides and change who is in them. Getting the repository runs no query.
 
 **Inputs and outputs**
 
-`RidesRepo() RideRepository`
+`Rides() RideRepository`
 
 **Example**
 
 ```go
-ridesRepo := tx.RidesRepo()
+rides := tx.Rides()
 ```
 
-ridesRepo provides ride access within tx. It is not a list of loaded rides.
+rides provides ride access within tx. It is not a list of loaded rides.
 
-### Get location methods: tx.LocationsRepo()
+### Get location methods: tx.Locations()
 
 Returns the location repository for tx. Its ListLocations method supplies the pickup and destination choices.
 
 **Inputs and outputs**
 
-`LocationsRepo() LocationRepository`
+`Locations() LocationRepository`
 
 **Example**
 
 ```go
-locationsRepo := tx.LocationsRepo()
+locations := tx.Locations()
 ```
 
-locationsRepo provides location access within tx. Getting the repository does not fetch the locations list.
+locations provides location access within tx. Getting the repository does not fetch the locations list.
 
 ### Undo unfinished changes: tx.Rollback()
 
@@ -368,7 +352,7 @@ If Mia asks about Alex and Jordan but only shares a ride with Alex, visibleIDs c
 **Example**
 
 ```go
-visibleIDs, err := tx.UsersRepo().ListContactVisibleUserIDs(
+visibleIDs, err := tx.Users().ListContactVisibleUserIDs(
     ctx, currentUser.ID, []uuid.UUID{record.ID},
 )
 if err != nil {
