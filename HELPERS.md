@@ -146,11 +146,15 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-`getVisibleProfile` and `buildRidesForViewer` are already implemented. Students implement `validateUserWrite` (Profile pair), `validateRideWrite` (Creation and Editing), and `getUserViewableRide` (Ride detail). The starter code supplies signatures and TODO bodies for those functions.
+Students implement:
 
-A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
+- `validateUserWrite` (Profile pair)
+- `validateRideWrite` (Creation and Editing pair)
+- `getUserViewableRide` (Ride detail pair)
 
 ### What the user and ride values mean
+
+A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
 
 **CurrentUser** describes the person making the request. It has their ID and Email from checked sign-in information. It does not contain their full saved profile. If Mia opens Alex's profile, CurrentUser describes Mia. An empty CurrentUser{} represents a guest.
 
