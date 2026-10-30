@@ -18,7 +18,7 @@ func getVisibleProfile(ctx context.Context, tx Transaction, currentUser CurrentU
 	if currentUser.ID == record.ID {
 		return buildUserResult(record, true), nil
 	}
-	visibleIDs, err := tx.Users().ListContactVisibleUserIDs(ctx, currentUser.ID, []uuid.UUID{record.ID})
+	visibleIDs, err := tx.UsersRepo().ListContactVisibleUserIDs(ctx, currentUser.ID, []uuid.UUID{record.ID})
 	if err != nil {
 		return User{}, err
 	}
@@ -53,7 +53,7 @@ func buildRidesForViewer(ctx context.Context, tx Transaction, viewerID uuid.UUID
 				targets = append(targets, rider.ID)
 			}
 		}
-		visible, err := tx.Users().ListContactVisibleUserIDs(ctx, viewerID, targets)
+		visible, err := tx.UsersRepo().ListContactVisibleUserIDs(ctx, viewerID, targets)
 		if err != nil {
 			return nil, err
 		}
