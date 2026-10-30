@@ -69,7 +69,7 @@ type profilePrivacyTx struct {
 	lookups    int
 }
 
-func (tx *profilePrivacyTx) Users() UserRepository { return tx }
+func (tx *profilePrivacyTx) UsersRepo() UserRepository { return tx }
 
 func (tx *profilePrivacyTx) ListContactVisibleUserIDs(_ context.Context, viewerID uuid.UUID, targetIDs []uuid.UUID) ([]uuid.UUID, error) {
 	tx.lookups++
