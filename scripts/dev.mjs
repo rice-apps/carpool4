@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRootDir = resolve(dirname(scriptPath), "..");
@@ -105,62 +106,22 @@ function interrupted(signal) {
   });
 }
 
-function parseStatus(stdout) {
-  let status;
+async function environment(rootDir) {
+  let contents = "";
   try {
-    status = JSON.parse(stdout);
+    contents = await readFile(join(rootDir, ".env"), "utf8");
   } catch (error) {
-    throw new Error("Supabase returned invalid status output", { cause: error });
+    if (error.code !== "ENOENT") throw error;
   }
-
-  const apiURL = status.API_URL ?? status.api_url;
-  const databaseURL = status.DB_URL ?? status.db_url;
-  const anonKey =
-    status.PUBLISHABLE_KEY ??
-    status.ANON_KEY ??
-    status.publishable_key ??
-    status.anon_key;
-  if (!apiURL || !databaseURL || !anonKey) {
-    throw new Error("Supabase status is missing its API URL, database URL, or public key");
+  const env = { ...parseEnv(contents), ...process.env };
+  for (const key of ["DATABASE_URL", "TEST_DATABASE_URL", "SUPABASE_URL", "SUPABASE_ANON_KEY"]) {
+    if (!env[key]) throw new Error(`${key} is missing. Copy your pair's supplied configuration to the root .env file.`);
   }
-  return { apiURL, databaseURL, anonKey };
-}
-
-function configuredOAuth(contents) {
-  const values = new Map();
-  for (const line of contents.split(/\r?\n/)) {
-    const separator = line.indexOf("=");
-    if (separator < 0) {
-      continue;
-    }
-    values.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
-  }
-
-  const clientID = values.get("SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID");
-  const clientSecret = values.get("SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET");
-  return Boolean(clientID && clientSecret);
-}
-
-function supportedNode(version) {
-  const [major, minor] = version.split(".").map(Number);
-  return major > 20 || (major === 20 && minor >= 19);
-}
-
-export function createInterruptHandler({
-  commandName,
-  controller,
-  stopDatabase,
-}) {
-  let handled = false;
-  return () => {
-    if (handled) {
-      return;
-    }
-    handled = true;
-    controller.abort();
-    if (commandName === "dev" || commandName === "setup") {
-      stopDatabase();
-    }
+  return {
+    ...env,
+    DATABASE_MAX_CONNECTIONS: env.DATABASE_MAX_CONNECTIONS || "2",
+    NEXT_PUBLIC_SUPABASE_URL: env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
   };
 }
 
@@ -172,197 +133,65 @@ export function createCommands({
 } = {}) {
   const backendDir = join(rootDir, "backend");
   const frontendDir = join(rootDir, "frontend");
-  const supabaseProgram = join(
-    rootDir,
-    "node_modules",
-    "supabase",
-    "dist",
-    "supabase.js",
-  );
-
-  const supabase = (args, options = {}) =>
-    exec(process.execPath, [supabaseProgram, ...args], {
-      cwd: rootDir,
-      ...options,
-    });
-
-  async function stopDatabaseAfter(primaryError) {
-    try {
-      await supabase(["stop"]);
-    } catch (cleanupError) {
-      if (!primaryError) {
-        throw cleanupError;
-      }
-      console.error(`Database cleanup also failed: ${cleanupError.message}`);
-    }
-  }
-
-  async function localEnvironment() {
-    const { stdout } = await supabase(["status", "--output", "json"], {
-      capture: true,
-    });
-    return parseStatus(stdout);
-  }
-
-  function startBackend(environment) {
-    return start("go", ["run", "./cmd/server"], {
-      cwd: backendDir,
-      env: {
-        ...process.env,
-        SUPABASE_URL: environment.apiURL,
-        DATABASE_URL: environment.databaseURL,
-      },
-    });
-  }
-
-  function startFrontend(environment) {
-    return start("npm", ["run", "dev"], {
-      cwd: frontendDir,
-      env: {
-        ...process.env,
-        NEXT_PUBLIC_SUPABASE_URL: environment.apiURL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: environment.anonKey,
-      },
-    });
-  }
+  const startBackend = (env) => start("go", ["run", "./cmd/server"], { cwd: backendDir, env });
+  const startFrontend = (env) => start("npm", ["run", "dev"], { cwd: frontendDir, env });
 
   async function runAttached(startApp, signal) {
-    const environment = await localEnvironment();
-    const app = startApp(environment);
-    const code = await Promise.race([app.done, interrupted(signal)]);
-    if (signal?.aborted) {
+    const app = startApp(await environment(rootDir));
+    try {
+      return await Promise.race([app.done, interrupted(signal)]);
+    } finally {
       await app.stop();
     }
-    return code;
   }
 
   return {
     async setup() {
-      let envContents;
-      try {
-        envContents = await readFile(join(rootDir, ".env"), "utf8");
-      } catch {
-        throw new Error(
-          "OAuth credentials are missing. Copy .env.example to .env and add the provided values.",
-        );
-      }
-      if (!configuredOAuth(envContents)) {
-        throw new Error(
-          "OAuth credentials are missing. Add both Google OAuth values to .env.",
-        );
-      }
-      if (!supportedNode(nodeVersion)) {
+      const env = await environment(rootDir);
+      const [major, minor] = nodeVersion.split(".").map(Number);
+      if (major < 20 || (major === 20 && minor < 19)) {
         throw new Error(`Node 20.19 or newer is required; found ${nodeVersion}.`);
       }
-
       await exec("go", ["version"], { cwd: rootDir, capture: true });
-      try {
-        await exec("docker", ["info"], {
-          cwd: rootDir,
-          capture: true,
-          quiet: true,
-        });
-      } catch (error) {
-        throw new Error(
-          "Docker Desktop is not running. Start it, wait for it to finish loading, and run setup again.",
-          { cause: error },
-        );
-      }
       await exec("npm", ["ci"], { cwd: rootDir });
       await exec("npm", ["ci"], { cwd: frontendDir });
-
-      let setupError;
-      try {
-        await supabase(["start"]);
-        await localEnvironment();
-      } catch (error) {
-        setupError = error;
-        throw error;
-      } finally {
-        await stopDatabaseAfter(setupError);
-      }
+      await exec("go", ["run", "./cmd/devdb", "check"], { cwd: backendDir, env });
       return 0;
     },
-    backend(signal) {
-      return runAttached(startBackend, signal);
-    },
-    frontend(signal) {
-      return runAttached(startFrontend, signal);
+    backend(signal) { return runAttached(startBackend, signal); },
+    frontend(signal) { return runAttached(startFrontend, signal); },
+    async testBackend() {
+      await exec("go", ["test", "./..."], { cwd: backendDir, env: await environment(rootDir) });
+      return 0;
     },
     async dev(signal) {
-      let backend;
+      const env = await environment(rootDir);
+      const backend = startBackend(env);
       let frontend;
-      let devError;
       try {
-        await supabase(["start"]);
-        const environment = await localEnvironment();
-        backend = startBackend(environment);
-        frontend = startFrontend(environment);
-        return await Promise.race([
-          backend.done,
-          frontend.done,
-          interrupted(signal),
-        ]);
-      } catch (error) {
-        devError = error;
-        throw error;
+        frontend = startFrontend(env);
+        return await Promise.race([backend.done, frontend.done, interrupted(signal)]);
       } finally {
-        const stoppedApps = await Promise.allSettled([
-          backend?.stop() ?? Promise.resolve(),
-          frontend?.stop() ?? Promise.resolve(),
-        ]);
-        const appCleanupError = stoppedApps.find(
-          (result) => result.status === "rejected",
-        )?.reason;
-        if (appCleanupError && devError) {
-          console.error(`App cleanup also failed: ${appCleanupError.message}`);
-        }
-        await stopDatabaseAfter(devError ?? appCleanupError);
-        if (!devError && appCleanupError) {
-          throw appCleanupError;
-        }
+        const results = await Promise.allSettled([backend.stop(), frontend?.stop()]);
+        const failure = results.find((result) => result.status === "rejected");
+        if (failure) throw failure.reason;
       }
     },
   };
 }
 
 async function main() {
-  const commandName = process.argv[2];
   const commands = createCommands();
   const selected = {
     setup: commands.setup,
     backend: commands.backend,
     frontend: commands.frontend,
     dev: commands.dev,
-  }[commandName];
-
-  if (!selected) {
-    console.error(
-      "Usage: node scripts/dev.mjs <setup|backend|frontend|dev>",
-    );
-    return 1;
-  }
-
+    "test:backend": commands.testBackend,
+  }[process.argv[2]];
+  if (!selected) throw new Error("Usage: node scripts/dev.mjs <setup|backend|frontend|dev|test:backend>");
   const controller = new AbortController();
-  const interrupt = createInterruptHandler({
-    commandName,
-    controller,
-    stopDatabase() {
-      const supabaseProgram = join(
-        defaultRootDir,
-        "node_modules",
-        "supabase",
-        "dist",
-        "supabase.js",
-      );
-      // npm on Windows can terminate this coordinator before async cleanup runs.
-      spawnSync(process.execPath, [supabaseProgram, "stop"], {
-        cwd: defaultRootDir,
-        stdio: "inherit",
-        timeout: 15_000,
-      });
-    },
-  });
+  const interrupt = () => controller.abort();
   process.once("SIGINT", interrupt);
   process.once("SIGTERM", interrupt);
   try {
@@ -374,12 +203,8 @@ async function main() {
 }
 
 if (resolve(process.argv[1] ?? "") === scriptPath) {
-  main()
-    .then((code) => {
-      process.exitCode = code;
-    })
-    .catch((error) => {
-      console.error(error.message);
-      process.exitCode = 1;
-    });
+  main().then((code) => { process.exitCode = code; }).catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
 }
