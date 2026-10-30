@@ -146,7 +146,7 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-`getVisibleProfile` and `buildRidesForViewer` are already implemented. Students implement `validateUserWrite` (Profile pair), `validateRideWrite` (Creation and Editing), and `getRideForViewer` (Ride detail). The starter code supplies signatures and TODO bodies for those functions.
+`getVisibleProfile` and `buildRidesForViewer` are already implemented. Students implement `validateUserWrite` (Profile pair), `validateRideWrite` (Creation and Editing), and `getUserViewableRide` (Ride detail). The starter code supplies signatures and TODO bodies for those functions.
 
 A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
 
@@ -228,7 +228,7 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
 
-### Get a ride for a viewer: getRideForViewer
+### Get a ride for a viewer: getUserViewableRide
 
 Student helper implemented by the Ride detail pair and reused by ride mutations.
 
@@ -236,7 +236,7 @@ Loads one ride through `tx.Rides().GetRide` and uses `buildRidesForViewer` to re
 
 **Inputs and outputs**
 
-`func getRideForViewer(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
+`func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
 
 Use the operation's existing `tx`. The helper does not start, commit, or roll back a transaction. `Service.GetRide` opens a transaction and calls it. Mutations reuse their own transaction and prepare the result before committing.
 

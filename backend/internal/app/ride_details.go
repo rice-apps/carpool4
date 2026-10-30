@@ -22,9 +22,9 @@ func (s *Service) GetRide(ctx context.Context, currentUser CurrentUser, id uuid.
 	return Ride{}, ErrNotImplemented
 }
 
-// getRideForViewer returns rideID from tx with contacts visible to viewerID. A
+// getUserViewableRide returns rideID from tx with contacts visible to viewerID. A
 // missing ride or failed lookup or privacy check returns an error.
-func getRideForViewer(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error) {
-	// TODO(student): Implement getRideForViewer application logic.
+func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error) {
+	// TODO(student): Implement getUserViewableRide application logic.
 	return Ride{}, ErrNotImplemented
 }
