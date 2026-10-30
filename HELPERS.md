@@ -228,20 +228,6 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
 
-### Get a ride for a viewer: getUserViewableRide
-
-Student helper implemented by the Ride detail pair and reused by ride mutations.
-
-Loads one ride through `tx.RidesRepo().GetRide` and uses `buildRidesForViewer` to return a `Ride` with fields the viewer may receive. The repository's `GetRide` returns a `LoadedRide` containing full stored contacts; this helper applies contact privacy and guest discovery rules.
-
-**Inputs and outputs**
-
-`func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
-
-Use the operation's existing `tx`. The helper does not start, commit, or roll back a transaction. `Service.GetRide` opens a transaction and calls it. Mutations reuse their own transaction and prepare the result before committing.
-
-`LeaveRide` calls it before removal for the ownership check and again afterward for the updated occupants and remaining contact permissions. `viewerID` is `currentUser.ID`; `uuid.Nil` represents a guest.
-
 ## Storage access
 
 ### Start a transaction: s.database.BeginTx(ctx)
