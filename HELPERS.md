@@ -146,11 +146,9 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-`getVisibleProfile` and `buildRidesForViewer` are already implemented. Students implement `validateUserWrite` (Profile pair), `validateRideWrite` (Creation and Editing), and `getUserViewableRide` (Ride detail). The starter code supplies signatures and TODO bodies for those functions.
+### What the user and ride values mean
 
 A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
-
-### What the user and ride values mean
 
 **CurrentUser** describes the person making the request. It has their ID and Email from checked sign-in information. It does not contain their full saved profile. If Mia opens Alex's profile, CurrentUser describes Mia. An empty CurrentUser{} represents a guest.
 
@@ -228,19 +226,45 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
 
-### Get a ride for a viewer: getUserViewableRide
+### Unprovided helpers
 
-Student helper implemented by the Ride detail pair and reused by ride mutations.
+Students implement these helpers in the application layer.
 
-Loads one ride through `tx.RidesRepo().GetRide` and uses `buildRidesForViewer` to return a `Ride` with fields the viewer may receive. The repository's `GetRide` returns a `LoadedRide` containing full stored contacts; this helper applies contact privacy and guest discovery rules.
+#### validateUserWrite
 
-**Inputs and outputs**
+Owned by the Profile pair.
+
+`func validateUserWrite(params UserWriteParams) error`
+
+Validate normalized `UserWriteParams` before `UpdateUser` saves a profile. The caller trims the fields and supplies the verified user's ID and email.
+
+`FirstName` and `LastName` must each contain 1–100 characters, `Email` 1–254, and `Phone` at most 32. Phone may be empty. Count Unicode characters (Go runes), rather than bytes.
+
+Return `nil` for valid fields or an error identifiable as `ErrInvalidArgument` for invalid fields. This helper performs no database access.
+
+#### validateRideWrite
+
+Shared by the Creation and Editing pairs.
+
+`func validateRideWrite(input RideWriteParams) error`
+
+Validate the `RideWriteParams` used by `CreateRide` and `UpdateRide`. Require a future `DepartureDate`, non-zero and distinct departure and arrival location IDs, `Capacity` of at least 1, and `Notes` of at most 500 Unicode characters.
+
+Return `nil` for valid input or an error identifiable as `ErrInvalidArgument` for invalid input. The calling use case handles ownership, phone requirements, and capacity relative to current occupants.
+
+#### getUserViewableRide
+
+Owned by the Ride detail pair and reused by ride mutations.
 
 `func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
 
-Use the operation's existing `tx`. The helper does not start, commit, or roll back a transaction. `Service.GetRide` opens a transaction and calls it. Mutations reuse their own transaction and prepare the result before committing.
+Load one `LoadedRide` through `tx.RidesRepo().GetRide` and return the `Ride` prepared for `viewerID`. Use `currentUser.ID` for a signed-in viewer and `uuid.Nil` for a guest.
 
-`LeaveRide` calls it before removal for the ownership check and again afterward for the updated occupants and remaining contact permissions. `viewerID` is `currentUser.ID`; `uuid.Nil` represents a guest.
+Guests may view active rides whose departure is in the future or within the past hour. Return `ErrRideNotFound` for cancelled or older rides. Full rides remain viewable. Signed-in viewers can open past and cancelled rides.
+
+Use `buildRidesForViewer` to apply contact privacy and guest field visibility. Return the single resulting `Ride`, or an empty `Ride` and the lookup or privacy error.
+
+Use the operation's existing `tx`. Do not start, commit, or roll back a transaction here; the calling use case manages it and builds mutation results before committing.
 
 ## Storage access
 
