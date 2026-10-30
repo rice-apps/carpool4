@@ -146,12 +146,6 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-Students implement:
-
-- `validateUserWrite` (Profile pair)
-- `validateRideWrite` (Creation and Editing pair)
-- `getUserViewableRide` (Ride detail pair)
-
 ### What the user and ride values mean
 
 A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
@@ -231,6 +225,46 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 - Guests get the route, time, seats, and status, with no owner, riders, or notes. Because those people are not included, a guest needs no contact permission query.
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
+
+### Unprovided helpers
+
+Students implement these helpers in the application layer.
+
+#### validateUserWrite
+
+Owned by the Profile pair.
+
+`func validateUserWrite(params UserWriteParams) error`
+
+Validate normalized `UserWriteParams` before `UpdateUser` saves a profile. The caller trims the fields and supplies the verified user's ID and email.
+
+`FirstName` and `LastName` must each contain 1–100 characters, `Email` 1–254, and `Phone` at most 32. Phone may be empty. Count Unicode characters (Go runes), rather than bytes.
+
+Return `nil` for valid fields or an error identifiable as `ErrInvalidArgument` for invalid fields. This helper performs no database access.
+
+#### validateRideWrite
+
+Shared by the Creation and Editing pairs.
+
+`func validateRideWrite(input RideWriteParams) error`
+
+Validate the `RideWriteParams` used by `CreateRide` and `UpdateRide`. Require a future `DepartureDate`, non-zero and distinct departure and arrival location IDs, `Capacity` of at least 1, and `Notes` of at most 500 Unicode characters.
+
+Return `nil` for valid input or an error identifiable as `ErrInvalidArgument` for invalid input. The calling use case handles ownership, phone requirements, and capacity relative to current occupants.
+
+#### getUserViewableRide
+
+Owned by the Ride detail pair and reused by ride mutations.
+
+`func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
+
+Load one `LoadedRide` through `tx.RidesRepo().GetRide` and return the `Ride` prepared for `viewerID`. Use `currentUser.ID` for a signed-in viewer and `uuid.Nil` for a guest.
+
+Guests may view active rides whose departure is in the future or within the past hour. Return `ErrRideNotFound` for cancelled or older rides. Full rides remain viewable. Signed-in viewers can open past and cancelled rides.
+
+Use `buildRidesForViewer` to apply contact privacy and guest field visibility. Return the single resulting `Ride`, or an empty `Ride` and the lookup or privacy error.
+
+Use the operation's existing `tx`. Do not start, commit, or roll back a transaction here; the calling use case manages it and builds mutation results before committing.
 
 ## Storage access
 
