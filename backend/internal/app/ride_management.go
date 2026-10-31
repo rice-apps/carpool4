@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -22,15 +23,46 @@ import (
 // returns an empty Ride and an error.
 func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement CreateRide application logic.
-	return Ride{}, ErrNotImplemented
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+
+	err = validateRideWrite(input)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	user, err := tx.UsersRepo().FindUser(ctx, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	if user.Phone == "" {
+		return Ride{}, ErrInvalidArgument
+	}
+
+	return Ride{}, nil
 }
 
 // validateRideWrite returns ErrInvalidArgument unless input has a future
 // departure, two distinct locations, capacity of at least one, and notes of
 // at most 500 characters.
 func validateRideWrite(input RideWriteParams) error {
-	// TODO(student): Implement validateRideWrite application logic.
-	return ErrNotImplemented
+	// TODO(student): Implement validateRideWrite application logic.\
+	switch {
+	case input.DepartureDate.Before(time.Now()):
+		return ErrInvalidArgument
+	case input.ArrivalLocationID == input.DepartureLocationID:
+		return ErrInvalidArgument
+	case input.Capacity <= 1:
+		return ErrInvalidArgument
+	case len(input.Notes) > 500:
+		return ErrInvalidArgument
+	default:
+		return nil
+	}
 }
 
 // UpdateRide replaces the editable fields of id and returns the updated Ride
