@@ -4,69 +4,18 @@ Rice Carpool is a ridesharing platform built for the Rice University community. 
 
 ---
 
-## Prerequisites
-
-Ensure you have the following installed before getting started:
-
-- **Go**
-- **Node.js**
-- **Docker Desktop**
-
-> [!NOTE]
-> Request the shared **Google OAuth development credentials** from the leads before starting local configuration.
-
----
-
 ## Getting Started
 
-### 1. Environment Configuration
-
-1. Start **Docker Desktop**.
-2. Create a local `.env` file from `.env.example`:
-
-   ```bash
-   # macOS or Linux
-   cp .env.example .env
-   ```
-
-   ```powershell
-   # Windows PowerShell
-   Copy-Item .env.example .env
-   ```
-
-3. Add the supplied Google OAuth values to your `.env` file:
-   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
-   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`
-
-> [!WARNING]
-> Do **not** commit `.env` to version control.
-
-### 2. Installation & Running
-
-Run the following commands from the repository root:
+Install **Go 1.27.1+** and **Node 20.19+**. Obtain your pair's complete configuration from the leads and save it as the root `.env`. Keep it out of version control.
 
 ```bash
-# First time setup: checks tools and installs dependencies
 npm run setup
-
-# Start local database, backend, and frontend
 npm run dev
 ```
 
-_Press `Ctrl+C` to stop local services._
+The frontend runs on http://localhost:3000 and the Go API on http://localhost:8080. The database and Google sign-in are hosted. Development data is shared; SQL tests get private fixtures automatically. Press Ctrl+C to stop the local app processes.
 
-### Port & Service Overview
-
-| Service                 | Port(s)          | Description                                   |
-| :---------------------- | :--------------- | :-------------------------------------------- |
-| **Frontend**            | `3000`           | Next.js application (<http://localhost:3000>) |
-| **Backend**             | `8080`           | Go Connect RPC server                         |
-| **Supabase / Database** | `54321`, `54322` | Local PostgreSQL instance                     |
-
-> [!NOTE]
->
-> - `npm run setup` starts Supabase briefly to validate the environment, then stops it.
-> - `npm run dev` keeps all data localized within your local Docker environment.
+Your supplied `.env` contains `DATABASE_URL`, `TEST_DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`. The provided helpers load these settings and select the right database objects; write ordinary SQL and application code as usual. Students need no administrator or OAuth client credentials.
 
 ---
 
@@ -117,9 +66,7 @@ The assigned backend operations start as stubs. Their implementations must follo
 ## Testing & Code Generation
 
 The student and reference code use `CurrentUser.ID` and `DepartureDate`. The protobuf and database
-field is `departure_date`; generated TypeScript uses `departureDate`. If your local database predates
-this rename, apply the pending migration with `npx supabase migration up --local` before starting
-the updated backend. The migration preserves existing rides and their departure timestamps.
+field is `departure_date`; generated TypeScript uses `departureDate`.
 
 ### Commands Quick Reference
 
@@ -140,16 +87,16 @@ sqlc diff         # Verify SQL query changes against database schema
 #### Root Convenience Scripts
 
 ```bash
-npm run db:start   # Start local Supabase database
-npm run db:stop    # Stop Supabase database
-npm run db:reset   # Reset local Supabase database
-npm run backend    # Run Go backend individually
-npm run frontend   # Run Next.js frontend individually
+npm run setup         # Install packages and verify the supplied configuration
+npm run dev           # Run local backend and frontend
+npm run backend       # Run only the backend
+npm run frontend      # Run only the frontend
+npm run test:backend  # Run backend checks using the root .env
 ```
 
 ### Testing Guidelines
 
-- **Database Integration Tests**: Use `backend/internal/testutil.SetupTestDB`. It boots a disposable PostgreSQL container when Docker is available or uses an explicitly set `TEST_DATABASE_URL`. It ignores standard `DATABASE_URL`.
+- **Database Integration Tests**: Use `backend/internal/testutil.SetupTestDB`. It loads your root `.env`, prepares fresh private fixtures, and cleans up automatically. Test connections cannot reset shared development data. `go test -short ./...` omits SQL fixtures.
 - **CI Pipeline**: Operation test checks are visible in CI (initially non-blocking to allow incremental merges). Build and code generation checks **must** pass.
 - **Frontend Checks**: From `frontend/`, run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`. Install the browser once with `npx playwright install chromium`, then run `npm run test:e2e` for mocked public-browsing flows.
 

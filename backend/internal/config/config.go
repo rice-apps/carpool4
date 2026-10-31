@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/rice-apps/carpool4/backend/internal/envfile"
 )
 
 // Config holds the server port, Supabase URL, database settings, and allowed
@@ -29,6 +31,9 @@ type Config struct {
 // defaults for the port, pool size, and browser origins. Missing required URLs
 // or invalid connection limits and origins return an error.
 func Load() (*Config, error) {
+	if err := envfile.Load(); err != nil {
+		return nil, fmt.Errorf("load .env: %w", err)
+	}
 	// Read optional settings with local development defaults.
 	cfg := &Config{
 		Port:                   os.Getenv("PORT"),
