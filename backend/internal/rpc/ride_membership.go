@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
@@ -18,8 +19,20 @@ import (
 //
 // It returns the joined ride with caller-visible contacts or a Connect error.
 func (s *Server) JoinRide(ctx context.Context, req *connect.Request[carpoolv1.JoinRideRequest]) (*connect.Response[carpoolv1.JoinRideResponse], error) {
-	// TODO(student): Implement JoinRide RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	parsedRideID, err := uuid.Parse(req.Msg.RideId)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	ride, err := s.service.JoinRide(ctx, currentUser, parsedRideID)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	response := &carpoolv1.JoinRideResponse{Ride: convertRideToProto(ride)}
+	return connect.NewResponse(response), nil
 }
 
 // LeaveRide removes the verified caller from a ride.
