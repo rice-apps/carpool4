@@ -34,5 +34,25 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 // It returns the caller's rides with visible contacts or a Connect error.
 func (s *Server) ListMyRides(ctx context.Context, req *connect.Request[carpoolv1.ListMyRidesRequest]) (*connect.Response[carpoolv1.ListMyRidesResponse], error) {
 	// TODO(student): Implement ListMyRides RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	// get user
+	user, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	// get rides
+	rides, err := s.service.ListMyRides(ctx, user)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	// process rides to proto
+	var protoRides []*carpoolv1.Ride
+	for _, ride := range rides {
+		protoRides = append(protoRides, convertRideToProto(ride))
+	}
+
+	response := &carpoolv1.ListMyRidesResponse{Rides: protoRides}
+
+	return connect.NewResponse(response), nil
 }
