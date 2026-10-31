@@ -234,37 +234,81 @@ Students implement these helpers in the application layer.
 
 Owned by the Profile pair.
 
-`func validateUserWrite(params UserWriteParams) error`
+```go
+func validateUserWrite(params UserWriteParams) error
+```
 
-Validate normalized `UserWriteParams` before `UpdateUser` saves a profile. The caller trims the fields and supplies the verified user's ID and email.
+Validate normalized `UserWriteParams` before `UpdateUser` saves a profile. The caller trims the fields and supplies the verified user's ID and email. This helper performs no database access.
 
-`FirstName` and `LastName` must each contain 1–100 characters, `Email` 1–254, and `Phone` at most 32. Phone may be empty. Count Unicode characters (Go runes), rather than bytes.
+**Requirements**
 
-Return `nil` for valid fields or an error identifiable as `ErrInvalidArgument` for invalid fields. This helper performs no database access.
+- `FirstName`: 1–100 characters.
+- `LastName`: 1–100 characters.
+- `Email`: 1–254 characters.
+- `Phone`: 0–32 characters; optional.
+
+*Measure lengths in Unicode characters (Go runes).*
+
+**Returns**
+
+Return `nil` when all fields are valid. Otherwise, return an error identifiable as `ErrInvalidArgument`.
 
 #### validateRideWrite
 
 Shared by the Creation and Editing pairs.
 
-`func validateRideWrite(input RideWriteParams) error`
+```go
+func validateRideWrite(input RideWriteParams) error
+```
 
-Validate the `RideWriteParams` used by `CreateRide` and `UpdateRide`. Require a future `DepartureDate`, non-zero and distinct departure and arrival location IDs, `Capacity` of at least 1, and `Notes` of at most 500 Unicode characters.
+Validate the `RideWriteParams` used by `CreateRide` and `UpdateRide`.
 
-Return `nil` for valid input or an error identifiable as `ErrInvalidArgument` for invalid input. The calling use case handles ownership, phone requirements, and capacity relative to current occupants.
+**Requirements**
+
+- `DepartureDate`: in the future.
+- `DepartureLocationID` and `ArrivalLocationID`: both non-zero and different.
+- `Capacity`: at least 1.
+- `Notes`: 0–500 Unicode characters; optional.
+
+**Returns**
+
+Return `nil` when the input is valid. Otherwise, return an error identifiable as `ErrInvalidArgument`.
+
+The calling use case checks ownership, phone requirements, and capacity relative to current occupants.
 
 #### getUserViewableRide
 
 Owned by the Ride detail pair and reused by ride mutations.
 
-`func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID uuid.UUID) (Ride, error)`
+```go
+func getUserViewableRide(
+    ctx context.Context,
+    tx Transaction,
+    viewerID, rideID uuid.UUID,
+) (Ride, error)
+```
 
-Load one `LoadedRide` through `tx.RidesRepo().GetRide` and return the `Ride` prepared for `viewerID`. Use `currentUser.ID` for a signed-in viewer and `uuid.Nil` for a guest.
+Load one `LoadedRide` through `tx.RidesRepo().GetRide`. Use `buildRidesForViewer` to prepare the `Ride` with the contacts and fields the viewer may receive.
 
-Guests may view active rides whose departure is in the future or within the past hour. Return `ErrRideNotFound` for cancelled or older rides. Full rides remain viewable. Signed-in viewers can open past and cancelled rides.
+**Viewer identity**
 
-Use `buildRidesForViewer` to apply contact privacy and guest field visibility. Return the single resulting `Ride`, or an empty `Ride` and the lookup or privacy error.
+- Signed-in viewer: `currentUser.ID`.
+- Guest: `uuid.Nil`.
 
-Use the operation's existing `tx`. Do not start, commit, or roll back a transaction here; the calling use case manages it and builds mutation results before committing.
+**Visibility**
+
+- Guests may view active rides departing in the future or within the past hour.
+- Guest requests for cancelled or older rides return `ErrRideNotFound`.
+- Full rides remain viewable.
+- Signed-in viewers can open past and cancelled rides.
+
+**Returns**
+
+Return the single resulting `Ride`, or an empty `Ride` and the lookup or privacy error.
+
+**Transaction**
+
+Reuse the operation's existing `tx`. The calling use case manages the transaction and prepares mutation results before committing.
 
 ## Storage access
 
