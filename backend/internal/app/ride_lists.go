@@ -37,5 +37,23 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 // The returned rides show only allowed contacts. A storage failure returns an error.
 func (s *Service) ListMyRides(ctx context.Context, currentUser CurrentUser) ([]Ride, error) {
 	// TODO(student): Implement ListMyRides application logic.
-	return nil, ErrNotImplemented
+	// start transaction
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// get locations repo
+	ridesRepo, err := tx.RidesRepo().ListMyRides(ctx, currentUser.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert LoadedRides to Rides
+	viewerRides, err := buildRidesForViewer(ctx, tx, currentUser.ID, ridesRepo)
+	if err != nil {
+		return nil, err
+	}
+
+	return viewerRides, nil
 }
