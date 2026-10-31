@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
@@ -31,6 +32,19 @@ func (s *Server) JoinRide(ctx context.Context, req *connect.Request[carpoolv1.Jo
 //
 // It returns the ride with caller-visible contacts or a Connect error.
 func (s *Server) LeaveRide(ctx context.Context, req *connect.Request[carpoolv1.LeaveRideRequest]) (*connect.Response[carpoolv1.LeaveRideResponse], error) {
-	// TODO(student): Implement LeaveRide RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	rideID, err := uuid.Parse(req.Msg.RideId)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	ride, err := s.service.LeaveRide(ctx, currentUser, rideID)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	response := &carpoolv1.LeaveRideResponse{Ride: convertRideToProto(ride)}
+	return connect.NewResponse(response), nil
 }
