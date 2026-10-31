@@ -3,8 +3,9 @@ package rpc
 import (
 	"context"
 
-	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
+	"connectrpc.com/connect"
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
@@ -20,7 +21,31 @@ import (
 // It returns the new ride with caller-visible contacts or a Connect error.
 func (s *Server) CreateRide(ctx context.Context, req *connect.Request[carpoolv1.CreateRideRequest]) (*connect.Response[carpoolv1.CreateRideResponse], error) {
 	// TODO(student): Implement CreateRide RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	departureID, err := uuid.Parse(req.Msg.DepartureLocationId)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	arrivalID, err := uuid.Parse(req.Msg.ArrivalLocationId)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	params := app.RideWriteParams{
+		DepartureDate:       req.Msg.DepartureDate.AsTime(),
+		DepartureLocationID: departureID,
+		ArrivalLocationID:   arrivalID,
+		Notes:               req.Msg.Notes,
+		Capacity:            req.Msg.Capacity,
+	}
+	ride, err := s.service.CreateRide(ctx, currentUser, params)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	response := &carpoolv1.CreateRideResponse{Ride: convertRideToProto(ride)}
+	return connect.NewResponse(response), nil
 }
 
 // UpdateRide changes a ride for the verified caller.
