@@ -20,7 +20,32 @@ import (
 // profile, or storage failure returns an empty User and an error.
 func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID *uuid.UUID) (User, error) {
 	// TODO(student): Implement GetUser application logic.
-	return User{}, ErrNotImplemented
+
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+
+	usersRepo := tx.UsersRepo()
+	if targetID != nil {
+		targetID = &currentUser.ID
+	}
+
+	userRecord, err := usersRepo.FindUser(ctx, *targetID)
+	if err != nil {
+		return User{}, err
+	}
+
+	user := User{
+		ID:        userRecord.ID,
+		FirstName: userRecord.FirstName,
+		LastName:  userRecord.LastName,
+		Phone:     userRecord.Phone,
+		Email:     userRecord.Email,
+	}
+
+	return user, nil
 }
 
 // UpdateUser saves the caller's profile, creating one if needed.
@@ -36,7 +61,32 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 // information or a storage failure returns an empty User and an error.
 func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input UserInput) (User, error) {
 	// TODO(student): Implement UpdateUser application logic.
-	return User{}, ErrNotImplemented
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return User{}, err
+	}
+
+	usersRepo := tx.UsersRepo()
+
+	userWriteParams := UserWriteParams{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+		Phone:     input.Phone,
+		ID:        currentUser.ID,
+		Email:     currentUser.Email,
+	}
+	userRecord, err := usersRepo.UpsertUser(ctx, userWriteParams)
+	if err != nil {
+		return User{}, err
+	}
+	user := User{
+		ID:        userRecord.ID,
+		FirstName: userRecord.FirstName,
+		LastName:  userRecord.LastName,
+		Phone:     userRecord.Phone,
+		Email:     userRecord.Email,
+	}
+	return user, nil
 }
 
 // validateUserWrite returns ErrInvalidArgument when normalized profile fields
