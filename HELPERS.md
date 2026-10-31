@@ -146,9 +146,9 @@ ID, Title, and Address are copied. The helper does not fetch locations from the 
 
 ## Application helpers
 
-A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
-
 ### What the user and ride values mean
+
+A viewer is the person receiving the information: the current user or a guest. A result is the information prepared to send back to that person.
 
 **CurrentUser** describes the person making the request. It has their ID and Email from checked sign-in information. It does not contain their full saved profile. If Mia opens Alex's profile, CurrentUser describes Mia. An empty CurrentUser{} represents a guest.
 
@@ -226,6 +226,90 @@ tx is the same transaction that loaded the rides. The ride data and contact deci
 
 - Signed-in people get the names and notes, with contacts only where allowed by the shared-ride rule. OccupiedSeats counts everyone in the ride, including the driver. Hiding the people from a guest does not change that count.
 
+### Unprovided helpers
+
+Students implement these helpers in the application layer.
+
+#### validateUserWrite
+
+Owned by the Profile pair.
+
+```go
+func validateUserWrite(params UserWriteParams) error
+```
+
+Validate normalized `UserWriteParams` before `UpdateUser` saves a profile. The caller trims the fields and supplies the verified user's ID and email. This helper performs no database access.
+
+**Requirements**
+
+- `FirstName`: 1–100 characters.
+- `LastName`: 1–100 characters.
+- `Email`: 1–254 characters.
+- `Phone`: 0–32 characters; optional.
+
+*Measure lengths in Unicode characters (Go runes).*
+
+**Returns**
+
+Return `nil` when all fields are valid. Otherwise, return an error identifiable as `ErrInvalidArgument`.
+
+#### validateRideWrite
+
+Shared by the Creation and Editing pairs.
+
+```go
+func validateRideWrite(input RideWriteParams) error
+```
+
+Validate the `RideWriteParams` used by `CreateRide` and `UpdateRide`.
+
+**Requirements**
+
+- `DepartureDate`: in the future.
+- `DepartureLocationID` and `ArrivalLocationID`: both non-zero and different.
+- `Capacity`: at least 1.
+- `Notes`: 0–500 Unicode characters; optional.
+
+**Returns**
+
+Return `nil` when the input is valid. Otherwise, return an error identifiable as `ErrInvalidArgument`.
+
+The calling use case checks ownership, phone requirements, and capacity relative to current occupants.
+
+#### getUserViewableRide
+
+Owned by the Ride detail pair and reused by ride mutations.
+
+```go
+func getUserViewableRide(
+    ctx context.Context,
+    tx Transaction,
+    viewerID, rideID uuid.UUID,
+) (Ride, error)
+```
+
+Load one `LoadedRide` through `tx.RidesRepo().GetRide`. Use `buildRidesForViewer` to prepare the `Ride` with the contacts and fields the viewer may receive.
+
+**Viewer identity**
+
+- Signed-in viewer: `currentUser.ID`.
+- Guest: `uuid.Nil`.
+
+**Visibility**
+
+- Guests may view active rides departing in the future or within the past hour.
+- Guest requests for cancelled or older rides return `ErrRideNotFound`.
+- Full rides remain viewable.
+- Signed-in viewers can open past and cancelled rides.
+
+**Returns**
+
+Return the single resulting `Ride`, or an empty `Ride` and the lookup or privacy error.
+
+**Transaction**
+
+Reuse the operation's existing `tx`. The calling use case manages the transaction and prepares mutation results before committing.
+
 ## Storage access
 
 ### Start a transaction: s.database.BeginTx(ctx)
@@ -248,53 +332,53 @@ defer tx.Rollback()
 
 ctx supplies the request's cancellation and time limit. BeginTx uses Serializable isolation.
 
-### Get profile methods: tx.Users()
+### Get profile methods: tx.UsersRepo()
 
 Returns the profile repository for tx. Its methods find or save profiles and check contact permission. Getting the repository does not load any profiles.
 
 **Inputs and outputs**
 
-`Users() UserRepository`
+`UsersRepo() UserRepository`
 
 **Example**
 
 ```go
-users := tx.Users()
+usersRepo := tx.UsersRepo()
 ```
 
-users provides profile access within tx. It is not a list of user profiles.
+usersRepo provides profile access within tx. It is not a list of user profiles.
 
-### Get ride methods: tx.Rides()
+### Get ride methods: tx.RidesRepo()
 
 Returns the ride repository for tx. Its methods read, list, create, update, or cancel rides and change who is in them. Getting the repository runs no query.
 
 **Inputs and outputs**
 
-`Rides() RideRepository`
+`RidesRepo() RideRepository`
 
 **Example**
 
 ```go
-rides := tx.Rides()
+ridesRepo := tx.RidesRepo()
 ```
 
-rides provides ride access within tx. It is not a list of loaded rides.
+ridesRepo provides ride access within tx. It is not a list of loaded rides.
 
-### Get location methods: tx.Locations()
+### Get location methods: tx.LocationsRepo()
 
 Returns the location repository for tx. Its ListLocations method supplies the pickup and destination choices.
 
 **Inputs and outputs**
 
-`Locations() LocationRepository`
+`LocationsRepo() LocationRepository`
 
 **Example**
 
 ```go
-locations := tx.Locations()
+locationsRepo := tx.LocationsRepo()
 ```
 
-locations provides location access within tx. Getting the repository does not fetch the locations list.
+locationsRepo provides location access within tx. Getting the repository does not fetch the locations list.
 
 ### Undo unfinished changes: tx.Rollback()
 
@@ -352,7 +436,7 @@ If Mia asks about Alex and Jordan but only shares a ride with Alex, visibleIDs c
 **Example**
 
 ```go
-visibleIDs, err := tx.Users().ListContactVisibleUserIDs(
+visibleIDs, err := tx.UsersRepo().ListContactVisibleUserIDs(
     ctx, currentUser.ID, []uuid.UUID{record.ID},
 )
 if err != nil {
