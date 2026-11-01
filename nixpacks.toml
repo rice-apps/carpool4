@@ -1,0 +1,9 @@
+[phases.install]
+cmds = ["cd frontend && npm ci"]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = ["cd frontend && npm run build"]
+
+[start]
+cmd = "cd frontend && npm run preview"
