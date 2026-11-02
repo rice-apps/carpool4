@@ -43,7 +43,7 @@ func convertRideRows(ride sqlc.Ride, owner sqlc.User, departure, arrival sqlc.Lo
 		mappedRiders[i] = convertUserRow(rider)
 	}
 	return app.LoadedRide{
-		ID: ride.ID, DepartureDate: ride.DepartureDate,
+		ID: ride.ID, DepartureTime: ride.DepartureTime,
 		Owner: convertUserRow(owner), Departure: convertLocationRow(departure), Arrival: convertLocationRow(arrival), Riders: mappedRiders,
 		Notes: ride.Notes, Capacity: ride.Capacity, Status: app.RideStatus(ride.Status),
 	}, nil
