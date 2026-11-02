@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -20,6 +21,21 @@ import (
 // profile, or storage failure returns an empty User and an error.
 func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID *uuid.UUID) (User, error) {
 	// TODO(student): Implement GetUser application logic.
+
+	n := 100
+	for i := range n {
+		switch {
+		case i%15 == 0:
+			fmt.Println("FizzBuzz")
+		case i%3 == 0:
+			fmt.Println("Fizz")
+		case i%5 == 0:
+			fmt.Println("Buzz")
+		default:
+			fmt.Println(i)
+		}
+	}
+
 	return User{}, ErrNotImplemented
 }
 
