@@ -67,7 +67,7 @@ func buildRidesForViewer(ctx context.Context, tx Transaction, viewerID uuid.UUID
 	for i, loaded := range rides {
 		result[i] = Ride{
 			ID:                loaded.ID,
-			DepartureDate:     loaded.DepartureDate,
+			DepartureTime:     loaded.DepartureTime,
 			DepartureLocation: loaded.Departure,
 			ArrivalLocation:   loaded.Arrival,
 			Capacity:          loaded.Capacity,
