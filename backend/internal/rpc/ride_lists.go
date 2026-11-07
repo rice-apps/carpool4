@@ -21,11 +21,6 @@ import (
 // It returns matching viewer-authorized rides or a Connect error. Guest
 // results omit people and notes.
 func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.ListRidesRequest]) (*connect.Response[carpoolv1.ListRidesResponse], error) {
-	//first check if user is signed in --> if they are signed in, get user info and create an identity object, else create empty identity object
-	//pass down empty identity object for app layer method
-	//pass ctx down so it can be used in the storage layer method
-	//pass req down so database request may be filtered later in app layer method
-	//receive returned outputs from app and storage layer methods, present results to user, or return error
 
 	//create currentUser object and initialize with user values (or empty if guest)
 	currentUser := app.CurrentUser{}
@@ -36,34 +31,36 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 			return nil, convertToConnectError(err)
 		}
 	}
-
-	//process raw values from ListRidesRequest and put values into new ListRidesInput object
+	//create new ListRidesInput object, check if ListRidesRequest fields are nil first, if not, set that field in the new object
 	requestInput := app.ListRidesInput{}
 
-	departureAfterTime := req.Msg.DepartureAfter.AsTime()
-	departureAfterPointer := &departureAfterTime
-
-	departureBeforeTime := req.Msg.DepartureBefore.AsTime()
-	departureBeforePointer := &departureBeforeTime
-
-	parsedArrivalID, err1 := uuid.Parse(*req.Msg.ArrivalLocationId)
-	arrivalIDPointer := &parsedArrivalID
-	if err1 != nil {
-		return nil, convertToConnectError(err1)
+	if req.Msg.GetDepartureAfter() != nil {
+		departureAfterTime := req.Msg.DepartureAfter.AsTime()
+		requestInput.DepartureAfter = &departureAfterTime
 	}
 
-	parsedDepartureID, err2 := uuid.Parse(*req.Msg.DepartureLocationId)
-	departureIDPointer := &parsedDepartureID
-	if err2 != nil {
-		return nil, convertToConnectError(err2)
+	if req.Msg.GetDepartureBefore() != nil {
+		departureBeforeTime := req.Msg.DepartureBefore.AsTime()
+		requestInput.DepartureBefore = &departureBeforeTime
 	}
 
-	requestInput.ArrivalLocationID = arrivalIDPointer
-	requestInput.DepartureLocationID = departureIDPointer
-	requestInput.DepartureAfter = departureAfterPointer
-	requestInput.DepartureBefore = departureBeforePointer
+	if req.Msg.ArrivalLocationId != nil {
+		parsedArrivalID, err1 := uuid.Parse(*req.Msg.ArrivalLocationId)
+		if err1 != nil {
+			return nil, convertToConnectError(err1)
+		}
+		requestInput.ArrivalLocationID = &parsedArrivalID
+	}
 
-	//call appy layer ListRides method with provided arguments
+	if req.Msg.DepartureLocationId != nil {
+		parsedDepartureID, err2 := uuid.Parse(*req.Msg.DepartureLocationId)
+		if err2 != nil {
+			return nil, convertToConnectError(err2)
+		}
+		requestInput.DepartureLocationID = &parsedDepartureID
+	}
+
+	//call app layer ListRides method with provided arguments
 	rideList, rideListError := s.service.ListRides(ctx, currentUser, requestInput)
 	if rideListError != nil {
 		return nil, convertToConnectError(rideListError)
