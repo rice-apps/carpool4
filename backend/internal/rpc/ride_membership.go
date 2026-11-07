@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -32,19 +33,22 @@ func (s *Server) JoinRide(ctx context.Context, req *connect.Request[carpoolv1.Jo
 //
 // It returns the ride with caller-visible contacts or a Connect error.
 func (s *Server) LeaveRide(ctx context.Context, req *connect.Request[carpoolv1.LeaveRideRequest]) (*connect.Response[carpoolv1.LeaveRideResponse], error) {
-	rideID, err := uuid.Parse(req.Msg.RideId)
-	if err != nil {
-		return nil, convertToConnectError(err)
-	}
-
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
 		return nil, convertToConnectError(err)
 	}
+
+	rideID, err := uuid.Parse(req.Msg.RideId)
+	if err != nil {
+		return nil, convertToConnectError(fmt.Errorf("%w: ride ID", app.ErrInvalidArgument))
+	}
+
 	ride, err := s.service.LeaveRide(ctx, currentUser, rideID)
 	if err != nil {
+
 		return nil, convertToConnectError(err)
 	}
+
 	response := &carpoolv1.LeaveRideResponse{Ride: convertRideToProto(ride)}
 	return connect.NewResponse(response), nil
 }
