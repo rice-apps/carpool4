@@ -76,7 +76,7 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 func validateRideWrite(input RideWriteParams) error {
 	// TODO(student): Implement validateRideWrite application logic.\
 	switch {
-	case input.DepartureDate.Before(time.Now()):
+	case input.DepartureTime.Before(time.Now()):
 		return fmt.Errorf("departure %w is in the past", ErrInvalidArgument)
 	case input.ArrivalLocationID == input.DepartureLocationID:
 		return fmt.Errorf("arrival and departure locations must differ: %w", ErrInvalidArgument)

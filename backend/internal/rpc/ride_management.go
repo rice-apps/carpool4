@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	"connectrpc.com/connect"
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
@@ -21,24 +21,23 @@ import (
 //
 // It returns the new ride with caller-visible contacts or a Connect error.
 func (s *Server) CreateRide(ctx context.Context, req *connect.Request[carpoolv1.CreateRideRequest]) (*connect.Response[carpoolv1.CreateRideResponse], error) {
-	// TODO(student): Implement CreateRide RPC adapter.
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
 		return nil, convertToConnectError(err)
 	}
 	departureID, err := uuid.Parse(req.Msg.DepartureLocationId)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse departureID: %v", convertToConnectError(err))
+		return nil, convertToConnectError(fmt.Errorf("%w: departure location ID", app.ErrInvalidArgument))
 	}
 	arrivalID, err := uuid.Parse(req.Msg.ArrivalLocationId)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse arrivalID: %v", convertToConnectError(err))
+		return nil, convertToConnectError(fmt.Errorf("%w: arrival location ID", app.ErrInvalidArgument))
 	}
-	if !req.Msg.DepartureDate.IsValid() {
-		return nil, fmt.Errorf("time is invalid: %v", convertToConnectError(err))
+	if !req.Msg.DepartureTime.IsValid() {
+		return nil, convertToConnectError(fmt.Errorf("%w: departure time", app.ErrInvalidArgument))
 	}
 	params := app.RideWriteParams{
-		DepartureDate:       req.Msg.DepartureDate.AsTime(),
+		DepartureTime:       req.Msg.DepartureTime.AsTime(),
 		DepartureLocationID: departureID,
 		ArrivalLocationID:   arrivalID,
 		Notes:               req.Msg.Notes,
