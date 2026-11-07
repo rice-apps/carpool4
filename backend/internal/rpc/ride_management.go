@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
@@ -47,5 +48,19 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 // It returns the cancelled ride with caller-visible contacts or a Connect error.
 func (s *Server) CancelRide(ctx context.Context, req *connect.Request[carpoolv1.CancelRideRequest]) (*connect.Response[carpoolv1.CancelRideResponse], error) {
 	// TODO(student): Implement CancelRide RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	rideID, err := uuid.Parse(req.Msg.Id)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	ride, err := s.service.CancelRide(ctx, currentUser, rideID)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	response := &carpoolv1.CancelRideResponse{Ride: convertRideToProto(ride)}
+	return connect.NewResponse(response), nil
 }
