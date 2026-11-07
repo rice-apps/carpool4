@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -28,7 +30,7 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 	defer tx.Rollback()
 
 	usersRepo := tx.UsersRepo()
-	if targetID != nil {
+	if targetID == nil {
 		targetID = &currentUser.ID
 	}
 
@@ -37,15 +39,11 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 		return User{}, err
 	}
 
-	user := User{
-		ID:        userRecord.ID,
-		FirstName: userRecord.FirstName,
-		LastName:  userRecord.LastName,
-		Phone:     userRecord.Phone,
-		Email:     userRecord.Email,
+	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
+	if err != nil {
+		return User{}, err
 	}
-
-	return user, nil
+	return profile, nil
 }
 
 // UpdateUser saves the caller's profile, creating one if needed.
@@ -65,33 +63,43 @@ func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input
 	if err != nil {
 		return User{}, err
 	}
+	defer tx.Rollback()
 
 	usersRepo := tx.UsersRepo()
 
 	userWriteParams := UserWriteParams{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Phone:     input.Phone,
+		FirstName: strings.TrimSpace(input.FirstName),
+		LastName:  strings.TrimSpace(input.LastName),
+		Phone:     strings.TrimSpace(input.Phone),
 		ID:        currentUser.ID,
-		Email:     currentUser.Email,
+		Email:     strings.TrimSpace(currentUser.Email),
 	}
 	userRecord, err := usersRepo.UpsertUser(ctx, userWriteParams)
 	if err != nil {
 		return User{}, err
 	}
-	user := User{
-		ID:        userRecord.ID,
-		FirstName: userRecord.FirstName,
-		LastName:  userRecord.LastName,
-		Phone:     userRecord.Phone,
-		Email:     userRecord.Email,
+
+	if err := tx.Commit(); err != nil {
+		return User{}, err
 	}
-	return user, nil
+
+	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
+	if err != nil {
+		return User{}, err
+	}
+	return profile, nil
 }
 
 // validateUserWrite returns ErrInvalidArgument when normalized profile fields
 // are missing or exceed their character limits.
 func validateUserWrite(params UserWriteParams) error {
 	// TODO(student): Implement validateUserWrite application logic.
-	return ErrNotImplemented
+	firstNameLen := utf8.RuneCountInString(params.FirstName)
+	lastNameLen := utf8.RuneCountInString(params.LastName)
+	phoneLen := utf8.RuneCountInString(params.Phone)
+	emailLen := utf8.RuneCountInString(params.Email)
+	if !(1 <= firstNameLen && firstNameLen <= 100 && 1 <= lastNameLen && lastNameLen <= 100 && phoneLen <= 32 && 1 <= emailLen && emailLen <= 254) {
+		return ErrInvalidArgument
+	}
+	return nil
 }
