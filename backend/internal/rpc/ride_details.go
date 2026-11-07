@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -31,7 +32,7 @@ func (s *Server) GetRide(ctx context.Context, req *connect.Request[carpoolv1.Get
 	}
 	rideId, err := uuid.Parse(req.Msg.Id)
 	if err != nil {
-		return nil, convertToConnectError(err)
+		return nil, convertToConnectError(fmt.Errorf("%w: ride ID", app.ErrInvalidArgument))
 	}
 	ride, err := s.service.GetRide(ctx, currentUser, rideId)
 	if err != nil {
