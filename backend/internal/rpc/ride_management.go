@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -27,11 +28,14 @@ func (s *Server) CreateRide(ctx context.Context, req *connect.Request[carpoolv1.
 	}
 	departureID, err := uuid.Parse(req.Msg.DepartureLocationId)
 	if err != nil {
-		return nil, convertToConnectError(err)
+		return nil, fmt.Errorf("cannot parse departureID: %v", convertToConnectError(err))
 	}
 	arrivalID, err := uuid.Parse(req.Msg.ArrivalLocationId)
 	if err != nil {
-		return nil, convertToConnectError(err)
+		return nil, fmt.Errorf("cannot parse arrivalID: %v", convertToConnectError(err))
+	}
+	if !req.Msg.DepartureDate.IsValid() {
+		return nil, fmt.Errorf("time is invalid: %v", convertToConnectError(err))
 	}
 	params := app.RideWriteParams{
 		DepartureDate:       req.Msg.DepartureDate.AsTime(),
