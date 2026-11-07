@@ -86,7 +86,13 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 	if err != nil {
 		return Ride{}, err
 	}
-	return ride, err
+
+	newRide, err := getUserViewableRide(ctx, tx, currentUserID, ride.ID) // calls for the updated ride
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return newRide, err
 }
 
 // CancelRide cancels a ride and returns it with contacts currentUser may see.
