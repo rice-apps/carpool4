@@ -39,9 +39,8 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 		DepartureAfter:      *input.DepartureAfter,
 	}
 
-	//start new transaction and call service layer ListRides
+	//start new transaction and call database layer ListRides
 	newTransaction, err := s.database.BeginTx(ctx)
-	//no error conversion helper?
 	if err != nil {
 		return nil, err
 	}
@@ -49,8 +48,8 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 	if err != nil {
 		return nil, err
 	}
-	//convert service layer ListRides output to []Rides
-	//helper says prepares info based on user's allowed context, takes care of guest?
+	//convert database layer ListRides output to []Rides
+	//helper prepares info based on user's allowed context, takes care of guest case
 	rideList, err := buildRidesForViewer(ctx, newTransaction, currentUser.ID, loadedRides)
 	if err != nil {
 		return nil, err
