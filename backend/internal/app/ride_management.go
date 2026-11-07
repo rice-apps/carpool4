@@ -55,14 +55,14 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 		return Ride{}, err
 	}
 
-	tx, err := s.database.BeginTx(ctx)
+	tx, err := s.database.BeginTx(ctx) // starts a transaction to ensure consistency
 	if err != nil {
 		return Ride{}, err
 	}
 	defer tx.Rollback()
 	rideRepo := tx.RidesRepo()
 
-	ride, err := s.GetRide(ctx, currentUser, id)
+	ride, err := s.GetRide(ctx, currentUser, id) // calls GetRide for current ride.
 	if err != nil {
 		return Ride{}, err
 	}
@@ -70,19 +70,19 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 	rideOwner := ride.Owner
 	currentUserID := currentUser.ID
 	rideOwnerID := rideOwner.ID
-	if currentUserID != rideOwnerID {
+	if currentUserID != rideOwnerID { // checks to ensure the person updating the ride is the owner; permission check.
 		return Ride{}, err
 	}
 
-	if ride.Status == RideStatusCancelled {
+	if ride.Status == RideStatusCancelled { // checks to ensure the Ride Status is not Cancelled (ensures ride is active)
 		return Ride{}, err
 	}
 
-	if ride.OccupiedSeats > input.Capacity {
+	if ride.OccupiedSeats > input.Capacity { // checks to ensure new capacity is at least the current occupied seats
 		return Ride{}, err
 	}
 
-	err = rideRepo.UpdateRide(ctx, ride.ID, input)
+	err = rideRepo.UpdateRide(ctx, ride.ID, input) // calls DB layer and check for errors in updating
 	if err != nil {
 		return Ride{}, err
 	}
