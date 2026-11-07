@@ -20,8 +20,21 @@ import (
 // an empty Ride and an error.
 func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
 	// TODO(student): Implement JoinRide application logic.
+	//if ride ID is not valid, return empty ride and error
+	if rideID != uuid.Nil {
+		return Ride{}, ErrInvalidArgument
+	}
+	//start a new transaction and returns it as tx
+	tx, err := s.database.BeginTx(ctx)
+	//err gets reported if starting it failed
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	//returns the ride repository for tx
+	ridesRepo := tx.RidesRepo()
 	// gets the current ride details
-	ride, err := s.GetRide(ctx, currentUser, rideID)
+	ride, err := ridesRepo.GetRide(ctx, rideID)
 	// if there is an error with currentUser then return nil and the error
 	if err != nil {
 		return Ride{}, ErrNotImplemented
@@ -38,15 +51,12 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 	if ride.Owner.ID == currentUser.ID {
 		return Ride{}, ErrNotImplemented
 	}
-	//start a new transaction and returns it as tx
-	tx, err := s.database.BeginTx(ctx)
-	//err gets reported if starting it failed
-	if err != nil {
-		return Ride{}, err
+	// if current user is already in the ride then return empty ride and error
+	for _, rider := range ride.Riders {
+		if rider.ID == currentUser.ID {
+			return Ride{}, ErrAlreadyJoined
+		}
 	}
-	defer tx.Rollback()
-	//returns the ride repository for tx
-	ridesRepo := tx.RidesRepo()
 	// get the error from the AddRideOccupant function in ridesRepo
 	err = ridesRepo.AddRideOccupant(ctx, rideID, currentUser.ID)
 	//if there is an error, return empty ride and error
@@ -54,13 +64,13 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 		return Ride{}, ErrNotImplemented
 	}
 	// gets the details of the updated ride
-	ride, err = getUserViewableRide(ctx, tx, currentUser.ID, rideID)
+	ride2, err := getUserViewableRide(ctx, tx, currentUser.ID, rideID)
 	//if there is an error, return an empty ride and the lookup or privacy error
 	if err != nil {
 		return Ride{}, ErrNotImplemented
 	}
 	//return updated ride
-	return ride, nil
+	return ride2, nil
 
 }
 
