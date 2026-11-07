@@ -30,7 +30,33 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 	//pass along arguments ctx and ListRidesQuery object we've built to storage layer method
 	//receive the returned error (in which case return error if not nil), and the list of LoadedRide objects
 	//convert LoadedRide objects to list of Ride objects, return list of Ride objects
-	return nil, ErrNotImplemented
+
+	//create new ListRidesQuery object and populate with fields from input
+	ridesQuery := ListRidesQuery{
+		DepartureLocationID: input.DepartureLocationID,
+		ArrivalLocationID:   input.ArrivalLocationID,
+		DepartureBefore:     input.DepartureBefore,
+		DepartureAfter:      *input.DepartureAfter,
+	}
+
+	//start new transaction and call service layer ListRides
+	newTransaction, err := s.database.BeginTx(ctx)
+	//no error conversion helper?
+	if err != nil {
+		return nil, err
+	}
+	loadedRides, err := newTransaction.RidesRepo().ListRides(ctx, ridesQuery)
+	if err != nil {
+		return nil, err
+	}
+	//convert service layer ListRides output to []Rides
+	//helper says prepares info based on user's allowed context, takes care of guest?
+	rideList, err := buildRidesForViewer(ctx, newTransaction, currentUser.ID, loadedRides)
+	if err != nil {
+		return nil, err
+	}
+
+	return rideList, nil
 }
 
 // ListMyRides returns rides owned or joined by currentUser.
