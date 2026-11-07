@@ -24,11 +24,11 @@ const rideDiscoveryLookback = time.Hour
 func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input ListRidesInput) ([]Ride, error) {
 
 	//initialize realDepartureTime to one hour before, change to preferred time if preferred is sooner
-	realDepartureTime := time.Now().Add(-rideDiscoveryLookback)
+	mostRecentDepartureAfterTime := time.Now().Add(-rideDiscoveryLookback)
 	if input.DepartureAfter != nil {
-		preferredTime := *input.DepartureAfter
-		if preferredTime.Before(realDepartureTime) {
-			realDepartureTime = preferredTime
+		userDepartureAfterTime := *input.DepartureAfter
+		if userDepartureAfterTime.After(mostRecentDepartureAfterTime) {
+			mostRecentDepartureAfterTime = userDepartureAfterTime
 		}
 	}
 
@@ -37,7 +37,7 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 		DepartureLocationID: input.DepartureLocationID,
 		ArrivalLocationID:   input.ArrivalLocationID,
 		DepartureBefore:     input.DepartureBefore,
-		DepartureAfter:      realDepartureTime,
+		DepartureAfter:      mostRecentDepartureAfterTime,
 	}
 
 	//start new transaction and call database layer ListRides
