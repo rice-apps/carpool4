@@ -29,7 +29,7 @@ func convertRideToProto(ride app.Ride) *v1.Ride {
 		owner = convertUserToProto(ride.Owner)
 	}
 	return &v1.Ride{
-		Id: ride.ID.String(), DepartureDate: timestamppb.New(ride.DepartureDate),
+		Id: ride.ID.String(), DepartureTime: timestamppb.New(ride.DepartureTime),
 		DepartureLocation: convertLocationToProto(ride.DepartureLocation),
 		ArrivalLocation:   convertLocationToProto(ride.ArrivalLocation),
 		Owner:             owner, Riders: riders, Notes: ride.Notes,

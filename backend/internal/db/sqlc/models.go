@@ -62,7 +62,7 @@ type Location struct {
 
 type Ride struct {
 	ID                  uuid.UUID  `json:"id"`
-	DepartureDate       time.Time  `json:"departure_date"`
+	DepartureTime       time.Time  `json:"departure_time"`
 	DepartureLocationID uuid.UUID  `json:"departure_location_id"`
 	ArrivalLocationID   uuid.UUID  `json:"arrival_location_id"`
 	OwnerID             uuid.UUID  `json:"owner_id"`

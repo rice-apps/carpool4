@@ -48,7 +48,7 @@ type LocationRecord struct {
 //
 // Fields:
 //   - ID: stable ride ID.
-//   - DepartureDate: scheduled departure time.
+//   - DepartureTime: scheduled departure time.
 //   - Owner: driver's complete stored profile.
 //   - Departure: selected starting location.
 //   - Arrival: selected destination.
@@ -58,7 +58,7 @@ type LocationRecord struct {
 //   - Status: active or cancelled state.
 type LoadedRide struct {
 	ID            uuid.UUID
-	DepartureDate time.Time
+	DepartureTime time.Time
 	Owner         UserRecord
 	Departure     LocationRecord
 	Arrival       LocationRecord
@@ -82,13 +82,13 @@ var (
 // RideWriteParams contains the editable fields of a ride.
 //
 // Fields:
-//   - DepartureDate: requested departure time.
+//   - DepartureTime: requested departure time.
 //   - DepartureLocationID: selected starting location ID.
 //   - ArrivalLocationID: selected destination ID.
 //   - Notes: driver's trip details.
 //   - Capacity: total seats, including the driver's seat.
 type RideWriteParams struct {
-	DepartureDate       time.Time
+	DepartureTime       time.Time
 	DepartureLocationID uuid.UUID
 	ArrivalLocationID   uuid.UUID
 	Notes               string
