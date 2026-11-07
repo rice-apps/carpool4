@@ -75,5 +75,20 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 // It returns the cancelled ride with caller-visible contacts or a Connect error.
 func (s *Server) CancelRide(ctx context.Context, req *connect.Request[carpoolv1.CancelRideRequest]) (*connect.Response[carpoolv1.CancelRideResponse], error) {
 	// TODO(student): Implement CancelRide RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	rideID, err := uuid.Parse(req.Msg.Id)
+	if err != nil {
+		return nil, convertToConnectError(fmt.Errorf("%w: ride ID", app.ErrInvalidArgument))
+	}
+	ride, err := s.service.CancelRide(ctx, currentUser, rideID)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	response := &carpoolv1.CancelRideResponse{Ride: convertRideToProto(ride)}
+	return connect.NewResponse(response), nil
 }
