@@ -49,6 +49,23 @@ func validateRideWrite(input RideWriteParams) error {
 // input, or storage failure returns an empty Ride and an error.
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement UpdateRide application logic.
+	err := validateRideWrite(input) // calls validateRideWrite, checks for error.
+	if err != nil {
+		return Ride{}, err
+	}
+
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	ridesRepo := tx.UsersRepo()
+
+	ride, err := r.GetRide(ctx, currentUser, id)
+	if err != nil {
+		return Ride{}, err
+	}
+
 	return Ride{}, ErrNotImplemented
 }
 

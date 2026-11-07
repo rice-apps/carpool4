@@ -3,10 +3,9 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"uuid"
 
 	"connectrpc.com/connect"
-	uuid2 "github.com/google/uuid"
+	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
@@ -44,20 +43,19 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 
 	rideID, err := uuid.Parse(req.Msg.Id) // gets UUID in UUID object
 	if err != nil {                       // checks error for UUID
-		fmt.Printf("Failed to parse UUID: %v\n", err)
-		return nil, convertToConnectError(err)
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.Id, app.ErrInvalidArgument))
 	}
 
 	departureDate := req.Msg.DepartureDate.AsTime() // gets the departureDat as a timestamp object.
 
-	departureLocation, err := uuid.Parse(req.Msg.DepartureLocationId) // gets departure location as uuid
+	departureLocationID, err := uuid.Parse(req.Msg.DepartureLocationId) // gets departure location as uuid
 	if err != nil {
-		return nil, convertToConnectError(err)
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.DepartureLocationId, app.ErrInvalidArgument))
 	}
 
-	arrivalLocation, err := uuid.Parse(req.Msg.ArrivalLocationId) // gets arrival location as uuid
+	arrivalLocationID, err := uuid.Parse(req.Msg.ArrivalLocationId) // gets arrival location as uuid
 	if err != nil {
-		return nil, convertToConnectError(err)
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.ArrivalLocationId, app.ErrInvalidArgument))
 	}
 
 	notes := req.Msg.Notes       // gets notes as a string
@@ -65,13 +63,13 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 
 	inputChanges := app.RideWriteParams{ // uses previous fields as a RideWriteParams struct object
 		DepartureDate:       departureDate,
-		DepartureLocationID: uuid2.UUID(departureLocation),
-		ArrivalLocationID:   uuid2.UUID(arrivalLocation),
+		DepartureLocationID: departureLocationID,
+		ArrivalLocationID:   arrivalLocationID,
 		Notes:               notes,
 		Capacity:            capacity,
 	}
 
-	ride, err := s.service.UpdateRide(ctx, currentUser, uuid2.UUID(rideID), inputChanges) // convert ride response helper to proto
+	ride, err := s.service.UpdateRide(ctx, currentUser, rideID, inputChanges) // convert ride response helper to proto
 	if err != nil {
 		return nil, convertToConnectError(err)
 	}
