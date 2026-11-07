@@ -47,9 +47,9 @@ func (s *Server) ListMyRides(ctx context.Context, req *connect.Request[carpoolv1
 	}
 
 	// process rides to proto
-	var protoRides []*carpoolv1.Ride
-	for _, ride := range rides {
-		protoRides = append(protoRides, convertRideToProto(ride))
+	protoRides := make([]*carpoolv1.Ride, len(rides))
+	for i, ride := range rides {
+		protoRides[i] = convertRideToProto(ride)
 	}
 
 	response := &carpoolv1.ListMyRidesResponse{Rides: protoRides}
