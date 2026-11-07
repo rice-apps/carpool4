@@ -48,7 +48,6 @@ func validateRideWrite(input RideWriteParams) error {
 // occupants. A missing ride, denied owner, cancelled ride, invalid
 // input, or storage failure returns an empty Ride and an error.
 
-/*
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement UpdateRide application logic.
 	err := validateRideWrite(input) // calls validateRideWrite, checks for error.
@@ -61,16 +60,34 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 		return Ride{}, err
 	}
 	defer tx.Rollback()
-	ridesRepo := tx.UsersRepo()
+	rideRepo := tx.RidesRepo()
 
-	ride, err := r.GetRide(ctx, currentUser, id)
+	ride, err := s.GetRide(ctx, currentUser, id)
 	if err != nil {
 		return Ride{}, err
 	}
 
-	return Ride{}, ErrNotImplemented
+	rideOwner := ride.Owner
+	currentUserID := currentUser.ID
+	rideOwnerID := rideOwner.ID
+	if currentUserID != rideOwnerID {
+		return Ride{}, err
+	}
+
+	if ride.Status == RideStatusCancelled {
+		return Ride{}, err
+	}
+
+	if ride.OccupiedSeats > input.Capacity {
+		return Ride{}, err
+	}
+
+	err = rideRepo.UpdateRide(ctx, ride.ID, input)
+	if err != nil {
+		return Ride{}, err
+	}
+	return ride, err
 }
-*/
 
 // CancelRide cancels a ride and returns it with contacts currentUser may see.
 //
