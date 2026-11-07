@@ -2,15 +2,15 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Ride } from "../gen/carpool/v1/ride_pb";
 import { RideStatus } from "../gen/carpool/v1/ride_pb";
 
-export function departureDate(ride: Ride): Date | null {
-  return ride.departureDate ? timestampDate(ride.departureDate) : null;
+export function departureTime(ride: Ride): Date | null {
+  return ride.departureTime ? timestampDate(ride.departureTime) : null;
 }
 
 export function formatDeparture(
   ride: Ride,
   options?: Intl.DateTimeFormatOptions,
 ): string {
-  const date = departureDate(ride);
+  const date = departureTime(ride);
   if (!date) return "Time unavailable";
   return new Intl.DateTimeFormat(
     "en-US",
@@ -30,7 +30,7 @@ export function availableSeats(ride: Ride): number {
 
 export function rideState(ride: Ride): "cancelled" | "past" | "full" | "open" {
   if (ride.status === RideStatus.CANCELLED) return "cancelled";
-  const date = departureDate(ride);
+  const date = departureTime(ride);
   if (date && date.getTime() < Date.now()) return "past";
   return availableSeats(ride) === 0 ? "full" : "open";
 }

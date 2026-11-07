@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?}
+      SUPABASE_URL: ${SUPABASE_URL:?}
+      DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      timeout: 10s
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      timeout: 10s
+      start_period: 15s

@@ -1,0 +1,10 @@
+# Secrets
+.env
+
+# Build and test output
+server
+*.test
+*.out
+
+# OS files
+.DS_Store
