@@ -8,9 +8,60 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
 
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      tools: ${{ steps.filter.outputs.tools }}
+      backend: ${{ steps.filter.outputs.backend }}
+      starter: ${{ steps.filter.outputs.starter }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      proto: ${{ steps.filter.outputs.proto }}
+      sqlc: ${{ steps.filter.outputs.sqlc }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          ci: &ci
+            - .github/workflows/ci.yml
+          tools:
+            - *ci
+            - package.json
+            - package-lock.json
+            - scripts/**
+          backend:
+            - *ci
+            - backend/**
+          starter:
+            - *ci
+            - backend/**
+            - supabase/**
+            - scripts/ci-db.sh
+          frontend:
+            - *ci
+            - frontend/**
+            - proto/**
+          proto:
+            - *ci
+            - proto/**
+            - backend/internal/gen/**
+          sqlc:
+            - *ci
+            - backend/**
+            - supabase/migrations/**
+
   dev-tools:
+    needs: changes
+    if: needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -24,6 +75,8 @@ jobs:
     - run: npm test
 
   backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,6 +104,8 @@ jobs:
 
 
   starter-tests:
+    needs: changes
+    if: needs.changes.outputs.starter == 'true'
     runs-on: ubuntu-24.04
     continue-on-error: true # Starts red; pairs make their operation cases pass.
     defaults:
@@ -69,6 +124,8 @@ jobs:
       run: go test -count=1 ./...
 
   frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -95,6 +152,8 @@ jobs:
     - run: npm run build
 
   proto:
+    needs: changes
+    if: needs.changes.outputs.proto == 'true'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -116,6 +175,8 @@ jobs:
         git diff --exit-code -- ../backend/internal/gen
 
   sqlc:
+    needs: changes
+    if: needs.changes.outputs.sqlc == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -129,3 +190,12 @@ jobs:
 
     - name: Confirm checked-in generated code is up to date
       run: sqlc diff
+
+  ci-ok:
+    if: always()
+    needs: [changes, dev-tools, backend, frontend, proto, sqlc]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Fail if any job failed or was cancelled
+      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1
