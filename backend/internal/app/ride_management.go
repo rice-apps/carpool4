@@ -2,6 +2,10 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -22,15 +26,71 @@ import (
 // returns an empty Ride and an error.
 func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement CreateRide application logic.
-	return Ride{}, ErrNotImplemented
+
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+
+	err = validateRideWrite(input)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	user, err := tx.UsersRepo().FindUser(ctx, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	if strings.TrimSpace(user.Phone) == "" {
+		return Ride{}, ErrPhoneRequired
+	}
+
+	ride, err := tx.RidesRepo().CreateRide(ctx, currentUser.ID, input)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	err = tx.RidesRepo().AddRideOccupant(ctx, ride, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	ride_object, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return ride_object, nil
 }
 
 // validateRideWrite returns ErrInvalidArgument unless input has a future
 // departure, two distinct locations, capacity of at least one, and notes of
 // at most 500 characters.
 func validateRideWrite(input RideWriteParams) error {
-	// TODO(student): Implement validateRideWrite application logic.
-	return ErrNotImplemented
+	// TODO(student): Implement validateRideWrite application logic.\
+	switch {
+	case input.DepartureTime.Before(time.Now()):
+		return fmt.Errorf("departure %w is in the past", ErrInvalidArgument)
+	case input.ArrivalLocationID == input.DepartureLocationID:
+		return fmt.Errorf("arrival and departure locations must differ: %w", ErrInvalidArgument)
+	case input.ArrivalLocationID == uuid.Nil:
+		return fmt.Errorf("arrival location is required: %w", ErrInvalidArgument)
+	case input.DepartureLocationID == uuid.Nil:
+		return fmt.Errorf("departure location is required: %w", ErrInvalidArgument)
+	case input.Capacity < 1:
+		return ErrCapacityBelowOccupancy
+	case utf8.RuneCountInString(input.Notes) > 500:
+		return fmt.Errorf("notes must be below 500 characters: %w", ErrInvalidArgument)
+	default:
+		return nil
+	}
 }
 
 // UpdateRide replaces the editable fields of id and returns the updated Ride
