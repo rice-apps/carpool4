@@ -36,5 +36,36 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 // absent membership, or storage failure returns an empty Ride and an error.
 func (s *Service) LeaveRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
 	// TODO(student): Implement LeaveRide application logic.
-	return Ride{}, ErrNotImplemented
+	// checking to see if ID is Nil or not
+	if rideID == uuid.Nil {
+		return Ride{}, ErrNotImplemented
+	}
+	// create a transaction:
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	// get the rides repository for tx
+	ridesRepo := tx.RidesRepo()
+	// call method on ridesRepo
+	numberOfRemovedRider, err := ridesRepo.RemoveRideOccupant(ctx, rideID, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+	// error handling
+	if numberOfRemovedRider == 0 {
+		return Ride{}, ErrNotImplemented
+	}
+	// using getUserViewableRide to take in the rideID and remove the rider using removeRider
+	updateRide, err := getUserViewableRide(ctx, tx, rideID, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+	// use tx.commit()
+	if err := tx.Commit(); err != nil {
+		return Ride{}, err
+	}
+	return updateRide, nil
+
 }
