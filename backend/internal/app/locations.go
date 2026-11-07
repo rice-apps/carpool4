@@ -18,12 +18,13 @@ func (s *Service) ListLocations(ctx context.Context) ([]LocationRecord, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	// get locations repo
-	locationsRepo, err := tx.LocationsRepo().ListLocations(ctx)
+	locationsList, err := tx.LocationsRepo().ListLocations(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return locationsRepo, nil
+	return locationsList, nil
 }
