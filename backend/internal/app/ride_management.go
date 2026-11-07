@@ -2,7 +2,10 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -23,6 +26,7 @@ import (
 // returns an empty Ride and an error.
 func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement CreateRide application logic.
+
 	tx, err := s.database.BeginTx(ctx)
 	if err != nil {
 		return Ride{}, err
@@ -39,11 +43,23 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 		return Ride{}, err
 	}
 
-	if user.Phone == "" {
+	if strings.TrimSpace(user.Phone) == "" {
 		return Ride{}, ErrInvalidArgument
 	}
 
-	return Ride{}, nil
+	ride, err := tx.RidesRepo().CreateRide(ctx, currentUser.ID, input)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	err = tx.RidesRepo().AddRideOccupant(ctx, ride, currentUser.ID)
+	if err != nil {
+		return Ride{}, ErrNotImplemented
+	}
+
+	ride_object, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
+
+	return ride_object, nil
 }
 
 // validateRideWrite returns ErrInvalidArgument unless input has a future
@@ -53,13 +69,17 @@ func validateRideWrite(input RideWriteParams) error {
 	// TODO(student): Implement validateRideWrite application logic.\
 	switch {
 	case input.DepartureDate.Before(time.Now()):
-		return ErrInvalidArgument
+		return fmt.Errorf("departure %w is in the past", ErrInvalidArgument)
 	case input.ArrivalLocationID == input.DepartureLocationID:
-		return ErrInvalidArgument
+		return fmt.Errorf("arrival and departure locations must differ: %w", ErrInvalidArgument)
+	case input.ArrivalLocationID == uuid.Nil:
+		return fmt.Errorf("arrival location is required: %w", ErrInvalidArgument)
+	case input.DepartureLocationID == uuid.Nil:
+		return fmt.Errorf("departure location is required: %w", ErrInvalidArgument)
 	case input.Capacity <= 1:
-		return ErrInvalidArgument
-	case len(input.Notes) > 500:
-		return ErrInvalidArgument
+		return ErrCapacityBelowOccupancy
+	case utf8.RuneCountInString(input.Notes) > 500:
+		return fmt.Errorf("notes must be below 500 characters: %w", ErrInvalidArgument)
 	default:
 		return nil
 	}
