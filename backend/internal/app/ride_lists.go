@@ -42,6 +42,7 @@ func (s *Service) ListMyRides(ctx context.Context, currentUser CurrentUser) ([]R
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	// get locations repo
 	ridesRepo, err := tx.RidesRepo().ListMyRides(ctx, currentUser.ID)
