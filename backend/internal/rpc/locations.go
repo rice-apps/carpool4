@@ -5,7 +5,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
@@ -18,5 +17,16 @@ import (
 // It returns protobuf locations on success or a Connect error on failure.
 func (s *Server) ListLocations(ctx context.Context, req *connect.Request[carpoolv1.ListLocationsRequest]) (*connect.Response[carpoolv1.ListLocationsResponse], error) {
 	// TODO(student): Implement ListLocations RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	locations, err := s.service.ListLocations(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+
+	var protoLocations []*carpoolv1.Location
+	for _, location := range locations {
+		protoLocations = append(protoLocations, convertLocationToProto(location))
+	}
+	response := &carpoolv1.ListLocationsResponse{Locations: protoLocations}
+
+	return connect.NewResponse(response), nil
 }

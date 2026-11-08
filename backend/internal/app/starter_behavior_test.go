@@ -105,7 +105,7 @@ func TestStarterBehavior(t *testing.T) {
 			t.Run(history.name, func(t *testing.T) {
 				f := newStarterFixture()
 				f.db.ride.Status = history.status
-				f.db.ride.DepartureDate = history.departure
+				f.db.ride.DepartureTime = history.departure
 				_, err := NewService(f.db).GetRide(ctx, CurrentUser{}, f.db.ride.ID)
 				skipIfUnimplemented(t, err)
 				if !errors.Is(err, ErrRideNotFound) {
@@ -289,12 +289,12 @@ func newStarterFixture() starterFixture {
 	stranger := UserRecord{ID: uuid.New(), FirstName: "Other", LastName: "Rice", Email: "other@rice.edu", Phone: "713-555-0102"}
 	airport := LocationRecord{ID: uuid.New(), Title: "Airport"}
 	rice := LocationRecord{ID: uuid.New(), Title: "Rice"}
-	input := RideWriteParams{DepartureDate: time.Now().Add(24 * time.Hour), DepartureLocationID: rice.ID, ArrivalLocationID: airport.ID, Capacity: 3}
+	input := RideWriteParams{DepartureTime: time.Now().Add(24 * time.Hour), DepartureLocationID: rice.ID, ArrivalLocationID: airport.ID, Capacity: 3}
 	db := &starterDB{
 		users:     map[uuid.UUID]UserRecord{owner.ID: owner, rider.ID: rider, stranger.ID: stranger},
 		locations: []LocationRecord{airport, rice},
 		ride: LoadedRide{
-			ID: uuid.New(), DepartureDate: input.DepartureDate, Owner: owner,
+			ID: uuid.New(), DepartureTime: input.DepartureTime, Owner: owner,
 			Departure: rice, Arrival: airport, Riders: []UserRecord{owner}, Capacity: 3, Status: RideStatusActive,
 		},
 	}
@@ -353,14 +353,14 @@ func (db *starterDB) GetRide(_ context.Context, id uuid.UUID) (LoadedRide, error
 }
 func (db *starterDB) CreateRide(_ context.Context, ownerID uuid.UUID, params RideWriteParams) (uuid.UUID, error) {
 	db.ride = LoadedRide{
-		ID: uuid.New(), Owner: db.users[ownerID], DepartureDate: params.DepartureDate,
+		ID: uuid.New(), Owner: db.users[ownerID], DepartureTime: params.DepartureTime,
 		Departure: LocationRecord{ID: params.DepartureLocationID}, Arrival: LocationRecord{ID: params.ArrivalLocationID},
 		Notes: params.Notes, Capacity: params.Capacity, Status: RideStatusActive,
 	}
 	return db.ride.ID, nil
 }
 func (db *starterDB) UpdateRide(_ context.Context, _ uuid.UUID, params RideWriteParams) error {
-	db.ride.DepartureDate = params.DepartureDate
+	db.ride.DepartureTime = params.DepartureTime
 	db.ride.Departure = LocationRecord{ID: params.DepartureLocationID}
 	db.ride.Arrival = LocationRecord{ID: params.ArrivalLocationID}
 	db.ride.Notes = params.Notes
