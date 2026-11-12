@@ -22,7 +22,14 @@ const rideDiscoveryLookback = time.Hour
 // only when currentUser may see them. Guest results omit people and notes. Storage
 // failures return an error.
 func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input ListRidesInput) ([]Ride, error) {
-	// TODO(student): Implement ListRides application logic.
+	//first obtain fields from ListRidesInput object
+	//if fields of ListRidesInput are not nil, filter by departure locations and times
+	//query only rides departed within last hour
+	//check if currentUser is empty, if so omit people and notes in query
+	//build ListRidesQuery object with specifications listed above
+	//pass along arguments ctx and ListRidesQuery object we've built to storage layer method
+	//receive the returned error (in which case return error if not nil), and the list of LoadedRide objects
+	//convert LoadedRide objects to list of Ride objects, return list of Ride objects
 	return nil, ErrNotImplemented
 }
 

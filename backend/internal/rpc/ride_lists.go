@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-
+	"github.com/google/uuid"
 	"github.com/rice-apps/carpool4/backend/internal/app"
+	"github.com/rice-apps/carpool4/backend/internal/auth"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
@@ -20,8 +21,58 @@ import (
 // It returns matching viewer-authorized rides or a Connect error. Guest
 // results omit people and notes.
 func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.ListRidesRequest]) (*connect.Response[carpoolv1.ListRidesResponse], error) {
-	// TODO(student): Implement ListRides RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+
+	//create currentUser object and initialize with user values (or empty if guest)
+	currentUser := app.CurrentUser{}
+	if auth.IsSignedIn(ctx) {
+		var err error
+		currentUser, err = getCurrentUser(ctx)
+		if err != nil {
+			return nil, convertToConnectError(err)
+		}
+	}
+	//create new ListRidesInput object, check if ListRidesRequest fields are nil first, if not, set that field in the new object
+	requestInput := app.ListRidesInput{}
+
+	if req.Msg.GetDepartureAfter() != nil {
+		departureAfterTime := req.Msg.DepartureAfter.AsTime()
+		requestInput.DepartureAfter = &departureAfterTime
+	}
+
+	if req.Msg.GetDepartureBefore() != nil {
+		departureBeforeTime := req.Msg.DepartureBefore.AsTime()
+		requestInput.DepartureBefore = &departureBeforeTime
+	}
+
+	if req.Msg.ArrivalLocationId != nil {
+		parsedArrivalID, err1 := uuid.Parse(*req.Msg.ArrivalLocationId)
+		if err1 != nil {
+			return nil, convertToConnectError(err1)
+		}
+		requestInput.ArrivalLocationID = &parsedArrivalID
+	}
+
+	if req.Msg.DepartureLocationId != nil {
+		parsedDepartureID, err2 := uuid.Parse(*req.Msg.DepartureLocationId)
+		if err2 != nil {
+			return nil, convertToConnectError(err2)
+		}
+		requestInput.DepartureLocationID = &parsedDepartureID
+	}
+
+	//call app layer ListRides method with provided arguments
+	rideList, rideListError := s.service.ListRides(ctx, currentUser, requestInput)
+	if rideListError != nil {
+		return nil, convertToConnectError(rideListError)
+	}
+	newResponse := connect.Response[carpoolv1.ListRidesResponse]{}
+	ridePointerList := make([]*carpoolv1.Ride, len(rideList))
+	for i, ride := range rideList {
+		ridePointerList[i] = convertRideToProto(ride)
+	}
+	newResponse.Msg.Rides = ridePointerList
+	newResponsePointer := &newResponse
+	return newResponsePointer, nil
 }
 
 // ListMyRides reads the verified caller's ride history.
