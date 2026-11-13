@@ -46,6 +46,10 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.Id, app.ErrInvalidArgument))
 	}
 
+	err = req.Msg.DepartureDate.CheckValid() // validates the DepartureDate as a timestamp
+	if err != nil {
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: departure date must be a valid timestamp: %w", app.ErrInvalidArgument))
+	}
 	departureDate := req.Msg.DepartureDate.AsTime() // gets the departureDat as a timestamp object.
 
 	departureLocationID, err := uuid.Parse(req.Msg.DepartureLocationId) // gets departure location as uuid
@@ -73,8 +77,8 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 	if err != nil {
 		return nil, convertToConnectError(err)
 	}
-	response := &carpoolv1.UpdateRideResponse{Ride: convertRideToProto(ride)}          // response as an UpdateRideResponse by calling convertRideToProto of our ride based on app UpdateRide function
-	return connect.NewResponse(response), convertToConnectError(app.ErrNotImplemented) // returns the correct type (NewResponse) as an UpdateRideResponse; ready for app layer
+	response := &carpoolv1.UpdateRideResponse{Ride: convertRideToProto(ride)} // response as an UpdateRideResponse by calling convertRideToProto of our ride based on app UpdateRide function
+	return connect.NewResponse(response), nil                                 // returns the correct type (NewResponse) as an UpdateRideResponse; ready for app layer
 }
 
 // CancelRide cancels a ride for the verified caller.
