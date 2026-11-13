@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -74,7 +75,15 @@ func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input
 		ID:        currentUser.ID,
 		Email:     strings.TrimSpace(currentUser.Email),
 	}
+	if validateUserWrite(userWriteParams) != nil {
+		return User{}, validateUserWrite(userWriteParams)
+	}
 	userRecord, err := usersRepo.UpsertUser(ctx, userWriteParams)
+	if err != nil {
+		return User{}, err
+	}
+
+	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
 	if err != nil {
 		return User{}, err
 	}
@@ -83,10 +92,6 @@ func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input
 		return User{}, err
 	}
 
-	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
-	if err != nil {
-		return User{}, err
-	}
 	return profile, nil
 }
 
@@ -98,8 +103,17 @@ func validateUserWrite(params UserWriteParams) error {
 	lastNameLen := utf8.RuneCountInString(params.LastName)
 	phoneLen := utf8.RuneCountInString(params.Phone)
 	emailLen := utf8.RuneCountInString(params.Email)
-	if !(1 <= firstNameLen && firstNameLen <= 100 && 1 <= lastNameLen && lastNameLen <= 100 && phoneLen <= 32 && 1 <= emailLen && emailLen <= 254) {
-		return ErrInvalidArgument
+	if !(1 <= firstNameLen && firstNameLen <= 100) {
+		return fmt.Errorf("%w: first name must be less than 100 characters", ErrInvalidArgument)
+	}
+	if !(1 <= lastNameLen && lastNameLen <= 100) {
+		return fmt.Errorf("%w: last name must be less than 100 characters", ErrInvalidArgument)
+	}
+	if phoneLen > 32 {
+		return fmt.Errorf("%w: phone must be less than 32 characters", ErrInvalidArgument)
+	}
+	if !(1 <= emailLen && emailLen <= 254) {
+		return fmt.Errorf("%w: email must be less than 254 characters", ErrInvalidArgument)
 	}
 	return nil
 }
