@@ -86,7 +86,16 @@ func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 // It returns an error if the write fails.
 func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid.UUID) error {
 	// TODO(student): Implement AddRideOccupant Postgres repository method.
-	return app.ErrNotImplemented
+	// Create an 'arg' variable that stores the rideID and userID as a AddRideOccupantParams struct
+	arg := sqlc.AddRideOccupantParams{RideID: rideID, UserID: userID}
+	// Call the generated sql go function 'AddRideOccupant'
+	err := r.queries.AddRideOccupant(ctx, arg)
+	// Check if there is an error. If so, return the error that recognizes database transaction conflicts and returns an error identifiable as app.ErrTransactionConflict.
+	if err != nil {
+		return translateTransactionError(err)
+	}
+	// Return no error
+	return err
 }
 
 // RemoveRideOccupant removes a user from a ride.
