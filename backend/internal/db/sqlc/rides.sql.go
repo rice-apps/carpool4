@@ -23,18 +23,18 @@ const listMyRides = `-- name: ListMyRides :many
 SELECT
     r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
     u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
-    departure.id, departure.title, departure.address,
-    arrival.id, arrival.title, arrival.address,
+    dl.id, dl.title, dl.address,
+    al.id, al.title, al.address,
     ride_riders(r.id) riders
 FROM rides r
          INNER JOIN ride_occupants ro
                     ON r.id = ro.ride_id
          INNER JOIN users u
                     ON ro.user_id = r.owner_id
-         INNER JOIN locations departure
-                    ON r.departure_location_id = departure.id
-         INNER JOIN locations arrival
-                    ON r.arrival_location_id = arrival.id
+         INNER JOIN locations dl
+                    ON r.departure_location_id = dl.id
+         INNER JOIN locations al
+                    ON r.arrival_location_id = al.id
 WHERE ro.user_id = $1
 ORDER BY r.departure_time DESC, r.id DESC
 `
