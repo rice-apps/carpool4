@@ -47,7 +47,7 @@ func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, param
 func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app.RideWriteParams) error {
 	// TODO(student): Implement UpdateRide Postgres repository method.
 	rideChanges := sqlc.UpdateRideParams{ // changes type by creating a new instance rideChanges of the UpdateRideParams struct
-		DepartureDate:       params.DepartureDate,
+		DepartureTime:       params.DepartureTime,
 		DepartureLocationID: params.DepartureLocationID,
 		ArrivalLocationID:   params.ArrivalLocationID,
 		Notes:               params.Notes,
@@ -60,7 +60,7 @@ func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app
 	}
 
 	if rowsChanged == 0 {
-		return translateRideError(err)
+		return app.ErrRideNotFound
 	}
 
 	return nil
