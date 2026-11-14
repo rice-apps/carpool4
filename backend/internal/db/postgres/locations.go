@@ -13,7 +13,7 @@ func (r locationRepository) ListLocations(ctx context.Context) ([]app.LocationRe
 	// TODO(student): Implement ListLocations Postgres repository method.
 	locationsQuery, err := r.queries.ListLocations(ctx) // queries all locations
 	if err != nil {
-		return nil, err
+		return nil, translateTransactionError(err)
 	}
 
 	//converts locations to LocationRecords
