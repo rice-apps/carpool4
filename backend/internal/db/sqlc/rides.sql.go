@@ -12,6 +12,29 @@ import (
 	"github.com/google/uuid"
 )
 
+const addRideOccupant = `-- name: AddRideOccupant :exec
+
+
+    INSERT INTO ride_occupants (ride_id, user_id)
+    VALUES ($1,$2)
+`
+
+type AddRideOccupantParams struct {
+	RideID uuid.UUID `json:"ride_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+// UpdateRide: Replace a ride's editable fields.
+// TODO(student): Write the UpdateRide SQL query.
+// CancelRide: Mark a ride cancelled while retaining its history.
+// TODO(student): Write the CancelRide SQL query.
+// AddRideOccupant: Record a user's ride membership.
+// TODO(student): Write the AddRideOccupant SQL query.
+func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
+	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
+	return err
+}
+
 const createRide = `-- name: CreateRide :one
 
 insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
