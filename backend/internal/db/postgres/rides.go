@@ -112,5 +112,18 @@ func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery)
 // visibility in the returned records.
 func (r rideRepository) ListMyRides(ctx context.Context, viewerID uuid.UUID) ([]app.LoadedRide, error) {
 	// TODO(student): Implement ListMyRides Postgres repository method.
-	return nil, app.ErrNotImplemented
+	myRidesQuery, err := r.queries.ListMyRides(ctx, viewerID) // queries all locations
+	if err != nil {
+		return nil, translateTransactionError(err)
+	}
+
+	//converts locations to LocationRecords
+	myRides := make([]app.LoadedRide, len(myRidesQuery))
+	for i, row := range myRidesQuery {
+		myRides[i], err = convertRideRows(row.Ride, row.User, row.Location, row.Location_2, row.Riders)
+		if err != nil {
+			return nil, translateRideError(err)
+		}
+	}
+	return myRides, nil
 }
