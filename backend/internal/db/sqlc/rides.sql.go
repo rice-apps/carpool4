@@ -30,7 +30,7 @@ FROM rides r
          INNER JOIN ride_occupants ro
                     ON r.id = ro.ride_id
          INNER JOIN users u
-                    ON ro.user_id = r.owner_id
+                    ON u.id = r.owner_id
          INNER JOIN locations dl
                     ON r.departure_location_id = dl.id
          INNER JOIN locations al
