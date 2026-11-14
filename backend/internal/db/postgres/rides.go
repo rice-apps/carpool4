@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 )
@@ -32,8 +33,20 @@ func (r rideRepository) GetRide(ctx context.Context, id uuid.UUID) (app.LoadedRi
 // It returns the new ride UUID or a storage error. Invalid database constraints
 // map to app.ErrInvalidRideWrite.
 func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, params app.RideWriteParams) (uuid.UUID, error) {
-	// TODO(student): Implement CreateRide Postgres repository method.
-	return uuid.Nil, app.ErrNotImplemented
+
+	id, err := r.queries.CreateRide(ctx, sqlc.CreateRideParams{
+		DepartureTime:       params.DepartureTime,
+		DepartureLocationID: params.DepartureLocationID,
+		ArrivalLocationID:   params.ArrivalLocationID,
+		OwnerID:             ownerID,
+		Notes:               params.Notes,
+		Capacity:            params.Capacity,
+		Status:              "active",
+	})
+	if err != nil {
+		return uuid.Nil, translateRideWriteError(err)
+	}
+	return id, nil
 }
 
 // UpdateRide replaces a ride's writable fields.
@@ -83,7 +96,16 @@ func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 // It returns an error if the write fails.
 func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid.UUID) error {
 	// TODO(student): Implement AddRideOccupant Postgres repository method.
-	return app.ErrNotImplemented
+	// Create an 'arg' variable that stores the rideID and userID as a AddRideOccupantParams struct
+	arg := sqlc.AddRideOccupantParams{RideID: rideID, UserID: userID}
+	// Call the generated sql go function 'AddRideOccupant'
+	err := r.queries.AddRideOccupant(ctx, arg)
+	// Check if there is an error. If so, return the error that recognizes database transaction conflicts and returns an error identifiable as app.ErrTransactionConflict.
+	if err != nil {
+		return translateTransactionError(err)
+	}
+	// Return no error
+	return err
 }
 
 // RemoveRideOccupant removes a user from a ride.
