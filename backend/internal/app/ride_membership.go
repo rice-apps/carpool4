@@ -59,7 +59,7 @@ func (s *Service) LeaveRide(ctx context.Context, currentUser CurrentUser, rideID
 		return Ride{}, err
 	}
 	if ride.Owner.ID == currentUser.ID {
-		return Ride{}, ErrNotImplemented
+		return Ride{}, ErrOwnerCannotChangeMembership
 	}
 	// call method on ridesRepo
 	numberOfRemovedRider, err := ridesRepo.RemoveRideOccupant(ctx, rideID, currentUser.ID)
