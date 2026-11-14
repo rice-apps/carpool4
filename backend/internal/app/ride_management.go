@@ -107,9 +107,57 @@ func validateRideWrite(input RideWriteParams) error {
 // The ride must be active, input must be valid, and capacity must fit current
 // occupants. A missing ride, denied owner, cancelled ride, invalid
 // input, or storage failure returns an empty Ride and an error.
+
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
 	// TODO(student): Implement UpdateRide application logic.
-	return Ride{}, ErrNotImplemented
+	err := validateRideWrite(input) // calls validateRideWrite, checks for error.
+	if err != nil {
+		return Ride{}, err
+	}
+
+	tx, err := s.database.BeginTx(ctx) // starts a transaction to ensure consistency
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	rideRepo := tx.RidesRepo()
+
+	ride, err := rideRepo.GetRide(ctx, id) // calls GetRide for current ride.
+	if err != nil {
+		return Ride{}, err
+	}
+
+	rideOwner := ride.Owner
+	currentUserID := currentUser.ID
+	rideOwnerID := rideOwner.ID
+	if currentUserID != rideOwnerID { // checks to ensure the person updating the ride is the owner; permission check.
+		return Ride{}, ErrPermissionDenied
+	}
+
+	if ride.Status == RideStatusCancelled { // checks to ensure the Ride Status is not Cancelled (ensures ride is active)
+		return Ride{}, ErrRideCancelled
+	}
+
+	if input.Capacity < int32(len(ride.Riders)) { // checks to ensure new capacity is at least the current occupied seats
+		return Ride{}, ErrCapacityBelowOccupancy
+	}
+
+	err = rideRepo.UpdateRide(ctx, ride.ID, input) // calls DB layer and check for errors in updating
+	if err != nil {
+		return Ride{}, err
+	}
+
+	newRide, err := getUserViewableRide(ctx, tx, currentUserID, ride.ID) // calls for the updated ride
+	if err != nil {
+		return Ride{}, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return Ride{}, err
+	}
+
+	return newRide, nil
 }
 
 // CancelRide cancels a ride and returns it with contacts currentUser may see.
