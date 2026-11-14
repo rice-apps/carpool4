@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -45,34 +46,31 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 	}
 
 	if req.Msg.ArrivalLocationId != nil {
-		parsedArrivalID, err1 := uuid.Parse(*req.Msg.ArrivalLocationId)
-		if err1 != nil {
-			return nil, convertToConnectError(err1)
+		parsedArrivalID, err := uuid.Parse(*req.Msg.ArrivalLocationId)
+		if err != nil {
+			return nil, convertToConnectError(fmt.Errorf("%w: departure location ID", app.ErrInvalidArgument))
 		}
 		requestInput.ArrivalLocationID = &parsedArrivalID
 	}
 
 	if req.Msg.DepartureLocationId != nil {
-		parsedDepartureID, err2 := uuid.Parse(*req.Msg.DepartureLocationId)
-		if err2 != nil {
-			return nil, convertToConnectError(err2)
+		parsedDepartureID, err := uuid.Parse(*req.Msg.DepartureLocationId)
+		if err != nil {
+			return nil, convertToConnectError(err)
 		}
 		requestInput.DepartureLocationID = &parsedDepartureID
 	}
 
 	//call app layer ListRides method with provided arguments
-	rideList, rideListError := s.service.ListRides(ctx, currentUser, requestInput)
-	if rideListError != nil {
-		return nil, convertToConnectError(rideListError)
+	rideList, err := s.service.ListRides(ctx, currentUser, requestInput)
+	if err != nil {
+		return nil, convertToConnectError(err)
 	}
-	newResponse := connect.Response[carpoolv1.ListRidesResponse]{}
 	ridePointerList := make([]*carpoolv1.Ride, len(rideList))
 	for i, ride := range rideList {
 		ridePointerList[i] = convertRideToProto(ride)
 	}
-	newResponse.Msg.Rides = ridePointerList
-	newResponsePointer := &newResponse
-	return newResponsePointer, nil
+	return connect.NewResponse(&carpoolv1.ListRidesResponse{Rides: ridePointerList}), nil
 }
 
 // ListMyRides reads the verified caller's ride history.
