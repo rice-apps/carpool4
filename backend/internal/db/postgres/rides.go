@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 
@@ -46,7 +47,7 @@ func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, param
 // ride or app.ErrInvalidRideWrite for invalid fields.
 func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app.RideWriteParams) error {
 	// TODO(student): Implement UpdateRide Postgres repository method.
-	
+
 	return app.ErrNotImplemented
 }
 
@@ -60,7 +61,16 @@ func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app
 // ride.
 func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 	// TODO(student): Implement CancelRide Postgres repository method.
-	return app.ErrNotImplemented
+	// call the CancelRide method from sqlc
+	// r= ride repository, encapsulates the functions of the storage layer
+	numbOfRows, err := r.queries.CancelRide(ctx, id)
+	if err != nil {
+		return translateRideError(err)
+	}
+	if numbOfRows == 0 {
+		return translateRideError(sql.ErrNoRows)
+	}
+	return app.ErrRideCancelled
 }
 
 // AddRideOccupant adds a user to a ride.
