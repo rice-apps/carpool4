@@ -6,6 +6,15 @@
 
 -- UpdateRide: Replace a ride's editable fields.
 -- TODO(student): Write the UpdateRide SQL query.
+-- name: UpdateRide :execrows
+    UPDATE rides
+        SET departure_date = sqlc.arg(departure_date),
+            arrival_location_id = sqlc.arg(arrival_location_id),
+            departure_location_id = sqlc.arg(departure_location_id),
+            capacity = sqlc.arg(capacity),
+            notes = sqlc.arg(notes),
+            updated_at = now()
+        WHERE id = sqlc.arg(id);
 
 -- CancelRide: Mark a ride cancelled while retaining its history.
 -- TODO(student): Write the CancelRide SQL query.

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
 	"github.com/rice-apps/carpool4/backend/internal/app"
+	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
 
 // GetRide returns a ride with its owner, locations, and riders.
@@ -46,7 +46,24 @@ func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, param
 // ride or app.ErrInvalidRideWrite for invalid fields.
 func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app.RideWriteParams) error {
 	// TODO(student): Implement UpdateRide Postgres repository method.
-	return app.ErrNotImplemented
+	rideChanges := sqlc.UpdateRideParams{ // changes type by creating a new instance rideChanges of the UpdateRideParams struct
+		DepartureDate:       params.DepartureDate,
+		DepartureLocationID: params.DepartureLocationID,
+		ArrivalLocationID:   params.ArrivalLocationID,
+		Notes:               params.Notes,
+		Capacity:            params.Capacity,
+		ID:                  id,
+	}
+	rowsChanged, err := r.queries.UpdateRide(ctx, rideChanges) // checks for rows changed to be 0; returns error since that means ride was not found/something happened to stop rows from being updated
+	if err != nil {
+		return translateRideWriteError(err)
+	}
+
+	if rowsChanged == 0 {
+		return translateRideError(err)
+	}
+
+	return nil
 }
 
 // CancelRide marks a ride as canceled.
