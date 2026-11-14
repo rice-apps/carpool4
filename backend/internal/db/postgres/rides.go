@@ -83,6 +83,7 @@ func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid
 	}
 	// Return no error
 	return err
+}
 
 // RemoveRideOccupant removes a user from a ride.
 //
