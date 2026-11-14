@@ -12,7 +12,7 @@
 
 -- AddRideOccupant: Record a user's ride membership.
 -- TODO(student): Write the AddRideOccupant SQL query.
--- name: AddRideOccupant :execlastid
+-- name: AddRideOccupant :exec
     INSERT INTO ride_occupants (ride_id, user_id)
     VALUES ($1,$2);
 

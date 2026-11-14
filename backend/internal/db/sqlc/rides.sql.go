@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const addRideOccupant = `-- name: AddRideOccupant :execlastid
+const addRideOccupant = `-- name: AddRideOccupant :exec
 
 
 
@@ -35,10 +35,7 @@ type AddRideOccupantParams struct {
 // TODO(student): Write the CancelRide SQL query.
 // AddRideOccupant: Record a user's ride membership.
 // TODO(student): Write the AddRideOccupant SQL query.
-func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
-	if err != nil {
-		return 0, err
-	}
-	return result.LastInsertId()
+func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
+	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
+	return err
 }

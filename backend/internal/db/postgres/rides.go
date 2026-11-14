@@ -76,14 +76,13 @@ func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid
 	// Create an 'arg' variable that stores the rideID and userID as a AddRideOccupantParams struct
 	arg := sqlc.AddRideOccupantParams{RideID: rideID, UserID: userID}
 	// Call the generated sql go function 'AddRideOccupant'
-	_, err := r.queries.AddRideOccupant(ctx, arg)
-	// Check if there is an error. If so, return the error
+	err := r.queries.AddRideOccupant(ctx, arg)
+	// Check if there is an error. If so, return the error that recognizes database transaction conflicts and returns an error identifiable as app.ErrTransactionConflict.
 	if err != nil {
-		return err
+		return translateTransactionError(err)
 	}
-	// Recognizes database transaction conflicts and returns an error identifiable as app.ErrTransactionConflict.
-	return translateTransactionError(err)
-}
+	// Return no error
+	return err
 
 // RemoveRideOccupant removes a user from a ride.
 //
