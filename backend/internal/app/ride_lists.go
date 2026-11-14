@@ -41,22 +41,18 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 	}
 
 	//start new transaction and call database layer ListRides
-	newTransaction, err := s.database.BeginTx(ctx)
+	tx, err := s.database.BeginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
-	loadedRides, err := newTransaction.RidesRepo().ListRides(ctx, ridesQuery)
+	defer tx.Rollback()
+	loadedRides, err := tx.RidesRepo().ListRides(ctx, ridesQuery)
 	if err != nil {
 		return nil, err
 	}
 	//convert database layer ListRides output to []Rides
 	//helper prepares info based on user's allowed context, takes care of guest case
-	rideList, err := buildRidesForViewer(ctx, newTransaction, currentUser.ID, loadedRides)
-	if err != nil {
-		return nil, err
-	}
-
-	return rideList, nil
+	return buildRidesForViewer(ctx, tx, currentUser.ID, loadedRides)
 }
 
 // ListMyRides returns rides owned or joined by currentUser.
