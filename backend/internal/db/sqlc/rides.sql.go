@@ -13,8 +13,6 @@ import (
 )
 
 const addRideOccupant = `-- name: AddRideOccupant :exec
-
-
     INSERT INTO ride_occupants (ride_id, user_id)
     VALUES ($1,$2)
 `
@@ -24,15 +22,29 @@ type AddRideOccupantParams struct {
 	UserID uuid.UUID `json:"user_id"`
 }
 
-// UpdateRide: Replace a ride's editable fields.
-// TODO(student): Write the UpdateRide SQL query.
-// CancelRide: Mark a ride cancelled while retaining its history.
-// TODO(student): Write the CancelRide SQL query.
 // AddRideOccupant: Record a user's ride membership.
 // TODO(student): Write the AddRideOccupant SQL query.
 func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
 	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
 	return err
+}
+
+const cancelRide = `-- name: CancelRide :execrows
+
+UPDATE rides
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1
+`
+
+// UpdateRide: Replace a ride's editable fields.
+// TODO(student): Write the UpdateRide SQL query.
+// CancelRide: Mark a ride cancelled while retaining its history.
+func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, cancelRide, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const createRide = `-- name: CreateRide :one
