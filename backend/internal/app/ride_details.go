@@ -49,5 +49,5 @@ func getUserViewableRide(ctx context.Context, tx Transaction, viewerID, rideID u
 	if err != nil {
 		return Ride{}, err
 	}
-	return results[0], err
+	return results[0], nil
 }
