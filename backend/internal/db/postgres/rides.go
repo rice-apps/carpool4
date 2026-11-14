@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
@@ -73,7 +74,16 @@ func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app
 // ride.
 func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 	// TODO(student): Implement CancelRide Postgres repository method.
-	return app.ErrNotImplemented
+	// call the CancelRide method from sqlc
+	// r= ride repository, encapsulates the functions of the storage layer
+	numbOfRows, err := r.queries.CancelRide(ctx, id)
+	if err != nil {
+		return translateRideError(err)
+	}
+	if numbOfRows == 0 {
+		return translateRideError(sql.ErrNoRows)
+	}
+	return app.ErrRideCancelled
 }
 
 // AddRideOccupant adds a user to a ride.

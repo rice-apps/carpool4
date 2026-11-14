@@ -11,7 +11,10 @@ returning id;
 -- TODO(student): Write the UpdateRide SQL query.
 
 -- CancelRide: Mark a ride cancelled while retaining its history.
--- TODO(student): Write the CancelRide SQL query.
+-- name: CancelRide :execrows
+UPDATE rides
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1;
 
 -- AddRideOccupant: Record a user's ride membership.
 -- TODO(student): Write the AddRideOccupant SQL query.
