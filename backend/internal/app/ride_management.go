@@ -172,5 +172,38 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 // Ride and an error.
 func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID) (Ride, error) {
 	// TODO(student): Implement CancelRide application logic.
-	return Ride{}, ErrNotImplemented
+	// checking to see if it is a missing ride
+	if id == uuid.Nil {
+		return Ride{}, ErrRideNotFound
+	}
+	// create a transaction and check storage failure
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	// get the rides repository for tx
+	ridesRepo := tx.RidesRepo()
+	// checking to make sure that currentUser != Owner
+	ride, err := getUserViewableRide(ctx, tx, currentUser.ID, id)
+	if err != nil {
+		return Ride{}, err
+	}
+	if ride.Owner.ID == currentUser.ID {
+		return Ride{}, ErrPermissionDenied
+	}
+
+	err = ridesRepo.CancelRide(ctx, id)
+	if err != nil {
+		return Ride{}, err
+	}
+
+	// get contacts of canceled ride
+	rideInfo, err := getUserViewableRide(ctx, tx, currentUser.ID, id)
+	// commiting transaction
+	err = tx.Commit()
+	if err != nil {
+		return Ride{}, err
+	}
+	return rideInfo, nil
 }
