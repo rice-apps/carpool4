@@ -23,7 +23,7 @@ func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.Get
 	if req.Msg.UserId != nil {
 		id, err := uuid.Parse(*req.Msg.UserId)
 		if err != nil {
-			return nil, convertToConnectError(err)
+			return nil, app.ErrInvalidArgument
 		}
 		targetID = &id
 	}
