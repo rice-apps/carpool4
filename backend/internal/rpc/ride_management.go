@@ -46,11 +46,11 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %w", req.Msg.Id, app.ErrInvalidArgument))
 	}
 
-	err = req.Msg.DepartureDate.CheckValid() // validates the DepartureDate as a timestamp
+	err = req.Msg.DepartureTime.CheckValid() // validates the DepartureTime as a timestamp
 	if err != nil {
-		return nil, convertToConnectError(fmt.Errorf("invalid argument: departure date must be a valid timestamp: %w", app.ErrInvalidArgument))
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: departure time must be a valid timestamp: %w", app.ErrInvalidArgument))
 	}
-	departureDate := req.Msg.DepartureDate.AsTime() // gets the departureDat as a timestamp object.
+	departureTime := req.Msg.DepartureTime.AsTime() // gets the departureTime as a timestamp object.
 
 	departureLocationID, err := uuid.Parse(req.Msg.DepartureLocationId) // gets departure location as uuid
 	if err != nil {
@@ -66,7 +66,7 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 	capacity := req.Msg.Capacity // gets capacity as an int32
 
 	inputChanges := app.RideWriteParams{ // uses previous fields as a RideWriteParams struct object
-		DepartureDate:       departureDate,
+		DepartureTime:       departureTime,
 		DepartureLocationID: departureLocationID,
 		ArrivalLocationID:   arrivalLocationID,
 		Notes:               notes,
