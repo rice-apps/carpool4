@@ -19,7 +19,7 @@ import (
 func (u userRepository) FindUser(ctx context.Context, id uuid.UUID) (app.UserRecord, error) {
 	user, err := u.queries.FindUser(ctx, id)
 	if err != nil {
-		return app.UserRecord{}, app.ErrUserNotFound
+		return app.UserRecord{}, translateUserError(err)
 	}
 	record := convertUserRow(user)
 	return record, nil
@@ -43,7 +43,7 @@ func (u userRepository) UpsertUser(ctx context.Context, params app.UserWritePara
 	}
 	user, err := u.queries.UpsertUser(ctx, userParams)
 	if err != nil {
-		return app.UserRecord{}, app.ErrTransactionConflict
+		return app.UserRecord{}, translateTransactionError(err)
 	}
 	record := convertUserRow(user)
 	return record, nil
