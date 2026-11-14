@@ -48,7 +48,7 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 	if req.Msg.ArrivalLocationId != nil {
 		parsedArrivalID, err := uuid.Parse(*req.Msg.ArrivalLocationId)
 		if err != nil {
-			return nil, convertToConnectError(fmt.Errorf("%w: departure location ID", app.ErrInvalidArgument))
+			return nil, convertToConnectError(fmt.Errorf("%w: arrival location ID", app.ErrInvalidArgument))
 		}
 		requestInput.ArrivalLocationID = &parsedArrivalID
 	}
@@ -56,7 +56,7 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 	if req.Msg.DepartureLocationId != nil {
 		parsedDepartureID, err := uuid.Parse(*req.Msg.DepartureLocationId)
 		if err != nil {
-			return nil, convertToConnectError(err)
+			return nil, fmt.Errorf("%w: departure location ID", app.ErrInvalidArgument)
 		}
 		requestInput.DepartureLocationID = &parsedDepartureID
 	}
