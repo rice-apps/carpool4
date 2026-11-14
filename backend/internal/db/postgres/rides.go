@@ -47,6 +47,7 @@ func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, param
 // ride or app.ErrInvalidRideWrite for invalid fields.
 func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app.RideWriteParams) error {
 	// TODO(student): Implement UpdateRide Postgres repository method.
+	
 	return app.ErrNotImplemented
 }
 
