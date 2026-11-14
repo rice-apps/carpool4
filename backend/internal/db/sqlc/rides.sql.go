@@ -12,11 +12,45 @@ import (
 	"github.com/google/uuid"
 )
 
+const createRide = `-- name: CreateRide :one
+
+insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
+values ($1, $2, $3, $4, $5, $6, $7)
+returning id
+`
+
+type CreateRideParams struct {
+	DepartureTime       time.Time  `json:"departure_time"`
+	DepartureLocationID uuid.UUID  `json:"departure_location_id"`
+	ArrivalLocationID   uuid.UUID  `json:"arrival_location_id"`
+	OwnerID             uuid.UUID  `json:"owner_id"`
+	Notes               string     `json:"notes"`
+	Capacity            int32      `json:"capacity"`
+	Status              RideStatus `json:"status"`
+}
+
+// GetRide: Load one ride with its owner, locations, and occupants.
+// TODO(student): Write the GetRide SQL query.
+// CreateRide: Store a new ride and return its ID.
+// TODO(student): Write the CreateRide SQL query.
+func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, createRide,
+		arg.DepartureTime,
+		arg.DepartureLocationID,
+		arg.ArrivalLocationID,
+		arg.OwnerID,
+		arg.Notes,
+		arg.Capacity,
+		arg.Status,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const updateRide = `-- name: UpdateRide :execrows
-
-
     UPDATE rides
-        SET departure_date = $1,
+        SET departure_time = $1,
             arrival_location_id = $2,
             departure_location_id = $3,
             capacity = $4,
@@ -26,7 +60,7 @@ const updateRide = `-- name: UpdateRide :execrows
 `
 
 type UpdateRideParams struct {
-	DepartureDate       time.Time `json:"departure_date"`
+	DepartureTime       time.Time `json:"departure_time"`
 	ArrivalLocationID   uuid.UUID `json:"arrival_location_id"`
 	DepartureLocationID uuid.UUID `json:"departure_location_id"`
 	Capacity            int32     `json:"capacity"`
@@ -34,15 +68,11 @@ type UpdateRideParams struct {
 	ID                  uuid.UUID `json:"id"`
 }
 
-// GetRide: Load one ride with its owner, locations, and occupants.
-// TODO(student): Write the GetRide SQL query.
-// CreateRide: Store a new ride and return its ID.
-// TODO(student): Write the CreateRide SQL query.
 // UpdateRide: Replace a ride's editable fields.
 // TODO(student): Write the UpdateRide SQL query.
 func (q *Queries) UpdateRide(ctx context.Context, arg UpdateRideParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateRide,
-		arg.DepartureDate,
+		arg.DepartureTime,
 		arg.ArrivalLocationID,
 		arg.DepartureLocationID,
 		arg.Capacity,

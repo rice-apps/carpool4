@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
@@ -31,8 +32,20 @@ func (r rideRepository) GetRide(ctx context.Context, id uuid.UUID) (app.LoadedRi
 // It returns the new ride UUID or a storage error. Invalid database constraints
 // map to app.ErrInvalidRideWrite.
 func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, params app.RideWriteParams) (uuid.UUID, error) {
-	// TODO(student): Implement CreateRide Postgres repository method.
-	return uuid.Nil, app.ErrNotImplemented
+
+	id, err := r.queries.CreateRide(ctx, sqlc.CreateRideParams{
+		DepartureTime:       params.DepartureTime,
+		DepartureLocationID: params.DepartureLocationID,
+		ArrivalLocationID:   params.ArrivalLocationID,
+		OwnerID:             ownerID,
+		Notes:               params.Notes,
+		Capacity:            params.Capacity,
+		Status:              "active",
+	})
+	if err != nil {
+		return uuid.Nil, translateRideWriteError(err)
+	}
+	return id, nil
 }
 
 // UpdateRide replaces a ride's writable fields.

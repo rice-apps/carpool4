@@ -26,7 +26,7 @@ enum RideStatus {
 // are present only when the authenticated viewer may see them.
 message Ride {
   string id = 1;
-  google.protobuf.Timestamp departure_date = 2;
+  google.protobuf.Timestamp departure_time = 2;
   Location departure_location = 3;
   Location arrival_location = 4;
   User owner = 5;
@@ -105,7 +105,7 @@ message ListMyRidesResponse {
 
 // CreateRideRequest supplies trip details; the owner comes from the caller's token.
 message CreateRideRequest {
-  google.protobuf.Timestamp departure_date = 1 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp departure_time = 1 [(buf.validate.field).required = true];
   string departure_location_id = 2 [(buf.validate.field).string.uuid = true];
   string arrival_location_id = 3 [(buf.validate.field).string.uuid = true];
   string notes = 4 [(buf.validate.field).string.max_len = 500];
@@ -121,7 +121,7 @@ message CreateRideResponse {
 // UpdateRideRequest identifies an owned trip and supplies its replacement details.
 message UpdateRideRequest {
   string id = 1 [(buf.validate.field).string.uuid = true];
-  google.protobuf.Timestamp departure_date = 2 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp departure_time = 2 [(buf.validate.field).required = true];
   string departure_location_id = 3 [(buf.validate.field).string.uuid = true];
   string arrival_location_id = 4 [(buf.validate.field).string.uuid = true];
   string notes = 5 [(buf.validate.field).string.max_len = 500];
