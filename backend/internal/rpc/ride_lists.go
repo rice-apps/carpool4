@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
