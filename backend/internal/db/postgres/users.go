@@ -17,7 +17,6 @@ import (
 // It returns an error on failure, including app.ErrUserNotFound for a missing
 // profile.
 func (u userRepository) FindUser(ctx context.Context, id uuid.UUID) (app.UserRecord, error) {
-	// TODO(student): Implement FindUser Postgres repository method.
 	user, err := u.queries.FindUser(ctx, id)
 	if err != nil {
 		return app.UserRecord{}, err
@@ -35,8 +34,6 @@ func (u userRepository) FindUser(ctx context.Context, id uuid.UUID) (app.UserRec
 // It returns the stored record or an error, including a classified transaction
 // conflict.
 func (u userRepository) UpsertUser(ctx context.Context, params app.UserWriteParams) (app.UserRecord, error) {
-	// TODO(student): Implement UpsertUser Postgres repository method.
-
 	userParams := sqlc.UpsertUserParams{
 		ID:        params.ID,
 		Email:     params.Email,
