@@ -12,7 +12,6 @@ import (
 //
 // It returns location records or a storage error.
 func (s *Service) ListLocations(ctx context.Context) ([]LocationRecord, error) {
-	// TODO(student): Implement ListLocations application logic.
 	// start transaction
 	tx, err := s.database.BeginTx(ctx)
 	if err != nil {

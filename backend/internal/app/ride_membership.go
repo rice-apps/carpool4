@@ -39,7 +39,6 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 // 2) Calling database to try and remove user 3) Checking if someone was actually removed
 // 4) getting the current state of the ride using getUserViewableRide
 func (s *Service) LeaveRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
-	// TODO(student): Implement LeaveRide application logic.
 	// checking to see if ID is Nil or not
 	if rideID == uuid.Nil {
 		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)

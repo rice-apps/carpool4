@@ -89,7 +89,6 @@ func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app
 // It returns an error on failure, including app.ErrRideNotFound for a missing
 // ride.
 func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
-	// TODO(student): Implement CancelRide Postgres repository method.
 	// call the CancelRide method from sqlc
 	// r= ride repository, encapsulates the functions of the storage layer
 	numbOfRows, err := r.queries.CancelRide(ctx, id)
@@ -111,7 +110,6 @@ func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 //
 // It returns an error if the write fails.
 func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid.UUID) error {
-	// TODO(student): Implement AddRideOccupant Postgres repository method.
 	// Create an 'arg' variable that stores the rideID and userID as a AddRideOccupantParams struct
 	arg := sqlc.AddRideOccupantParams{RideID: rideID, UserID: userID}
 	// Call the generated sql go function 'AddRideOccupant'
