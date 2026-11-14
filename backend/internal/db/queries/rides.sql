@@ -3,7 +3,10 @@
 
 -- CreateRide: Store a new ride and return its ID.
 -- TODO(student): Write the CreateRide SQL query.
-
+-- name: CreateRide :one
+insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
+values (sqlc.arg(departure_time), sqlc.arg(departure_location_id), sqlc.arg(arrival_location_id), sqlc.arg(owner_id), sqlc.arg(notes), sqlc.arg(capacity), sqlc.arg(status))
+returning id;
 -- UpdateRide: Replace a ride's editable fields.
 -- TODO(student): Write the UpdateRide SQL query.
 
