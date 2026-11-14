@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 )
@@ -72,7 +73,16 @@ func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 // It returns an error if the write fails.
 func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid.UUID) error {
 	// TODO(student): Implement AddRideOccupant Postgres repository method.
-	return app.ErrNotImplemented
+	// Create an 'arg' variable that stores the rideID and userID as a AddRideOccupantParams struct
+	arg := sqlc.AddRideOccupantParams{RideID: rideID, UserID: userID}
+	// Call the generated sql go function 'AddRideOccupant'
+	_, err := r.queries.AddRideOccupant(ctx, arg)
+	// Check if there is an error. If so, return the error
+	if err != nil {
+		return err
+	}
+	// Recognizes database transaction conflicts and returns an error identifiable as app.ErrTransactionConflict.
+	return translateTransactionError(err)
 }
 
 // RemoveRideOccupant removes a user from a ride.
