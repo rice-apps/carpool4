@@ -19,12 +19,11 @@ import (
 //
 // It returns a user with caller-visible contacts or a Connect error on failure.
 func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.GetUserRequest]) (*connect.Response[carpoolv1.GetUserResponse], error) {
-	// TODO(student): Implement GetUser RPC adapter.
 	var targetID *uuid.UUID
 	if req.Msg.UserId != nil {
 		id, err := uuid.Parse(*req.Msg.UserId)
 		if err != nil {
-			return nil, err
+			return nil, app.ErrInvalidArgument
 		}
 		targetID = &id
 	}
@@ -51,14 +50,11 @@ func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.Get
 //
 // It returns the updated user on success or a Connect error on failure.
 func (s *Server) UpdateUser(ctx context.Context, req *connect.Request[carpoolv1.UpdateUserRequest]) (*connect.Response[carpoolv1.UpdateUserResponse], error) {
-	// TODO(student): Implement UpdateUser RPC adapter.
-	firstName := req.Msg.FirstName
-	lastName := req.Msg.LastName
-	phone := req.Msg.Phone
+
 	input := app.UserInput{
-		FirstName: firstName,
-		LastName:  lastName,
-		Phone:     phone,
+		FirstName: req.Msg.FirstName,
+		LastName:  req.Msg.LastName,
+		Phone:     req.Msg.Phone,
 	}
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
