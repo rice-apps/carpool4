@@ -61,7 +61,6 @@ func (s *Server) CreateRide(ctx context.Context, req *connect.Request[carpoolv1.
 //
 // It returns the updated ride with caller-visible contacts or a Connect error.
 func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.UpdateRideRequest]) (*connect.Response[carpoolv1.UpdateRideResponse], error) {
-	// TODO(student): Implement UpdateRide RPC adapter.
 	currentUser, err := getCurrentUser(ctx) // gets current user
 	if err != nil {                         // checks error for currentUser
 		return nil, convertToConnectError(err)
@@ -116,7 +115,6 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 //
 // It returns the cancelled ride with caller-visible contacts or a Connect error.
 func (s *Server) CancelRide(ctx context.Context, req *connect.Request[carpoolv1.CancelRideRequest]) (*connect.Response[carpoolv1.CancelRideResponse], error) {
-	// TODO(student): Implement CancelRide RPC adapter.
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
 		return nil, convertToConnectError(err)

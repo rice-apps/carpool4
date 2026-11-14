@@ -16,7 +16,6 @@ import (
 //
 // It returns protobuf locations on success or a Connect error on failure.
 func (s *Server) ListLocations(ctx context.Context, req *connect.Request[carpoolv1.ListLocationsRequest]) (*connect.Response[carpoolv1.ListLocationsResponse], error) {
-	// TODO(student): Implement ListLocations RPC adapter.
 	locations, err := s.service.ListLocations(ctx)
 	if err != nil {
 		return nil, convertToConnectError(err)

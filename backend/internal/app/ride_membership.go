@@ -35,10 +35,11 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 // It returns the updated Ride with contacts currentUser may still see. A rider may
 // leave a cancelled ride; its owner cannot leave. A missing ride,
 // absent membership, or storage failure returns an empty Ride and an error.
-// HIGH-LEVEL of func: 1) Checking current size of ride and making sure owner will not be removed
-// 2) Calling database to try and remove user 3) Checking if someone was actually removed
-// 4) getting the current state of the ride using getUserViewableRide
 func (s *Service) LeaveRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
+	// HIGH-LEVEL of func: 1) Checking current size of ride and making sure owner will not be removed
+	// 2) Calling database to try and remove user 3) Checking if someone was actually removed
+	// 4) getting the current state of the ride using getUserViewableRide
+
 	// checking to see if ID is Nil or not
 	if rideID == uuid.Nil {
 		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)

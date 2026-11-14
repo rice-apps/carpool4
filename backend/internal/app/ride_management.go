@@ -55,7 +55,7 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 		return Ride{}, err
 	}
 
-	ride_object, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
+	rideObject, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
 	if err != nil {
 		return Ride{}, err
 	}
@@ -65,7 +65,7 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 		return Ride{}, err
 	}
 
-	return ride_object, nil
+	return rideObject, nil
 }
 
 // validateRideWrite returns ErrInvalidArgument unless input has a future

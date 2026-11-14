@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rice-apps/carpool4/backend/internal/devdb"
 	"github.com/rice-apps/carpool4/backend/internal/envfile"
-	"github.com/joho/godotenv"
 )
 
 func main() {
