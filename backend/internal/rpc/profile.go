@@ -23,18 +23,19 @@ func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.Get
 	if req.Msg.UserId != nil {
 		id, err := uuid.Parse(*req.Msg.UserId)
 		if err != nil {
-			return nil, app.ErrInvalidArgument
+			return nil, convertToConnectError(err)
 		}
 		targetID = &id
 	}
 
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
-		return nil, err
+		return nil, convertToConnectError(err)
 	}
 	user, err := s.service.GetUser(ctx, currentUser, targetID)
 	if err != nil {
-		return nil, err
+		return nil, convertToConnectError(err)
+
 	}
 
 	response := &carpoolv1.GetUserResponse{User: convertUserToProto(user)}
@@ -58,12 +59,14 @@ func (s *Server) UpdateUser(ctx context.Context, req *connect.Request[carpoolv1.
 	}
 	currentUser, err := getCurrentUser(ctx)
 	if err != nil {
-		return nil, err
+		return nil, convertToConnectError(err)
+
 	}
 
 	user, err := s.service.UpdateUser(ctx, currentUser, input)
 	if err != nil {
-		return nil, err
+		return nil, convertToConnectError(err)
+
 	}
 
 	response := &carpoolv1.UpdateUserResponse{User: convertUserToProto(user)}
