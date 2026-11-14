@@ -43,7 +43,7 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 
 	rideID, err := uuid.Parse(req.Msg.Id) // gets UUID in UUID object
 	if err != nil {                       // checks error for UUID
-		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.Id, app.ErrInvalidArgument))
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %w", req.Msg.Id, app.ErrInvalidArgument))
 	}
 
 	err = req.Msg.DepartureDate.CheckValid() // validates the DepartureDate as a timestamp
@@ -54,12 +54,12 @@ func (s *Server) UpdateRide(ctx context.Context, req *connect.Request[carpoolv1.
 
 	departureLocationID, err := uuid.Parse(req.Msg.DepartureLocationId) // gets departure location as uuid
 	if err != nil {
-		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.DepartureLocationId, app.ErrInvalidArgument))
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %w", req.Msg.DepartureLocationId, app.ErrInvalidArgument))
 	}
 
 	arrivalLocationID, err := uuid.Parse(req.Msg.ArrivalLocationId) // gets arrival location as uuid
 	if err != nil {
-		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %q", req.Msg.ArrivalLocationId, app.ErrInvalidArgument))
+		return nil, convertToConnectError(fmt.Errorf("invalid argument: '%q' could not be parsed: %w", req.Msg.ArrivalLocationId, app.ErrInvalidArgument))
 	}
 
 	notes := req.Msg.Notes       // gets notes as a string
