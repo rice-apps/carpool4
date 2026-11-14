@@ -161,6 +161,10 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 }
 
 // CancelRide cancels a ride and returns it with contacts currentUser may see.
+// HELPFUL NOTES:
+// change the status of the ride in the database to cancel, returns canceled ride but w/ update the privacy
+// update privacy with Get User Viewable Rides helper method
+// Use the loadedride function somewhere
 //
 // Inputs:
 //   - ctx (context.Context): passes the request's timeout or cancellation
@@ -172,5 +176,36 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 // Ride and an error.
 func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID) (Ride, error) {
 	// TODO(student): Implement CancelRide application logic.
-	return Ride{}, ErrNotImplemented
+	// Note: this code comes from LeaveRide method in app layer -- may need to change
+	// checking to see if ID is Nil or not
+	if id == uuid.Nil {
+		return Ride{}, ErrNotImplemented
+	}
+	// create a transaction:
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return Ride{}, err
+	}
+	defer tx.Rollback()
+	// get the rides repository for tx
+	ridesRepo := tx.RidesRepo()
+
+	numberOfRemovedRider, err := ridesRepo.RemoveRideOccupant(ctx, id, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+	// error handling
+	if numberOfRemovedRider == 0 {
+		return Ride{}, ErrNotImplemented
+	}
+	// using getUserViewableRide to take in the rideID and remove the rider using removeRider
+	updateRide, err := getUserViewableRide(ctx, tx, id, currentUser.ID)
+	if err != nil {
+		return Ride{}, err
+	}
+	// use tx.commit()
+	if err := tx.Commit(); err != nil {
+		return Ride{}, err
+	}
+	return updateRide, nil
 }
