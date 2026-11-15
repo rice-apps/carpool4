@@ -65,7 +65,6 @@ func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input 
 //
 // The returned rides show only allowed contacts. A storage failure returns an error.
 func (s *Service) ListMyRides(ctx context.Context, currentUser CurrentUser) ([]Ride, error) {
-	// TODO(student): Implement ListMyRides application logic.
 	// start transaction
 	tx, err := s.database.BeginTx(ctx)
 	if err != nil {

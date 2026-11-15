@@ -22,7 +22,6 @@ import (
 // It returns matching viewer-authorized rides or a Connect error. Guest
 // results omit people and notes.
 func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.ListRidesRequest]) (*connect.Response[carpoolv1.ListRidesResponse], error) {
-
 	//create currentUser object and initialize with user values (or empty if guest)
 	currentUser := app.CurrentUser{}
 	if auth.IsSignedIn(ctx) {
@@ -82,7 +81,6 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 //
 // It returns the caller's rides with visible contacts or a Connect error.
 func (s *Server) ListMyRides(ctx context.Context, req *connect.Request[carpoolv1.ListMyRidesRequest]) (*connect.Response[carpoolv1.ListMyRidesResponse], error) {
-	// TODO(student): Implement ListMyRides RPC adapter.
 	// get user
 	user, err := getCurrentUser(ctx)
 	if err != nil {

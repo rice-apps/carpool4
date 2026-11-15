@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
 	"github.com/google/uuid"
+	"github.com/rice-apps/carpool4/backend/internal/testutil"
 )
 
 // TestMain delegates package teardown and exit status to the database harness.

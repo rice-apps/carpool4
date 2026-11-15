@@ -14,8 +14,8 @@ import (
 )
 
 const addRideOccupant = `-- name: AddRideOccupant :exec
-    INSERT INTO ride_occupants (ride_id, user_id)
-    VALUES ($1,$2)
+INSERT INTO ride_occupants (ride_id, user_id)
+VALUES ($1, $2)
 `
 
 type AddRideOccupantParams struct {
@@ -24,7 +24,6 @@ type AddRideOccupantParams struct {
 }
 
 // AddRideOccupant: Record a user's ride membership.
-// TODO(student): Write the AddRideOccupant SQL query.
 func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
 	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
 	return err
@@ -32,7 +31,8 @@ func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams
 
 const cancelRide = `-- name: CancelRide :execrows
 UPDATE rides
-SET status = 'cancelled', updated_at = now()
+SET status     = 'cancelled',
+    updated_at = now()
 WHERE id = $1
 `
 
@@ -48,8 +48,8 @@ func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
 const createRide = `-- name: CreateRide :one
 
 insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
-values ($1, $2, $3, $4, $5, $6, $7)
-returning id
+values ($1, $2, $3, $4,
+        $5, $6, $7) returning id
 `
 
 type CreateRideParams struct {
@@ -65,7 +65,6 @@ type CreateRideParams struct {
 // GetRide: Load one ride with its owner, locations, and occupants.
 // TODO(student): Write the GetRide SQL query.
 // CreateRide: Store a new ride and return its ID.
-// TODO(student): Write the CreateRide SQL query.
 func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createRide,
 		arg.DepartureTime,
@@ -84,12 +83,11 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 const listMyRides = `-- name: ListMyRides :many
 
 
-SELECT
-    r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
-    u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
-    dl.id, dl.title, dl.address,
-    al.id, al.title, al.address,
-    ride_riders(r.id) riders
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+       dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
+       ride_riders(r.id) riders
 FROM rides r
          INNER JOIN ride_occupants ro
                     ON r.id = ro.ride_id
@@ -116,7 +114,6 @@ type ListMyRidesRow struct {
 // ListRides: Find active rides matching the supplied route and time filters.
 // TODO(student): Write the ListRides SQL query.
 // ListMyRides: Return the viewer's owned and joined rides, including history.
-// TODO(student): Write the ListMyRides SQL query.
 func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMyRidesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMyRides, viewerid)
 	if err != nil {
@@ -166,14 +163,14 @@ func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMy
 }
 
 const updateRide = `-- name: UpdateRide :execrows
-    UPDATE rides
-        SET departure_time = $1,
-            arrival_location_id = $2,
-            departure_location_id = $3,
-            capacity = $4,
-            notes = $5,
-            updated_at = now()
-        WHERE id = $6
+UPDATE rides
+SET departure_time        = $1,
+    arrival_location_id   = $2,
+    departure_location_id = $3,
+    capacity              = $4,
+    notes                 = $5,
+    updated_at            = now()
+WHERE id = $6
 `
 
 type UpdateRideParams struct {
@@ -186,7 +183,6 @@ type UpdateRideParams struct {
 }
 
 // UpdateRide: Replace a ride's editable fields.
-// TODO(student): Write the UpdateRide SQL query.
 func (q *Queries) UpdateRide(ctx context.Context, arg UpdateRideParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateRide,
 		arg.DepartureTime,

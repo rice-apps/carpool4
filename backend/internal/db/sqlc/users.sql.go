@@ -18,7 +18,6 @@ WHERE id = $1
 `
 
 // FindUser: Load one profile by user ID.
-// TODO(student): Write the FindUser SQL query.
 func (q *Queries) FindUser(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRowContext(ctx, findUser, id)
 	var i User
@@ -36,15 +35,15 @@ func (q *Queries) FindUser(ctx context.Context, id uuid.UUID) (User, error) {
 
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (id, first_name, last_name, email, phone)
-VALUES($1,$2, $3,$4,$5)
-ON CONFLICT(id)
-DO UPDATE SET
-   id = EXCLUDED.id,
-   first_name = EXCLUDED.first_name,
-   last_name = EXCLUDED.last_name,
-   email = EXCLUDED.email,
-   phone = EXCLUDED.phone
-RETURNING id, first_name, last_name, email, phone, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5) ON CONFLICT(id)
+DO
+UPDATE SET
+    id = EXCLUDED.id,
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    email = EXCLUDED.email,
+    phone = EXCLUDED.phone
+    RETURNING id, first_name, last_name, email, phone, created_at, updated_at
 `
 
 type UpsertUserParams struct {
@@ -56,7 +55,6 @@ type UpsertUserParams struct {
 }
 
 // UpsertUser: Save a profile and return its stored values.
-// TODO(student): Write the UpsertUser SQL query.
 func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, upsertUser,
 		arg.ID,
