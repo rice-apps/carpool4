@@ -14,8 +14,8 @@ import (
 )
 
 const addRideOccupant = `-- name: AddRideOccupant :exec
-    INSERT INTO ride_occupants (ride_id, user_id)
-    VALUES ($1,$2)
+INSERT INTO ride_occupants (ride_id, user_id)
+VALUES ($1, $2)
 `
 
 type AddRideOccupantParams struct {
@@ -24,7 +24,6 @@ type AddRideOccupantParams struct {
 }
 
 // AddRideOccupant: Record a user's ride membership.
-// TODO(student): Write the AddRideOccupant SQL query.
 func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
 	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
 	return err
@@ -32,7 +31,8 @@ func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams
 
 const cancelRide = `-- name: CancelRide :execrows
 UPDATE rides
-SET status = 'cancelled', updated_at = now()
+SET status     = 'cancelled',
+    updated_at = now()
 WHERE id = $1
 `
 
@@ -48,8 +48,8 @@ func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
 const createRide = `-- name: CreateRide :one
 
 insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
-values ($1, $2, $3, $4, $5, $6, $7)
-returning id
+values ($1, $2, $3, $4,
+        $5, $6, $7) returning id
 `
 
 type CreateRideParams struct {
@@ -65,7 +65,6 @@ type CreateRideParams struct {
 // GetRide: Load one ride with its owner, locations, and occupants.
 // TODO(student): Write the GetRide SQL query.
 // CreateRide: Store a new ride and return its ID.
-// TODO(student): Write the CreateRide SQL query.
 func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createRide,
 		arg.DepartureTime,
