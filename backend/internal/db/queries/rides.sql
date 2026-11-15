@@ -30,3 +30,21 @@ WHERE id = $1;
 
 -- ListMyRides: Return the viewer's owned and joined rides, including history.
 -- TODO(student): Write the ListMyRides SQL query.
+-- name: ListMyRides :many
+SELECT
+    sqlc.embed(r),
+    sqlc.embed(u),
+    sqlc.embed(dl),
+    sqlc.embed(al),
+    ride_riders(r.id) riders
+FROM rides r
+         INNER JOIN ride_occupants ro
+                    ON r.id = ro.ride_id
+         INNER JOIN users u
+                    ON u.id = r.owner_id
+         INNER JOIN locations dl
+                    ON r.departure_location_id = dl.id
+         INNER JOIN locations al
+                    ON r.arrival_location_id = al.id
+WHERE ro.user_id = sqlc.arg(viewerID)
+ORDER BY r.departure_time DESC, r.id DESC;
