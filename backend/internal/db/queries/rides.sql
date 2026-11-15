@@ -20,10 +20,16 @@ returning id;
         WHERE id = sqlc.arg(id);
 
 -- CancelRide: Mark a ride cancelled while retaining its history.
--- TODO(student): Write the CancelRide SQL query.
+-- name: CancelRide :execrows
+UPDATE rides
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1;
 
 -- AddRideOccupant: Record a user's ride membership.
 -- TODO(student): Write the AddRideOccupant SQL query.
+-- name: AddRideOccupant :exec
+    INSERT INTO ride_occupants (ride_id, user_id)
+    VALUES ($1,$2);
 
 -- RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
 -- TODO(student): Write the RemoveRideOccupant SQL query.

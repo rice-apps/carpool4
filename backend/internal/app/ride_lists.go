@@ -22,8 +22,37 @@ const rideDiscoveryLookback = time.Hour
 // only when currentUser may see them. Guest results omit people and notes. Storage
 // failures return an error.
 func (s *Service) ListRides(ctx context.Context, currentUser CurrentUser, input ListRidesInput) ([]Ride, error) {
-	// TODO(student): Implement ListRides application logic.
-	return nil, ErrNotImplemented
+
+	//initialize realDepartureTime to one hour before, change to preferred time if preferred is sooner
+	mostRecentDepartureAfterTime := time.Now().Add(-rideDiscoveryLookback)
+	if input.DepartureAfter != nil {
+		userDepartureAfterTime := *input.DepartureAfter
+		if userDepartureAfterTime.After(mostRecentDepartureAfterTime) {
+			mostRecentDepartureAfterTime = userDepartureAfterTime
+		}
+	}
+
+	//create new ListRidesQuery object and populate with fields from input
+	ridesQuery := ListRidesQuery{
+		DepartureLocationID: input.DepartureLocationID,
+		ArrivalLocationID:   input.ArrivalLocationID,
+		DepartureBefore:     input.DepartureBefore,
+		DepartureAfter:      mostRecentDepartureAfterTime,
+	}
+
+	//start new transaction and call database layer ListRides
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	loadedRides, err := tx.RidesRepo().ListRides(ctx, ridesQuery)
+	if err != nil {
+		return nil, err
+	}
+	//convert database layer ListRides output to []Rides
+	//helper prepares info based on user's allowed context, takes care of guest case
+	return buildRidesForViewer(ctx, tx, currentUser.ID, loadedRides)
 }
 
 // ListMyRides returns rides owned or joined by currentUser.
