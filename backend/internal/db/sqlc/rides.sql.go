@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -78,6 +79,90 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listMyRides = `-- name: ListMyRides :many
+
+
+SELECT
+    r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+    u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+    dl.id, dl.title, dl.address,
+    al.id, al.title, al.address,
+    ride_riders(r.id) riders
+FROM rides r
+         INNER JOIN ride_occupants ro
+                    ON r.id = ro.ride_id
+         INNER JOIN users u
+                    ON u.id = r.owner_id
+         INNER JOIN locations dl
+                    ON r.departure_location_id = dl.id
+         INNER JOIN locations al
+                    ON r.arrival_location_id = al.id
+WHERE ro.user_id = $1
+ORDER BY r.departure_time DESC, r.id DESC
+`
+
+type ListMyRidesRow struct {
+	Ride       Ride            `json:"ride"`
+	User       User            `json:"user"`
+	Location   Location        `json:"location"`
+	Location_2 Location        `json:"location_2"`
+	Riders     json.RawMessage `json:"riders"`
+}
+
+// RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
+// TODO(student): Write the RemoveRideOccupant SQL query.
+// ListRides: Find active rides matching the supplied route and time filters.
+// TODO(student): Write the ListRides SQL query.
+// ListMyRides: Return the viewer's owned and joined rides, including history.
+// TODO(student): Write the ListMyRides SQL query.
+func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMyRidesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMyRides, viewerid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMyRidesRow
+	for rows.Next() {
+		var i ListMyRidesRow
+		if err := rows.Scan(
+			&i.Ride.ID,
+			&i.Ride.DepartureTime,
+			&i.Ride.DepartureLocationID,
+			&i.Ride.ArrivalLocationID,
+			&i.Ride.OwnerID,
+			&i.Ride.Notes,
+			&i.Ride.Capacity,
+			&i.Ride.Status,
+			&i.Ride.CreatedAt,
+			&i.Ride.UpdatedAt,
+			&i.User.ID,
+			&i.User.FirstName,
+			&i.User.LastName,
+			&i.User.Email,
+			&i.User.Phone,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.Location.ID,
+			&i.Location.Title,
+			&i.Location.Address,
+			&i.Location_2.ID,
+			&i.Location_2.Title,
+			&i.Location_2.Address,
+			&i.Riders,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateRide = `-- name: UpdateRide :execrows
