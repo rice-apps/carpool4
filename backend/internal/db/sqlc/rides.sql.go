@@ -31,14 +31,11 @@ func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams
 }
 
 const cancelRide = `-- name: CancelRide :execrows
-
 UPDATE rides
 SET status = 'cancelled', updated_at = now()
 WHERE id = $1
 `
 
-// UpdateRide: Replace a ride's editable fields.
-// TODO(student): Write the UpdateRide SQL query.
 // CancelRide: Mark a ride cancelled while retaining its history.
 func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
 	result, err := q.db.ExecContext(ctx, cancelRide, id)
@@ -166,4 +163,41 @@ func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMy
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateRide = `-- name: UpdateRide :execrows
+    UPDATE rides
+        SET departure_time = $1,
+            arrival_location_id = $2,
+            departure_location_id = $3,
+            capacity = $4,
+            notes = $5,
+            updated_at = now()
+        WHERE id = $6
+`
+
+type UpdateRideParams struct {
+	DepartureTime       time.Time `json:"departure_time"`
+	ArrivalLocationID   uuid.UUID `json:"arrival_location_id"`
+	DepartureLocationID uuid.UUID `json:"departure_location_id"`
+	Capacity            int32     `json:"capacity"`
+	Notes               string    `json:"notes"`
+	ID                  uuid.UUID `json:"id"`
+}
+
+// UpdateRide: Replace a ride's editable fields.
+// TODO(student): Write the UpdateRide SQL query.
+func (q *Queries) UpdateRide(ctx context.Context, arg UpdateRideParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateRide,
+		arg.DepartureTime,
+		arg.ArrivalLocationID,
+		arg.DepartureLocationID,
+		arg.Capacity,
+		arg.Notes,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
