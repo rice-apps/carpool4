@@ -8,16 +8,83 @@ package sqlc
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
 
+const addRideOccupant = `-- name: AddRideOccupant :exec
+    INSERT INTO ride_occupants (ride_id, user_id)
+    VALUES ($1,$2)
+`
+
+type AddRideOccupantParams struct {
+	RideID uuid.UUID `json:"ride_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+// AddRideOccupant: Record a user's ride membership.
+// TODO(student): Write the AddRideOccupant SQL query.
+func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
+	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
+	return err
+}
+
+const cancelRide = `-- name: CancelRide :execrows
+
+UPDATE rides
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1
+`
+
+// UpdateRide: Replace a ride's editable fields.
+// TODO(student): Write the UpdateRide SQL query.
+// CancelRide: Mark a ride cancelled while retaining its history.
+func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, cancelRide, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const createRide = `-- name: CreateRide :one
+
+insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
+values ($1, $2, $3, $4, $5, $6, $7)
+returning id
+`
+
+type CreateRideParams struct {
+	DepartureTime       time.Time  `json:"departure_time"`
+	DepartureLocationID uuid.UUID  `json:"departure_location_id"`
+	ArrivalLocationID   uuid.UUID  `json:"arrival_location_id"`
+	OwnerID             uuid.UUID  `json:"owner_id"`
+	Notes               string     `json:"notes"`
+	Capacity            int32      `json:"capacity"`
+	Status              RideStatus `json:"status"`
+}
+
+// GetRide: Load one ride with its owner, locations, and occupants.
+// TODO(student): Write the GetRide SQL query.
+// CreateRide: Store a new ride and return its ID.
+// TODO(student): Write the CreateRide SQL query.
+func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, createRide,
+		arg.DepartureTime,
+		arg.DepartureLocationID,
+		arg.ArrivalLocationID,
+		arg.OwnerID,
+		arg.Notes,
+		arg.Capacity,
+		arg.Status,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const listMyRides = `-- name: ListMyRides :many
-
-
-
-
-
 
 
 SELECT
@@ -47,16 +114,6 @@ type ListMyRidesRow struct {
 	Riders     json.RawMessage `json:"riders"`
 }
 
-// GetRide: Load one ride with its owner, locations, and occupants.
-// TODO(student): Write the GetRide SQL query.
-// CreateRide: Store a new ride and return its ID.
-// TODO(student): Write the CreateRide SQL query.
-// UpdateRide: Replace a ride's editable fields.
-// TODO(student): Write the UpdateRide SQL query.
-// CancelRide: Mark a ride cancelled while retaining its history.
-// TODO(student): Write the CancelRide SQL query.
-// AddRideOccupant: Record a user's ride membership.
-// TODO(student): Write the AddRideOccupant SQL query.
 // RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
 // TODO(student): Write the RemoveRideOccupant SQL query.
 // ListRides: Find active rides matching the supplied route and time filters.

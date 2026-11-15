@@ -3,15 +3,24 @@
 
 -- CreateRide: Store a new ride and return its ID.
 -- TODO(student): Write the CreateRide SQL query.
-
+-- name: CreateRide :one
+insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
+values (sqlc.arg(departure_time), sqlc.arg(departure_location_id), sqlc.arg(arrival_location_id), sqlc.arg(owner_id), sqlc.arg(notes), sqlc.arg(capacity), sqlc.arg(status))
+returning id;
 -- UpdateRide: Replace a ride's editable fields.
 -- TODO(student): Write the UpdateRide SQL query.
 
 -- CancelRide: Mark a ride cancelled while retaining its history.
--- TODO(student): Write the CancelRide SQL query.
+-- name: CancelRide :execrows
+UPDATE rides
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1;
 
 -- AddRideOccupant: Record a user's ride membership.
 -- TODO(student): Write the AddRideOccupant SQL query.
+-- name: AddRideOccupant :exec
+    INSERT INTO ride_occupants (ride_id, user_id)
+    VALUES ($1,$2);
 
 -- RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
 -- TODO(student): Write the RemoveRideOccupant SQL query.
