@@ -59,7 +59,6 @@ func (r rideRepository) CreateRide(ctx context.Context, ownerID uuid.UUID, param
 // It returns an error on failure, including app.ErrRideNotFound for a missing
 // ride or app.ErrInvalidRideWrite for invalid fields.
 func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app.RideWriteParams) error {
-	// TODO(student): Implement UpdateRide Postgres repository method.
 	rideChanges := sqlc.UpdateRideParams{ // changes type by creating a new instance rideChanges of the UpdateRideParams struct
 		DepartureTime:       params.DepartureTime,
 		DepartureLocationID: params.DepartureLocationID,
@@ -158,7 +157,6 @@ func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery)
 // It returns loaded rides or an error. The application controls contact
 // visibility in the returned records.
 func (r rideRepository) ListMyRides(ctx context.Context, viewerID uuid.UUID) ([]app.LoadedRide, error) {
-	// TODO(student): Implement ListMyRides Postgres repository method.
 	myRidesQuery, err := r.queries.ListMyRides(ctx, viewerID) // queries all locations
 	if err != nil {
 		return nil, translateTransactionError(err)

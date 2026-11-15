@@ -8,16 +8,15 @@ values (sqlc.arg(departure_time), sqlc.arg(departure_location_id), sqlc.arg(arri
         sqlc.arg(notes), sqlc.arg(capacity), sqlc.arg(status)) returning id;
 
 -- UpdateRide: Replace a ride's editable fields.
--- TODO(student): Write the UpdateRide SQL query.
 -- name: UpdateRide :execrows
-    UPDATE rides
-        SET departure_time = sqlc.arg(departure_time),
-            arrival_location_id = sqlc.arg(arrival_location_id),
-            departure_location_id = sqlc.arg(departure_location_id),
-            capacity = sqlc.arg(capacity),
-            notes = sqlc.arg(notes),
-            updated_at = now()
-        WHERE id = sqlc.arg(id);
+UPDATE rides
+SET departure_time        = sqlc.arg(departure_time),
+    arrival_location_id   = sqlc.arg(arrival_location_id),
+    departure_location_id = sqlc.arg(departure_location_id),
+    capacity              = sqlc.arg(capacity),
+    notes                 = sqlc.arg(notes),
+    updated_at            = now()
+WHERE id = sqlc.arg(id);
 
 -- CancelRide: Mark a ride cancelled while retaining its history.
 -- name: CancelRide :execrows
@@ -38,14 +37,12 @@ VALUES ($1, $2);
 -- TODO(student): Write the ListRides SQL query.
 
 -- ListMyRides: Return the viewer's owned and joined rides, including history.
--- TODO(student): Write the ListMyRides SQL query.
 -- name: ListMyRides :many
-SELECT
-    sqlc.embed(r),
-    sqlc.embed(u),
-    sqlc.embed(dl),
-    sqlc.embed(al),
-    ride_riders(r.id) riders
+SELECT sqlc.embed(r),
+       sqlc.embed(u),
+       sqlc.embed(dl),
+       sqlc.embed(al),
+       ride_riders(r.id) riders
 FROM rides r
          INNER JOIN ride_occupants ro
                     ON r.id = ro.ride_id

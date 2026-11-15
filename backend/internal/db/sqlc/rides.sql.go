@@ -83,12 +83,11 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 const listMyRides = `-- name: ListMyRides :many
 
 
-SELECT
-    r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
-    u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
-    dl.id, dl.title, dl.address,
-    al.id, al.title, al.address,
-    ride_riders(r.id) riders
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+       dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
+       ride_riders(r.id) riders
 FROM rides r
          INNER JOIN ride_occupants ro
                     ON r.id = ro.ride_id
@@ -115,7 +114,6 @@ type ListMyRidesRow struct {
 // ListRides: Find active rides matching the supplied route and time filters.
 // TODO(student): Write the ListRides SQL query.
 // ListMyRides: Return the viewer's owned and joined rides, including history.
-// TODO(student): Write the ListMyRides SQL query.
 func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMyRidesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMyRides, viewerid)
 	if err != nil {
@@ -165,14 +163,14 @@ func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMy
 }
 
 const updateRide = `-- name: UpdateRide :execrows
-    UPDATE rides
-        SET departure_time = $1,
-            arrival_location_id = $2,
-            departure_location_id = $3,
-            capacity = $4,
-            notes = $5,
-            updated_at = now()
-        WHERE id = $6
+UPDATE rides
+SET departure_time        = $1,
+    arrival_location_id   = $2,
+    departure_location_id = $3,
+    capacity              = $4,
+    notes                 = $5,
+    updated_at            = now()
+WHERE id = $6
 `
 
 type UpdateRideParams struct {
@@ -185,7 +183,6 @@ type UpdateRideParams struct {
 }
 
 // UpdateRide: Replace a ride's editable fields.
-// TODO(student): Write the UpdateRide SQL query.
 func (q *Queries) UpdateRide(ctx context.Context, arg UpdateRideParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateRide,
 		arg.DepartureTime,
