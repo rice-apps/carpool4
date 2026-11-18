@@ -25,8 +25,6 @@ import (
 // must be at least one. Invalid input, a missing phone, or a storage failure
 // returns an empty Ride and an error.
 func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input RideWriteParams) (Ride, error) {
-	// TODO(student): Implement CreateRide application logic.
-
 	tx, err := s.database.BeginTx(ctx)
 	if err != nil {
 		return Ride{}, err
@@ -57,7 +55,7 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 		return Ride{}, err
 	}
 
-	ride_object, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
+	rideObject, err := getUserViewableRide(ctx, tx, currentUser.ID, ride)
 	if err != nil {
 		return Ride{}, err
 	}
@@ -67,14 +65,13 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 		return Ride{}, err
 	}
 
-	return ride_object, nil
+	return rideObject, nil
 }
 
 // validateRideWrite returns ErrInvalidArgument unless input has a future
 // departure, two distinct locations, capacity of at least one, and notes of
 // at most 500 characters.
 func validateRideWrite(input RideWriteParams) error {
-	// TODO(student): Implement validateRideWrite application logic.\
 	switch {
 	case input.DepartureTime.Before(time.Now()):
 		return fmt.Errorf("departure %w is in the past", ErrInvalidArgument)
@@ -109,7 +106,6 @@ func validateRideWrite(input RideWriteParams) error {
 // input, or storage failure returns an empty Ride and an error.
 
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
-	// TODO(student): Implement UpdateRide application logic.
 	err := validateRideWrite(input) // calls validateRideWrite, checks for error.
 	if err != nil {
 		return Ride{}, err
