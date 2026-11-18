@@ -2,6 +2,9 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -19,8 +22,28 @@ import (
 // who has shared a ride with them. An empty target ID, missing
 // profile, or storage failure returns an empty User and an error.
 func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID *uuid.UUID) (User, error) {
-	// TODO(student): Implement GetUser application logic.
-	return User{}, ErrNotImplemented
+
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+
+	usersRepo := tx.UsersRepo()
+	if targetID == nil {
+		targetID = &currentUser.ID
+	}
+
+	userRecord, err := usersRepo.FindUser(ctx, *targetID)
+	if err != nil {
+		return User{}, err
+	}
+
+	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
+	if err != nil {
+		return User{}, err
+	}
+	return profile, nil
 }
 
 // UpdateUser saves the caller's profile, creating one if needed.
@@ -35,13 +58,61 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 // Returns the saved User, including the caller's contact details. Invalid
 // information or a storage failure returns an empty User and an error.
 func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input UserInput) (User, error) {
-	// TODO(student): Implement UpdateUser application logic.
-	return User{}, ErrNotImplemented
+
+	userWriteParams := UserWriteParams{
+		FirstName: strings.TrimSpace(input.FirstName),
+		LastName:  strings.TrimSpace(input.LastName),
+		Phone:     strings.TrimSpace(input.Phone),
+		ID:        currentUser.ID,
+		Email:     strings.TrimSpace(currentUser.Email),
+	}
+	if err := validateUserWrite(userWriteParams); err != nil {
+		return User{}, err
+	}
+
+	tx, err := s.database.BeginTx(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback()
+
+	usersRepo := tx.UsersRepo()
+
+	userRecord, err := usersRepo.UpsertUser(ctx, userWriteParams)
+	if err != nil {
+		return User{}, err
+	}
+
+	profile, err := getVisibleProfile(ctx, tx, currentUser, userRecord)
+	if err != nil {
+		return User{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return User{}, err
+	}
+
+	return profile, nil
 }
 
 // validateUserWrite returns ErrInvalidArgument when normalized profile fields
 // are missing or exceed their character limits.
 func validateUserWrite(params UserWriteParams) error {
-	// TODO(student): Implement validateUserWrite application logic.
-	return ErrNotImplemented
+	firstNameLen := utf8.RuneCountInString(params.FirstName)
+	lastNameLen := utf8.RuneCountInString(params.LastName)
+	phoneLen := utf8.RuneCountInString(params.Phone)
+	emailLen := utf8.RuneCountInString(params.Email)
+	if !(1 <= firstNameLen && firstNameLen <= 100) {
+		return fmt.Errorf("%w: first name must contain 1 to 100 characters", ErrInvalidArgument)
+	}
+	if !(1 <= lastNameLen && lastNameLen <= 100) {
+		return fmt.Errorf("%w: last name must contain 1 to 100 characters", ErrInvalidArgument)
+	}
+	if phoneLen > 32 {
+		return fmt.Errorf("%w: phone must be less than 32 characters", ErrInvalidArgument)
+	}
+	if !(1 <= emailLen && emailLen <= 254) {
+		return fmt.Errorf("%w: email must contain 1 to 254 characters", ErrInvalidArgument)
+	}
+	return nil
 }
