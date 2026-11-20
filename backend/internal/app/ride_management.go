@@ -174,7 +174,7 @@ func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uu
 	// TODO(student): Implement CancelRide application logic.
 	// checking to see if it is a missing ride
 	if id == uuid.Nil {
-		return Ride{}, ErrRideNotFound
+		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)
 	}
 	// create a transaction and check storage failure
 	tx, err := s.database.BeginTx(ctx)
@@ -189,15 +189,14 @@ func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uu
 	if err != nil {
 		return Ride{}, err
 	}
-	if ride.Owner.ID == currentUser.ID {
+	// checking to see if the currentUser is the ride owner, if not, they can't cancel the ride
+	if ride.Owner.ID != currentUser.ID {
 		return Ride{}, ErrPermissionDenied
 	}
-
 	err = ridesRepo.CancelRide(ctx, id)
 	if err != nil {
 		return Ride{}, err
 	}
-
 	// get contacts of canceled ride
 	rideInfo, err := getUserViewableRide(ctx, tx, currentUser.ID, id)
 	// commiting transaction
