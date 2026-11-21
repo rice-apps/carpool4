@@ -111,7 +111,8 @@ func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery)
 	if query.DepartureBefore != nil {
 		params.DepartureBefore = sql.NullTime{Time: *query.DepartureBefore, Valid: true}
 	}
-	params.DepartureAfter = sql.NullTime{Time: query.DepartureAfter, Valid: true}
+	params.DepartureAfter = query.DepartureAfter
+
 	// fill out rest of params
 	rides, err := r.queries.ListRides(ctx, params)
 	if err != nil {
@@ -119,16 +120,16 @@ func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery)
 		return nil, translateTransactionError(err)
 	}
 	// loop over returned rides, use convertRideRows?
-	returned_rides := make([]app.LoadedRide, len(rides))
+	returnedRides := make([]app.LoadedRide, len(rides))
 	for i, ride := range rides {
-		returned_rides[i], err = convertRideRows(
+		returnedRides[i], err = convertRideRows(
 			ride.Ride, ride.User, ride.Location, ride.Location_2, ride.Riders)
 		if err != nil {
 			return nil, fmt.Errorf("error on ride conversion: %w", err)
 		}
 	}
 	// return
-	return returned_rides, nil
+	return returnedRides, nil
 }
 
 // ListMyRides returns rides owned or joined by viewerID, including history.

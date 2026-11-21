@@ -27,10 +27,10 @@ SELECT sqlc.embed(r),
         INNER JOIN locations AS dl ON r.departure_location_id = dl.id
         INNER JOIN locations AS al ON r.arrival_location_id = al.id
         INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
-            AND (sqlc.narg('departure_location_id')::uuid IS NULL) OR (r.departure_location_id = sqlc.narg('departure_location_id'))
-            AND (sqlc.narg('arrival_location_id')::uuid IS NULL) OR (r.arrival_location_id = sqlc.narg('arrival_location_id'))
-            AND (sqlc.narg('departure_before')::timestamptz IS NULL) OR (r.departure_time <= sqlc.narg('departure_before'))
-            AND (r.departure_time >= sqlc.narg('departure_after'))
+            AND (sqlc.narg('departure_location_id')::uuid IS NULL OR r.departure_location_id = sqlc.narg('departure_location_id'))
+            AND (sqlc.narg('arrival_location_id')::uuid IS NULL OR r.arrival_location_id = sqlc.narg('arrival_location_id'))
+            AND (sqlc.narg('departure_before')::timestamptz IS NULL OR r.departure_time <= sqlc.narg('departure_before'))
+            AND (r.departure_time >= sqlc.arg('departure_after'))
                  ORDER BY r.departure_time ASC, r.id ASC;
 -- ListMyRides: Return the viewer's owned and joined rides, including history.
 -- TODO(student): Write the ListMyRides SQL query.
