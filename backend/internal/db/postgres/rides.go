@@ -132,7 +132,11 @@ func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid
 // membership was absent.
 func (r rideRepository) RemoveRideOccupant(ctx context.Context, rideID, userID uuid.UUID) (int64, error) {
 	// TODO(student): Implement RemoveRideOccupant Postgres repository method.
-	return 0, app.ErrNotImplemented
+	numbOfRows, err := r.RemoveRideOccupant(ctx, rideID, userID)
+	if err != nil {
+		return numbOfRows, translateTransactionError(err)
+	}
+	return numbOfRows, err
 }
 
 // ListRides returns rides matching a discovery query, including related users
