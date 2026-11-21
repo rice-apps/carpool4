@@ -168,6 +168,5 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Marianna Argeiti
 - Megan Cung
 - Melody Cui
-- Michael Wang
 - Yiyi Sun
 - Zimo Wang
