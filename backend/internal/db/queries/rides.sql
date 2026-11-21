@@ -17,7 +17,6 @@
 -- TODO(student): Write the RemoveRideOccupant SQL query.
 
 -- ListRides: Find active rides matching the supplied route and time filters.
--- TODO(student): Write the ListRides SQL query.
 -- name: ListRides :many
 SELECT sqlc.embed(r),
        sqlc.embed(dl),
