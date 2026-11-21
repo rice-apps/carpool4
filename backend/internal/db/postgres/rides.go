@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/google/uuid"
-
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
@@ -150,8 +150,35 @@ func (r rideRepository) RemoveRideOccupant(ctx context.Context, rideID, userID u
 //
 // It returns the matching rides or a query or mapping error.
 func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery) ([]app.LoadedRide, error) {
-	// TODO(student): Implement ListRides Postgres repository method.
-	return nil, app.ErrNotImplemented
+	params := sqlc.ListRidesParams{}
+	if query.ArrivalLocationID != nil {
+		params.ArrivalLocationID = uuid.NullUUID{UUID: *query.ArrivalLocationID, Valid: true}
+	}
+	if query.DepartureLocationID != nil {
+		params.DepartureLocationID = uuid.NullUUID{UUID: *query.DepartureLocationID, Valid: true}
+	}
+	if query.DepartureBefore != nil {
+		params.DepartureBefore = sql.NullTime{Time: *query.DepartureBefore, Valid: true}
+	}
+	params.DepartureAfter = query.DepartureAfter
+
+	// fill out rest of params
+	rides, err := r.queries.ListRides(ctx, params)
+	if err != nil {
+		// translateTransactionError
+		return nil, translateTransactionError(err)
+	}
+	// loop over returned rides, use convertRideRows?
+	returnedRides := make([]app.LoadedRide, len(rides))
+	for i, ride := range rides {
+		returnedRides[i], err = convertRideRows(
+			ride.Ride, ride.User, ride.Location, ride.Location_2, ride.Riders)
+		if err != nil {
+			return nil, fmt.Errorf("error on ride conversion: %w", err)
+		}
+	}
+	// return
+	return returnedRides, nil
 }
 
 // ListMyRides returns rides owned or joined by viewerID, including history.

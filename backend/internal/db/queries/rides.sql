@@ -50,8 +50,21 @@ DELETE FROM ride_occupants
     WHERE ride_id = $1 and user_id = $2;
 
 -- ListRides: Find active rides matching the supplied route and time filters.
--- TODO(student): Write the ListRides SQL query.
-
+-- name: ListRides :many
+SELECT sqlc.embed(r),
+       sqlc.embed(dl),
+       sqlc.embed(al),
+       sqlc.embed(u),
+       ride_riders(r.id) AS riders
+    FROM rides r
+        INNER JOIN locations AS dl ON r.departure_location_id = dl.id
+        INNER JOIN locations AS al ON r.arrival_location_id = al.id
+        INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
+            AND (sqlc.narg('departure_location_id')::uuid IS NULL OR r.departure_location_id = sqlc.narg('departure_location_id'))
+            AND (sqlc.narg('arrival_location_id')::uuid IS NULL OR r.arrival_location_id = sqlc.narg('arrival_location_id'))
+            AND (sqlc.narg('departure_before')::timestamptz IS NULL OR r.departure_time <= sqlc.narg('departure_before'))
+            AND (r.departure_time >= sqlc.arg('departure_after'))
+                 ORDER BY r.departure_time ASC, r.id ASC;
 -- ListMyRides: Return the viewer's owned and joined rides, including history.
 -- name: ListMyRides :many
 SELECT sqlc.embed(r),

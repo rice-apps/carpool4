@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -135,7 +136,6 @@ func (q *Queries) GetRide(ctx context.Context, id uuid.UUID) (GetRideRow, error)
 }
 
 const listMyRides = `-- name: ListMyRides :many
-
 SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
        u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
        dl.id, dl.title, dl.address,
@@ -162,8 +162,6 @@ type ListMyRidesRow struct {
 	Riders     json.RawMessage `json:"riders"`
 }
 
-// ListRides: Find active rides matching the supplied route and time filters.
-// TODO(student): Write the ListRides SQL query.
 // ListMyRides: Return the viewer's owned and joined rides, including history.
 func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMyRidesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMyRides, viewerid)
@@ -198,6 +196,92 @@ func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMy
 			&i.Location_2.ID,
 			&i.Location_2.Title,
 			&i.Location_2.Address,
+			&i.Riders,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRides = `-- name: ListRides :many
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+       ride_riders(r.id) AS riders
+    FROM rides r
+        INNER JOIN locations AS dl ON r.departure_location_id = dl.id
+        INNER JOIN locations AS al ON r.arrival_location_id = al.id
+        INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
+            AND ($1::uuid IS NULL OR r.departure_location_id = $1)
+            AND ($2::uuid IS NULL OR r.arrival_location_id = $2)
+            AND ($3::timestamptz IS NULL OR r.departure_time <= $3)
+            AND (r.departure_time >= $4)
+                 ORDER BY r.departure_time ASC, r.id ASC
+`
+
+type ListRidesParams struct {
+	DepartureLocationID uuid.NullUUID `json:"departure_location_id"`
+	ArrivalLocationID   uuid.NullUUID `json:"arrival_location_id"`
+	DepartureBefore     sql.NullTime  `json:"departure_before"`
+	DepartureAfter      time.Time     `json:"departure_after"`
+}
+
+type ListRidesRow struct {
+	Ride       Ride            `json:"ride"`
+	Location   Location        `json:"location"`
+	Location_2 Location        `json:"location_2"`
+	User       User            `json:"user"`
+	Riders     json.RawMessage `json:"riders"`
+}
+
+// ListRides: Find active rides matching the supplied route and time filters.
+func (q *Queries) ListRides(ctx context.Context, arg ListRidesParams) ([]ListRidesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRides,
+		arg.DepartureLocationID,
+		arg.ArrivalLocationID,
+		arg.DepartureBefore,
+		arg.DepartureAfter,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRidesRow
+	for rows.Next() {
+		var i ListRidesRow
+		if err := rows.Scan(
+			&i.Ride.ID,
+			&i.Ride.DepartureTime,
+			&i.Ride.DepartureLocationID,
+			&i.Ride.ArrivalLocationID,
+			&i.Ride.OwnerID,
+			&i.Ride.Notes,
+			&i.Ride.Capacity,
+			&i.Ride.Status,
+			&i.Ride.CreatedAt,
+			&i.Ride.UpdatedAt,
+			&i.Location.ID,
+			&i.Location.Title,
+			&i.Location.Address,
+			&i.Location_2.ID,
+			&i.Location_2.Title,
+			&i.Location_2.Address,
+			&i.User.ID,
+			&i.User.FirstName,
+			&i.User.LastName,
+			&i.User.Email,
+			&i.User.Phone,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
 			&i.Riders,
 		); err != nil {
 			return nil, err
