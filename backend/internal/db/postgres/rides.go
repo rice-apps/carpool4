@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
-
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
 )
