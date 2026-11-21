@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/rice-apps/carpool4/backend/internal/db/sqlc"
@@ -123,7 +124,7 @@ func (r rideRepository) ListRides(ctx context.Context, query app.ListRidesQuery)
 		returned_rides[i], err = convertRideRows(
 			ride.Ride, ride.User, ride.Location, ride.Location_2, ride.Riders)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error on ride conversion: %w", err)
 		}
 	}
 	// return
