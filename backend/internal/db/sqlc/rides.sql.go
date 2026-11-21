@@ -46,7 +46,6 @@ func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
 }
 
 const createRide = `-- name: CreateRide :one
-
 insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
 values ($1, $2, $3, $4,
         $5, $6, $7) returning id
@@ -62,8 +61,6 @@ type CreateRideParams struct {
 	Status              RideStatus `json:"status"`
 }
 
-// GetRide: Load one ride with its owner, locations, and occupants.
-// TODO(student): Write the GetRide SQL query.
 // CreateRide: Store a new ride and return its ID.
 func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, createRide,
@@ -78,6 +75,63 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getRide = `-- name: GetRide :one
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+       dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
+       ride_riders(r.id) riders
+FROM rides r
+    JOIN users u
+        ON r.owner_id = u.id
+    JOIN locations dl
+        ON r.departure_location_id = dl.id
+    JOIN locations al
+         ON r.arrival_location_id = al.id
+WHERE r.id = $1
+`
+
+type GetRideRow struct {
+	Ride       Ride            `json:"ride"`
+	User       User            `json:"user"`
+	Location   Location        `json:"location"`
+	Location_2 Location        `json:"location_2"`
+	Riders     json.RawMessage `json:"riders"`
+}
+
+// GetRide: Load one ride with its owner, locations, and occupants.
+func (q *Queries) GetRide(ctx context.Context, id uuid.UUID) (GetRideRow, error) {
+	row := q.db.QueryRowContext(ctx, getRide, id)
+	var i GetRideRow
+	err := row.Scan(
+		&i.Ride.ID,
+		&i.Ride.DepartureTime,
+		&i.Ride.DepartureLocationID,
+		&i.Ride.ArrivalLocationID,
+		&i.Ride.OwnerID,
+		&i.Ride.Notes,
+		&i.Ride.Capacity,
+		&i.Ride.Status,
+		&i.Ride.CreatedAt,
+		&i.Ride.UpdatedAt,
+		&i.User.ID,
+		&i.User.FirstName,
+		&i.User.LastName,
+		&i.User.Email,
+		&i.User.Phone,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.Location.ID,
+		&i.Location.Title,
+		&i.Location.Address,
+		&i.Location_2.ID,
+		&i.Location_2.Title,
+		&i.Location_2.Address,
+		&i.Riders,
+	)
+	return i, err
 }
 
 const listMyRides = `-- name: ListMyRides :many

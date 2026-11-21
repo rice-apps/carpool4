@@ -19,8 +19,11 @@ import (
 // A missing ride returns app.ErrRideNotFound; invalid rider data and other
 // storage failures return errors.
 func (r rideRepository) GetRide(ctx context.Context, id uuid.UUID) (app.LoadedRide, error) {
-	// TODO(student): Implement GetRide Postgres repository method.
-	return app.LoadedRide{}, app.ErrNotImplemented
+	ride, err := r.queries.GetRide(ctx, id)
+	if err != nil {
+		return app.LoadedRide{}, translateRideError(err)
+	}
+	return convertRideRows(ride.Ride, ride.User, ride.Location, ride.Location_2, ride.Riders)
 }
 
 // CreateRide stores a new ride.
