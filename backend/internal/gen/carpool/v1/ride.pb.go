@@ -28,11 +28,8 @@ type RideStatus int32
 
 const (
 	RideStatus_RIDE_STATUS_UNSPECIFIED RideStatus = 0
-	// Indicates an active non-cancelled trip. Note that active trips may have
-	// departure times in the past if retained in history without cancellation.
-	RideStatus_RIDE_STATUS_ACTIVE RideStatus = 1
-	// Indicates a trip cancelled by its owner, retained in history but closed to joining.
-	RideStatus_RIDE_STATUS_CANCELLED RideStatus = 2
+	RideStatus_RIDE_STATUS_ACTIVE      RideStatus = 1
+	RideStatus_RIDE_STATUS_CANCELLED   RideStatus = 2
 )
 
 // Enum value maps for RideStatus.
@@ -153,7 +150,7 @@ type Ride struct {
 	// Capacity counts all occupants, including the owner.
 	Capacity int32      `protobuf:"varint,8,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Status   RideStatus `protobuf:"varint,9,opt,name=status,proto3,enum=carpool.v1.RideStatus" json:"status,omitempty"`
-	// Number of occupied seats, including the driver, even for anonymous viewers.
+	// Number of occupied seats, including the driver's, even for anonymous viewers.
 	OccupiedSeats int32 `protobuf:"varint,10,opt,name=occupied_seats,json=occupiedSeats,proto3" json:"occupied_seats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1157,7 +1154,7 @@ var File_carpool_v1_ride_proto protoreflect.FileDescriptor
 const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\n" +
 	"\x15carpool/v1/ride.proto\x12\n" +
-	"carpool.v1\x1a\x1bbuf/validate/validate.proto\x1a\x15carpool/v1/user.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"J\n" +
+	"carpool.v1\x1a\x15carpool/v1/user.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"J\n" +
 	"\bLocation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -1177,7 +1174,7 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x0eGetRideRequest\x12\x18\n" +
 	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"7\n" +
 	"\x0fGetRideResponse\x12$\n" +
-	"\x04ride\x18\x01 \x01(\v2\x10.carpool.v1.RideR\x04ride\"\x85\x03\n" +
+	"\x04ride\x18\x01 \x01(\v2\x10.carpool.v1.RideR\x04ride\"\x91\x03\n" +
 	"\x10ListRidesRequest\x12A\n" +
 	"\x15departure_location_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x13departureLocationId\x88\x01\x01\x12=\n" +
 	"\x13arrival_location_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x11arrivalLocationId\x88\x01\x01\x12H\n" +
@@ -1186,12 +1183,12 @@ const file_carpool_v1_ride_proto_rawDesc = "" +
 	"\x16_departure_location_idB\x16\n" +
 	"\x14_arrival_location_idB\x12\n" +
 	"\x10_departure_afterB\x13\n" +
-	"\x11_departure_before\";\n" +
+	"\x11_departure_beforeJ\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"A\n" +
 	"\x11ListRidesResponse\x12&\n" +
-	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05rides\"\x14\n" +
-	"\x12ListMyRidesRequest\"=\n" +
+	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05ridesJ\x04\b\x02\x10\x03\" \n" +
+	"\x12ListMyRidesRequestJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03\"C\n" +
 	"\x13ListMyRidesResponse\x12&\n" +
-	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05rides\"\x9b\x02\n" +
+	"\x05rides\x18\x01 \x03(\v2\x10.carpool.v1.RideR\x05ridesJ\x04\b\x02\x10\x03\"\x9b\x02\n" +
 	"\x11CreateRideRequest\x12I\n" +
 	"\x0edeparture_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\rdepartureTime\x12<\n" +
 	"\x15departure_location_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x13departureLocationId\x128\n" +

@@ -5,16 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@connectrpc/connect-query";
 import {
-  ArrowRight,
-  ArrowsDownUp,
-  MagnifyingGlass,
-  Plus,
-} from "@phosphor-icons/react";
-import {
   listLocations,
   listRides,
 } from "../../gen/carpool/v1/ride-RideService_connectquery";
 import { RideCard } from "../../components/RideCard";
+import { Button } from "../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { NativeSelect } from "../../components/ui/native-select";
 import { requestErrorMessage } from "../../lib/requestError";
 import { useAuth } from "../../lib/auth";
 import { returnToKey, safeReturnTo } from "../../lib/returnTo";
@@ -38,162 +40,128 @@ export default function HomePage() {
   }, [loading, session, router]);
 
   return (
-    <>
-      <section className="discovery-hero">
-        <div className="page-container hero-inner">
-          <div className="hero-copy">
-            <span className="hero-tag">
-              <span className="hero-tag-dot" />
-              Your next trip, together
-            </span>
-            <h1>
-              Find your way
-              <br />
-              <em>there, together.</em>
-            </h1>
-            <p>
-              From campus to the airport and everywhere in between. Find a seat
-              with another Rice student.
-            </p>
-          </div>
-          <div className="hero-graphic" aria-hidden="true">
-            <div className="hero-path">
-              <span className="hero-path-dot" />
-              <span className="hero-path-dot" />
-            </div>
-            <span className="hero-place hero-place-one">Rice</span>
-            <span className="hero-place hero-place-two">Your next stop</span>
-          </div>
+    <div className="page-container interior-page">
+      <div className="page-heading">
+        <div>
+          <h1>Find a ride</h1>
+          <p>Browse upcoming trips.</p>
         </div>
-      </section>
-
-      <div className="page-container discover-content">
-        <form
-          className="search-panel"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <div className="search-label">
-            <MagnifyingGlass size={19} />
-            <span>Find a ride</span>
-          </div>
-          <label className="field">
-            <span>Leaving from</span>
-            <select
-              value={from}
-              onChange={(event) => setFrom(event.target.value)}
-              disabled={locations.isLoading}
-            >
-              <option value="">Anywhere</option>
-              {locations.data?.locations.map((location) => (
-                <option value={location.id} key={location.id}>
-                  {location.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="swap-button"
-            type="button"
-            aria-label="Swap departure and arrival"
-            onClick={() => {
-              setFrom(to);
-              setTo(from);
-            }}
-          >
-            <ArrowsDownUp size={19} />
-          </button>
-          <label className="field">
-            <span>Going to</span>
-            <select
-              value={to}
-              onChange={(event) => setTo(event.target.value)}
-              disabled={locations.isLoading}
-            >
-              <option value="">Anywhere</option>
-              {locations.data?.locations.map((location) => (
-                <option value={location.id} key={location.id}>
-                  {location.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        </form>
-        {locations.error && (
-          <p className="inline-error" role="alert">
-            {requestErrorMessage(
-              locations.error,
-              "Getting locations",
-              "Couldn’t load locations.",
-            )}{" "}
-            <button onClick={() => void locations.refetch()}>Try again</button>
-          </p>
-        )}
-
-        <div className="discovery-grid">
-          <section className="ride-list-section">
-            <div className="section-heading">
-              <div>
-                <span className="section-kicker">On the road</span>
-                <h2>Available rides</h2>
-              </div>
-              <span className="result-count">
-                {rides.data
-                  ? `${rides.data.rides.length} ${rides.data.rides.length === 1 ? "ride" : "rides"}`
-                  : ""}
-              </span>
-            </div>
-            {rides.isLoading ? (
-              <div className="list-message" role="status">
-                Looking for rides…
-              </div>
-            ) : rides.error ? (
-              <div className="list-message" role="alert">
-                {requestErrorMessage(
-                  rides.error,
-                  "Getting rides",
-                  "Couldn’t load rides.",
-                )}{" "}
-                <button onClick={() => void rides.refetch()}>Try again</button>
-              </div>
-            ) : rides.data?.rides.length ? (
-              <div className="ride-list">
-                {rides.data.rides.map((ride) => (
-                  <RideCard key={ride.id} ride={ride} />
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <span className="empty-icon">
-                  <MagnifyingGlass size={28} />
-                </span>
-                <h3>No rides found yet</h3>
-                <p>Try another route, or post the trip you have planned.</p>
-                <Link className="text-link" href="/rides/new">
-                  Post a ride <ArrowRight size={17} />
-                </Link>
-              </div>
-            )}
-          </section>
-          <aside className="discover-aside">
-            <div className="share-card">
-              <span className="share-symbol">
-                <Plus size={26} />
-              </span>
-              <h3>Have room in your ride?</h3>
-              <p>
-                A spare seat can make someone’s day. Share where you’re headed.
-              </p>
-              <Link className="button button-light" href="/rides/new">
-                Post a ride <ArrowRight size={17} />
-              </Link>
-            </div>
-            <p className="aside-note">
-              Rides are shared by Rice students. Connect directly with your
-              driver after you join.
-            </p>
-          </aside>
-        </div>
+        <Button asChild>
+          <Link href="/rides/new">Post a ride</Link>
+        </Button>
       </div>
-    </>
+      <Card className="shadow-none">
+        <CardHeader>
+          <CardTitle>
+            <h2>Filter rides</h2>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <div className="form-grid two-columns">
+              <label className="field">
+                <span>Leaving from</span>
+                <NativeSelect
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                  disabled={locations.isLoading}
+                >
+                  <option value="">Anywhere</option>
+                  {locations.data?.locations.map((location) => (
+                    <option value={location.id} key={location.id}>
+                      {location.title}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </label>
+              <label className="field">
+                <span>Going to</span>
+                <NativeSelect
+                  value={to}
+                  onChange={(event) => setTo(event.target.value)}
+                  disabled={locations.isLoading}
+                >
+                  <option value="">Anywhere</option>
+                  {locations.data?.locations.map((location) => (
+                    <option value={location.id} key={location.id}>
+                      {location.title}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </label>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => {
+                setFrom(to);
+                setTo(from);
+              }}
+            >
+              Swap departure and arrival
+            </Button>
+          </form>
+          {locations.error && (
+            <p className="inline-error" role="alert">
+              {requestErrorMessage(
+                locations.error,
+                "Getting locations",
+                "Couldn’t load locations.",
+              )}{" "}
+              <button onClick={() => void locations.refetch()}>
+                Try again
+              </button>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <section className="mt-6" aria-labelledby="available-rides">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="available-rides">Available rides</h2>
+          {rides.data && (
+            <span className="text-sm text-muted-foreground">
+              {rides.data.rides.length}{" "}
+              {rides.data.rides.length === 1 ? "ride" : "rides"}
+            </span>
+          )}
+        </div>
+        {rides.isLoading ? (
+          <div className="list-message" role="status">
+            Loading rides…
+          </div>
+        ) : rides.error ? (
+          <div className="list-message" role="alert">
+            <p>
+              {requestErrorMessage(
+                rides.error,
+                "Getting rides",
+                "Couldn’t load rides.",
+              )}
+            </p>
+            <Button variant="outline" onClick={() => void rides.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : rides.data?.rides.length ? (
+          <div className="ride-list">
+            {rides.data.rides.map((ride) => (
+              <RideCard key={ride.id} ride={ride} />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <h2>No rides found</h2>
+            <p>Try another route, or post your trip.</p>
+            <Button variant="outline" asChild>
+              <Link href="/rides/new">Post a ride</Link>
+            </Button>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

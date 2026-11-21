@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle, SignOut } from "@phosphor-icons/react";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
 import {
   getUser,
   updateUser,
@@ -34,12 +36,7 @@ export function ProfileForm({ onboarding = false }: { onboarding?: boolean }) {
             "We couldn’t load your profile",
           )}
         </h1>
-        <button
-          className="button button-primary"
-          onClick={() => void profile.refetch()}
-        >
-          Try again
-        </button>
+        <Button onClick={() => void profile.refetch()}>Try again</Button>
       </div>
     );
   return <ProfileFields onboarding={onboarding} initial={profile.data?.user} />;
@@ -118,103 +115,99 @@ function ProfileFields({
         </div>
       )}
       <div className="form-intro">
-        <span className="section-kicker">
-          {onboarding ? "One quick introduction" : "Your account"}
-        </span>
-        <h1>{onboarding ? "Let’s get to know you." : "Your profile"}</h1>
+        <h1>{onboarding ? "Complete your profile" : "Your profile"}</h1>
         <p>
           {onboarding
-            ? "Add your name to meet fellow travelers. A phone number is needed when you post a ride."
-            : "Keep your contact details current for the people you ride with."}
+            ? "Add your name to post or join a ride."
+            : "Manage your name and contact details."}
         </p>
       </div>
-      <form className="form-card" onSubmit={(event) => void save(event)}>
-        <div className="form-grid two-columns">
-          <label className="field">
-            <span>
-              First name <span className="required-mark">*</span>
-            </span>
-            <input
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
-              required
-              maxLength={100}
-              autoComplete="given-name"
-              placeholder="Your first name"
-            />
-          </label>
-          <label className="field">
-            <span>
-              Last name <span className="required-mark">*</span>
-            </span>
-            <input
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
-              required
-              maxLength={100}
-              autoComplete="family-name"
-              placeholder="Your last name"
-            />
-          </label>
-        </div>
-        <label className="field">
-          <span>Rice email</span>
-          <input
-            value={session?.user.email || ""}
-            readOnly
-            className="read-only-input"
-          />
-          <small>Your email comes from your Rice Google account.</small>
-        </label>
-        <label className="field">
-          <span>Phone number</span>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            maxLength={32}
-            autoComplete="tel"
-            placeholder="(713) 555-0123"
-          />
-          <small>
-            Required to post a ride. Only people who share a ride with you can
-            see it.
-          </small>
-        </label>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {saved && (
-          <p className="form-success" role="status">
-            <CheckCircle size={18} /> Profile saved.
-          </p>
-        )}
-        <div className="form-actions">
-          <button
-            className="button button-primary"
-            type="submit"
-            disabled={update.isPending}
-          >
-            {update.isPending
-              ? "Saving…"
-              : onboarding
-                ? "Finish profile"
-                : "Save changes"}{" "}
-            <ArrowRight size={17} />
-          </button>
-          {!onboarding && (
-            <button
-              className="button button-quiet"
-              type="button"
-              onClick={() => void leave()}
-            >
-              <SignOut size={18} /> Sign out
-            </button>
-          )}
-        </div>
-      </form>
+      <Card className="shadow-none">
+        <CardContent>
+          <form className="space-y-6" onSubmit={(event) => void save(event)}>
+            <div className="form-grid two-columns">
+              <label className="field">
+                <span>First name</span>
+                <Input
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  required
+                  maxLength={100}
+                  autoComplete="given-name"
+                  placeholder="Your first name"
+                />
+              </label>
+              <label className="field">
+                <span>Last name</span>
+                <Input
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  required
+                  maxLength={100}
+                  autoComplete="family-name"
+                  placeholder="Your last name"
+                />
+              </label>
+            </div>
+            <label className="field">
+              <span>Rice email</span>
+              <Input
+                value={session?.user.email || ""}
+                readOnly
+                className="bg-muted"
+                aria-describedby="email-help"
+              />
+              <small id="email-help">
+                Your email comes from your Rice Google account.
+              </small>
+            </label>
+            <label className="field">
+              <span>Phone number</span>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                maxLength={32}
+                autoComplete="tel"
+                placeholder="(713) 555-0123"
+                aria-describedby="phone-help"
+              />
+              <small id="phone-help">
+                Required to post a ride. Only people who share a ride with you
+                can see it.
+              </small>
+            </label>
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            {saved && (
+              <p className="form-success" role="status">
+                Profile saved.
+              </p>
+            )}
+            <div className="form-actions">
+              <Button type="submit" disabled={update.isPending}>
+                {update.isPending
+                  ? "Saving…"
+                  : onboarding
+                    ? "Finish profile"
+                    : "Save changes"}
+              </Button>
+              {!onboarding && (
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => void leave()}
+                >
+                  Sign out
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

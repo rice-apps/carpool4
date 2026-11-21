@@ -10,6 +10,15 @@ import (
 // request timeout or cancellation to the database query; errors include
 // classified transaction conflicts.
 func (r locationRepository) ListLocations(ctx context.Context) ([]app.LocationRecord, error) {
-	// TODO(student): Implement ListLocations Postgres repository method.
-	return nil, app.ErrNotImplemented
+	locationsQuery, err := r.queries.ListLocations(ctx) // queries all locations
+	if err != nil {
+		return nil, translateTransactionError(err)
+	}
+
+	//converts locations to LocationRecords
+	locations := make([]app.LocationRecord, len(locationsQuery))
+	for i, row := range locationsQuery {
+		locations[i] = convertLocationRow(row)
+	}
+	return locations, nil
 }

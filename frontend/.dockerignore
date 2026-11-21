@@ -1,0 +1,16 @@
+# Secrets
+.env*
+
+# Dependencies
+node_modules
+
+# Build output
+.next
+
+# Tests
+tests
+playwright-report
+test-results
+
+# OS files
+.DS_Store

@@ -4,117 +4,23 @@ Rice Carpool is a ridesharing platform built for the Rice University community. 
 
 ---
 
-## Prerequisites
-
-Ensure you have the following installed before getting started:
-
-- **Go**
-- **Node.js**
-- **Docker Desktop**
-
-> [!NOTE]
-> Request the shared **Google OAuth development credentials** from the leads before starting local configuration.
-
----
-
 ## Getting Started
 
-### 1. Environment Configuration
-
-1. Start **Docker Desktop**.
-2. Create a local `.env` file from `.env.example`:
-
-   ```bash
-   # macOS or Linux
-   cp .env.example .env
-   ```
-
-   ```powershell
-   # Windows PowerShell
-   Copy-Item .env.example .env
-   ```
-
-3. Add the supplied Google OAuth values to your `.env` file:
-   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
-   - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET`
-
-> [!WARNING]
-> Do **not** commit `.env` to version control.
-
-### 2. Installation & Running
-
-Run the following commands from the repository root:
+You need **Go 1.27.1+** and **Node 20.19+**. Get the `.env` from the leads and put it at the repo root. Do not commit it.
 
 ```bash
-# First time setup: checks tools and installs dependencies
 npm run setup
-
-# Start local database, backend, and frontend
 npm run dev
 ```
 
-_Press `Ctrl+C` to stop local services._
+The frontend runs at http://localhost:3000. The API runs at http://localhost:8080. The database and Google sign-in are hosted. Development data is shared across the team. SQL tests get their own private fixtures. Ctrl+C stops everything.
 
-### Port & Service Overview
-
-| Service                 | Port(s)          | Description                                   |
-| :---------------------- | :--------------- | :-------------------------------------------- |
-| **Frontend**            | `3000`           | Next.js application (<http://localhost:3000>) |
-| **Backend**             | `8080`           | Go Connect RPC server                         |
-| **Supabase / Database** | `54321`, `54322` | Local PostgreSQL instance                     |
-
-> [!NOTE]
->
-> - `npm run setup` starts Supabase briefly to validate the environment, then stops it.
-> - `npm run dev` keeps all data localized within your local Docker environment.
-
----
-
-## Finding Your Code
-
-### Workspace Structure
-
-| Path                            | Purpose                                                                   |
-| :------------------------------ | :------------------------------------------------------------------------ |
-| `proto/carpool/v1/`             | API Protocol Buffer messages and request validation schemas               |
-| `backend/internal/rpc/`         | Parse requests, invoke application services, and construct RPC responses  |
-| `backend/internal/app/`         | Business rules, authorization, database transactions, and contact privacy |
-| `backend/internal/db/postgres/` | Convert application records to and from `sqlc` database calls             |
-| `backend/internal/db/queries/`  | SQL query sources; assigned queries contain headers to fill               |
-| `supabase/migrations/`          | Database schema migrations                                                |
-| `frontend/src/`                 | Pre-built frontend client                                                 |
-
----
-
-## Backend Rules
-
-See [What the provided helpers do](HELPERS.md) for explanations and examples of sign-in identity,
-contact privacy, database access, conversion, and error handling.
-
-> [!IMPORTANT]
-> Follow these guidelines strictly when writing backend logic:
-
-1. **Caller Verification**: `ListRides`, `GetRide`, and `ListLocations` allow a missing bearer token. A supplied invalid token is rejected. Every other RPC requires `rpc.requireSignedInUser`. Request IDs select target entities; they do **not** establish caller identity.
-2. **Transaction Integrity**: Begin every storage operation via `app.Database.BeginTx`. Repositories created from that transaction share a single `Serializable` snapshot. Defer rollback and build an authorized mutation result before committing.
-3. **Contact Privacy**: Enforce privacy rules using `app.getVisibleProfile` and `app.buildRidesForViewer`. Guest ride responses include trip facts and `occupied_seats`, but no owner, riders, or notes. Signed-in users see contacts only when permitted. Do **not** expose raw stored contact information in RPC responses.
-4. **Layer Separation**:
-   - **RPC layer**: Parsing, service invocation, error mapping, and protobuf conversion.
-   - **App layer (`app/`)**: Business logic and domain rules.
-   - **DB layer (`db/postgres/`)**: `sqlc` data conversion.
-5. **Code Generation**: Edit `.proto` and `.sql` source files, then regenerate code. **Do not** manually edit generated files in `backend/internal/gen/`, `backend/internal/db/sqlc/`, or `frontend/src/gen/`.
-
-### Public browsing contract
-
-The assigned backend operations start as stubs. Their implementations must follow these rules:
-
-- Visitors can list locations and active rides without signing in. Discovery includes full rides and excludes departures more than one hour in the past.
-- A visitor can open a ride only while it qualifies for discovery. Cancelled and older rides return `NotFound` to visitors; signed-in users can still open their ride history.
-- Public ride results include the route, departure time, capacity, status, and occupied seats (including the driver). They omit the owner, riders, and notes. Signed-in results retain the existing contact privacy rules.
-- Discovery and ride detail pages are public. Profile, ride history, creation, editing, and ride actions require sign-in and a completed profile. After sign-in and onboarding, the frontend returns users to their intended page.
+The `.env` holds `DATABASE_URL`, `TEST_DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`. The helpers read these and set things up. Write SQL and application code the normal way. You do not need admin credentials or an OAuth client.
 
 ---
 
 ## Testing & Code Generation
+
 
 ### Commands Quick Reference
 
@@ -127,26 +33,22 @@ sqlc generate     # Generate Go code from SQL queries
 sqlc diff         # Verify SQL query changes against database schema
 ```
 
-#### Code Generation Tools
+#### Code Generation
 
-- **Protobuf**: Run `buf generate` in `proto/`.
-- **Frontend**: Run `npm run generate` in `frontend/`.
+- **Protobuf**: `buf generate` in `proto/`
+- **Frontend**: `npm run generate` in `frontend/`
 
-#### Root Convenience Scripts
+#### Root Scripts
 
 ```bash
-npm run db:start   # Start local Supabase database
-npm run db:stop    # Stop Supabase database
-npm run db:reset   # Reset local Supabase database
-npm run backend    # Run Go backend individually
-npm run frontend   # Run Next.js frontend individually
+npm run setup         # Install packages and verify config
+npm run dev           # Start backend + frontend
+npm run backend       # Backend only
+npm run frontend      # Frontend only
+npm run test:backend  # Backend checks using root .env
 ```
 
-### Testing Guidelines
 
-- **Database Integration Tests**: Use `backend/internal/testutil.SetupTestDB`. It boots a disposable PostgreSQL container when Docker is available or uses an explicitly set `TEST_DATABASE_URL`. It ignores standard `DATABASE_URL`.
-- **CI Pipeline**: Operation test checks are visible in CI (initially non-blocking to allow incremental merges). Build and code generation checks **must** pass.
-- **Frontend Checks**: From `frontend/`, run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`. Install the browser once with `npx playwright install chromium`, then run `npm run test:e2e` for mocked public-browsing flows.
 
 ---
 
@@ -156,6 +58,7 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 
 - Andrew Chu
 - Angel  J Guerrero
+- Audrey Zheng
 - Calvin Wong
 - Claire Li
 - Dara Odukoya
@@ -168,5 +71,6 @@ Built by [RiceApps Studio](https://riceapps.org/students) :>
 - Marianna Argeiti
 - Megan Cung
 - Melody Cui
+- Michael Wang
 - Yiyi Sun
 - Zimo Wang

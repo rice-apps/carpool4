@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, GoogleLogo } from "@phosphor-icons/react";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Brand } from "../../components/AppShell";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
@@ -44,65 +45,38 @@ export default function LoginPage() {
 
   if (loading || session) return null;
   return (
-    <main className="login-layout">
-      <section className="login-panel">
+    <main className="mx-auto max-w-md px-4 py-12">
+      <div className="mb-8">
         <Brand />
-        <div className="login-copy">
-          <span className="section-kicker">For the Rice community</span>
-          <h1>
-            Going somewhere?
-            <br />
-            <em>Go together.</em>
-          </h1>
-          <p>
-            Catch a ride with someone headed your way, or share the seats in
-            yours.
+      </div>
+      <Card className="shadow-none">
+        <CardHeader>
+          <h1>Sign in</h1>
+          <p className="text-muted-foreground">
+            Use your Rice Google account to post or join a ride.
           </p>
-          <button
-            className="button button-primary login-button"
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <Button
+            className="w-full"
             onClick={() => void signIn()}
             disabled={pending}
           >
-            <GoogleLogo size={21} weight="bold" />
             {pending ? "Opening Google…" : "Continue with Rice Google"}
-            <ArrowRight size={19} />
-          </button>
+          </Button>
           {error && (
             <p className="form-error" role="alert">
               {error}
             </p>
           )}
-          <p className="login-footnote">
+          <p className="text-sm text-muted-foreground">
             A Rice-managed Google account is required.
           </p>
           <Link className="text-link" href="/">
             Browse rides without signing in
           </Link>
-        </div>
-        <span className="login-footer">Rice rides together.</span>
-      </section>
-      <section className="login-art" aria-hidden="true">
-        <div className="art-orbit art-orbit-one" />
-        <div className="art-orbit art-orbit-two" />
-        <div className="art-sticker art-sticker-top">
-          RICE UNIVERSITY <span>●</span> HOUSTON, TX
-        </div>
-        <div className="art-card">
-          <span className="art-card-label">A little less driving alone</span>
-          <div className="art-route">
-            <span className="art-stop" />
-            <span className="art-route-line" />
-            <span className="art-stop art-stop-end" />
-          </div>
-          <div className="art-places">
-            <span>Campus</span>
-            <span>Everywhere</span>
-          </div>
-        </div>
-        <div className="art-sticker art-sticker-bottom">
-          SAME DIRECTION, BETTER COMPANY
-        </div>
-      </section>
+        </CardContent>
+      </Card>
     </main>
   );
 }

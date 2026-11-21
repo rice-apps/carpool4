@@ -1,60 +1,48 @@
 import Link from "next/link";
-import { ArrowUpRight, Clock, Users } from "@phosphor-icons/react";
 import type { Ride } from "../gen/carpool/v1/ride_pb";
-import {
-  availableSeats,
-  departureTime,
-  formatDeparture,
-  rideState,
-} from "../lib/ride";
+import { availableSeats, formatDeparture, rideState } from "../lib/ride";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
 
 export function RideCard({ ride }: { ride: Ride }) {
   const state = rideState(ride);
-  const departure = departureTime(ride);
+  const seats = availableSeats(ride);
+  const from = ride.departureLocation?.title || "Departure";
+  const to = ride.arrivalLocation?.title || "Arrival";
 
   return (
-    <Link href={`/rides/${ride.id}`} className="ride-card">
-      <span className="ride-date" aria-hidden="true">
-        <strong>
-          {departure
-            ? new Intl.DateTimeFormat("en-US", { day: "2-digit" }).format(
-                departure,
-              )
-            : "--"}
-        </strong>
-        <span>
-          {departure
-            ? new Intl.DateTimeFormat("en-US", { month: "short" }).format(
-                departure,
-              )
-            : "Date"}
-        </span>
-      </span>
-      <span className="ride-card-main">
-        <span className="ride-route">
-          <strong>{ride.departureLocation?.title || "Departure"}</strong>
-          <span className="route-line" />
-          <strong>{ride.arrivalLocation?.title || "Arrival"}</strong>
-        </span>
-        <span className="ride-meta">
-          <span>
-            <Clock size={16} />
-            {formatDeparture(ride, { hour: "numeric", minute: "2-digit" })}
-          </span>
-          <span>
-            <Users size={16} />
+    <Card className="py-5 shadow-none">
+      <CardContent className="space-y-4">
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2>
+              {from} to {to}
+            </h2>
+            <Badge variant={state === "cancelled" ? "outline" : "secondary"}>
+              {state === "open"
+                ? `${seats} ${seats === 1 ? "seat" : "seats"} left`
+                : state}
+            </Badge>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {formatDeparture(ride)}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <span className="text-sm text-muted-foreground">
             {ride.owner?.firstName || "Rice student"} is driving
           </span>
-        </span>
-      </span>
-      <span className="ride-card-end">
-        <span className={`status-pill status-${state}`}>
-          {state === "open"
-            ? `${availableSeats(ride)} ${availableSeats(ride) === 1 ? "seat" : "seats"} left`
-            : state}
-        </span>
-        <ArrowUpRight size={20} />
-      </span>
-    </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              href={`/rides/${ride.id}`}
+              aria-label={`View ride from ${from} to ${to}`}
+            >
+              View ride
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

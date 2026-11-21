@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-
+	"github.com/google/uuid"
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
@@ -19,8 +19,27 @@ import (
 //
 // It returns a user with caller-visible contacts or a Connect error on failure.
 func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.GetUserRequest]) (*connect.Response[carpoolv1.GetUserResponse], error) {
-	// TODO(student): Implement GetUser RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+	var targetID *uuid.UUID
+	if req.Msg.UserId != nil {
+		id, err := uuid.Parse(*req.Msg.UserId)
+		if err != nil {
+			return nil, convertToConnectError(app.ErrInvalidArgument)
+		}
+		targetID = &id
+	}
+
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+	}
+	user, err := s.service.GetUser(ctx, currentUser, targetID)
+	if err != nil {
+		return nil, convertToConnectError(err)
+
+	}
+
+	response := &carpoolv1.GetUserResponse{User: convertUserToProto(user)}
+	return connect.NewResponse(response), nil
 }
 
 // UpdateUser saves the verified caller's profile.
@@ -32,6 +51,24 @@ func (s *Server) GetUser(ctx context.Context, req *connect.Request[carpoolv1.Get
 //
 // It returns the updated user on success or a Connect error on failure.
 func (s *Server) UpdateUser(ctx context.Context, req *connect.Request[carpoolv1.UpdateUserRequest]) (*connect.Response[carpoolv1.UpdateUserResponse], error) {
-	// TODO(student): Implement UpdateUser RPC adapter.
-	return nil, convertToConnectError(app.ErrNotImplemented)
+
+	input := app.UserInput{
+		FirstName: req.Msg.FirstName,
+		LastName:  req.Msg.LastName,
+		Phone:     req.Msg.Phone,
+	}
+	currentUser, err := getCurrentUser(ctx)
+	if err != nil {
+		return nil, convertToConnectError(err)
+
+	}
+
+	user, err := s.service.UpdateUser(ctx, currentUser, input)
+	if err != nil {
+		return nil, convertToConnectError(err)
+
+	}
+
+	response := &carpoolv1.UpdateUserResponse{User: convertUserToProto(user)}
+	return connect.NewResponse(response), nil
 }

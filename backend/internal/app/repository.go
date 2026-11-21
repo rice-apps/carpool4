@@ -133,12 +133,12 @@ type Database interface {
 
 // Transaction groups the repositories that share one consistent snapshot.
 type Transaction interface {
-	// Users returns the user repository bound to this transaction.
-	Users() UserRepository
-	// Rides returns the ride repository bound to this transaction.
-	Rides() RideRepository
-	// Locations returns the location repository bound to this transaction.
-	Locations() LocationRepository
+	// UsersRepo returns the user repository bound to this transaction.
+	UsersRepo() UserRepository
+	// RidesRepo returns the ride repository bound to this transaction.
+	RidesRepo() RideRepository
+	// LocationsRepo returns the location repository bound to this transaction.
+	LocationsRepo() LocationRepository
 	// Commit makes all transaction writes durable or returns an error.
 	Commit() error
 	// Rollback closes the transaction without publishing uncommitted writes.
@@ -148,8 +148,8 @@ type Transaction interface {
 // UserRepository reads and saves profiles and checks which contacts a viewer
 // may see.
 type UserRepository interface {
-	// FindUser loads userID's profile or returns ErrUserNotFound.
-	FindUser(ctx context.Context, userID uuid.UUID) (UserRecord, error)
+	// FindUser loads id's profile or returns ErrUserNotFound.
+	FindUser(ctx context.Context, id uuid.UUID) (UserRecord, error)
 	// UpsertUser stores params and returns the complete stored profile.
 	UpsertUser(ctx context.Context, params UserWriteParams) (UserRecord, error)
 	// ListContactVisibleUserIDs returns targetIDs whose contacts viewerID may see.

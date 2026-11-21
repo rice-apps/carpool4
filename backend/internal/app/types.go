@@ -11,11 +11,11 @@ import (
 // Public ride reads use an empty CurrentUser for guests.
 //
 // Fields:
-//   - UserID: Supabase user ID used for authorization and profile ownership.
+//   - ID: Supabase user ID used for authorization and profile ownership.
 //   - Email: verified address stored when the caller saves their profile.
 type CurrentUser struct {
-	UserID uuid.UUID
-	Email  string
+	ID    uuid.UUID
+	Email string
 }
 
 // UserInput contains the profile details a caller may change.

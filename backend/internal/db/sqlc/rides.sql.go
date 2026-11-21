@@ -14,38 +14,127 @@ import (
 	"github.com/google/uuid"
 )
 
-const listRides = `-- name: ListRides :many
 
-
-
-
-
-
-SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
-       dl.id, dl.title, dl.address,
-       al.id, al.title, al.address,
-       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
-       ride_riders(r.id) AS riders
-    FROM rides r
-        INNER JOIN locations AS dl ON r.departure_location_id = dl.id
-        INNER JOIN locations AS al ON r.arrival_location_id = al.id
-        INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
-            AND ($1::uuid IS NULL OR r.departure_location_id = $1)
-            AND ($2::uuid IS NULL OR r.arrival_location_id = $2)
-            AND ($3::timestamptz IS NULL OR r.departure_time <= $3)
-            AND (r.departure_time >= $4)
-                 ORDER BY r.departure_time ASC, r.id ASC
-`
-
-type ListRidesParams struct {
-	DepartureLocationID uuid.NullUUID `json:"departure_location_id"`
-	ArrivalLocationID   uuid.NullUUID `json:"arrival_location_id"`
-	DepartureBefore     sql.NullTime  `json:"departure_before"`
-	DepartureAfter      time.Time     `json:"departure_after"`
+// AddRideOccupant: Record a user's ride membership.
+func (q *Queries) AddRideOccupant(ctx context.Context, arg AddRideOccupantParams) error {
+	_, err := q.db.ExecContext(ctx, addRideOccupant, arg.RideID, arg.UserID)
+	return err
 }
 
-type ListRidesRow struct {
+const cancelRide = `-- name: CancelRide :execrows
+UPDATE rides
+SET status     = 'cancelled',
+    updated_at = now()
+WHERE id = $1
+`
+
+// CancelRide: Mark a ride cancelled while retaining its history.
+func (q *Queries) CancelRide(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, cancelRide, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const createRide = `-- name: CreateRide :one
+insert into rides (departure_time, departure_location_id, arrival_location_id, owner_id, notes, capacity, status)
+values ($1, $2, $3, $4,
+        $5, $6, $7) returning id
+`
+
+type CreateRideParams struct {
+	DepartureTime       time.Time  `json:"departure_time"`
+	DepartureLocationID uuid.UUID  `json:"departure_location_id"`
+	ArrivalLocationID   uuid.UUID  `json:"arrival_location_id"`
+	OwnerID             uuid.UUID  `json:"owner_id"`
+	Notes               string     `json:"notes"`
+	Capacity            int32      `json:"capacity"`
+	Status              RideStatus `json:"status"`
+}
+
+// CreateRide: Store a new ride and return its ID.
+func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, createRide,
+		arg.DepartureTime,
+		arg.DepartureLocationID,
+		arg.ArrivalLocationID,
+		arg.OwnerID,
+		arg.Notes,
+		arg.Capacity,
+		arg.Status,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getRide = `-- name: GetRide :one
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+       dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
+       ride_riders(r.id) riders
+FROM rides r
+    JOIN users u
+        ON r.owner_id = u.id
+    JOIN locations dl
+        ON r.departure_location_id = dl.id
+    JOIN locations al
+         ON r.arrival_location_id = al.id
+WHERE r.id = $1
+`
+
+type GetRideRow struct {
 	Ride       Ride            `json:"ride"`
+	User       User            `json:"user"`
+	Location   Location        `json:"location"`
+	Location_2 Location        `json:"location_2"`
+	Riders     json.RawMessage `json:"riders"`
+}
+
+// GetRide: Load one ride with its owner, locations, and occupants.
+func (q *Queries) GetRide(ctx context.Context, id uuid.UUID) (GetRideRow, error) {
+	row := q.db.QueryRowContext(ctx, getRide, id)
+	var i GetRideRow
+	err := row.Scan(
+		&i.Ride.ID,
+		&i.Ride.DepartureTime,
+		&i.Ride.DepartureLocationID,
+		&i.Ride.ArrivalLocationID,
+		&i.Ride.OwnerID,
+		&i.Ride.Notes,
+		&i.Ride.Capacity,
+		&i.Ride.Status,
+		&i.Ride.CreatedAt,
+		&i.Ride.UpdatedAt,
+		&i.User.ID,
+		&i.User.FirstName,
+		&i.User.LastName,
+		&i.User.Email,
+		&i.User.Phone,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.Location.ID,
+		&i.Location.Title,
+		&i.Location.Address,
+		&i.Location_2.ID,
+		&i.Location_2.Title,
+		&i.Location_2.Address,
+		&i.Riders,
+	)
+	return i, err
+}
+
+const listMyRides = `-- name: ListMyRides :many
+
+SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
+       u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
+    FROM rides r
+`
+
+	Ride       Ride            `json:"ride"`
+	User       User            `json:"user"`
 	Location   Location        `json:"location"`
 	Location_2 Location        `json:"location_2"`
 	User       User            `json:"user"`
@@ -65,20 +154,11 @@ type ListRidesRow struct {
 // RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
 // TODO(student): Write the RemoveRideOccupant SQL query.
 // ListRides: Find active rides matching the supplied route and time filters.
-func (q *Queries) ListRides(ctx context.Context, arg ListRidesParams) ([]ListRidesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRides,
-		arg.DepartureLocationID,
-		arg.ArrivalLocationID,
-		arg.DepartureBefore,
-		arg.DepartureAfter,
-	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListRidesRow
 	for rows.Next() {
-		var i ListRidesRow
 		if err := rows.Scan(
 			&i.Ride.ID,
 			&i.Ride.DepartureTime,
@@ -103,6 +183,12 @@ func (q *Queries) ListRides(ctx context.Context, arg ListRidesParams) ([]ListRid
 			&i.User.Phone,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
+			&i.Location.ID,
+			&i.Location.Title,
+			&i.Location.Address,
+			&i.Location_2.ID,
+			&i.Location_2.Title,
+			&i.Location_2.Address,
 			&i.Riders,
 		); err != nil {
 			return nil, err
@@ -116,4 +202,60 @@ func (q *Queries) ListRides(ctx context.Context, arg ListRidesParams) ([]ListRid
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeRideOccupant = `-- name: RemoveRideOccupant :execrows
+DELETE FROM ride_occupants
+    WHERE ride_id = $1 and user_id = $2
+`
+
+type RemoveRideOccupantParams struct {
+	RideID uuid.UUID `json:"ride_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+// RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
+// TODO(student): Write the RemoveRideOccupant SQL query.
+func (q *Queries) RemoveRideOccupant(ctx context.Context, arg RemoveRideOccupantParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, removeRideOccupant, arg.RideID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateRide = `-- name: UpdateRide :execrows
+UPDATE rides
+SET departure_time        = $1,
+    arrival_location_id   = $2,
+    departure_location_id = $3,
+    capacity              = $4,
+    notes                 = $5,
+    updated_at            = now()
+WHERE id = $6
+`
+
+type UpdateRideParams struct {
+	DepartureTime       time.Time `json:"departure_time"`
+	ArrivalLocationID   uuid.UUID `json:"arrival_location_id"`
+	DepartureLocationID uuid.UUID `json:"departure_location_id"`
+	Capacity            int32     `json:"capacity"`
+	Notes               string    `json:"notes"`
+	ID                  uuid.UUID `json:"id"`
+}
+
+// UpdateRide: Replace a ride's editable fields.
+func (q *Queries) UpdateRide(ctx context.Context, arg UpdateRideParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateRide,
+		arg.DepartureTime,
+		arg.ArrivalLocationID,
+		arg.DepartureLocationID,
+		arg.Capacity,
+		arg.Notes,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

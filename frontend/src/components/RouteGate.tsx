@@ -8,12 +8,12 @@ import { getUser } from "../gen/carpool/v1/user-UserService_connectquery";
 import { useAuth } from "../lib/auth";
 import { isUnimplemented } from "../lib/requestError";
 import { safeReturnTo } from "../lib/returnTo";
+import { Button } from "./ui/button";
 
 export function LoadingScreen() {
   return (
     <div className="loading-screen" role="status">
-      <span className="loading-mark" />
-      Getting your rides ready…
+      Loading…
     </div>
   );
 }
@@ -56,12 +56,7 @@ function ProfileGate({ children }: { children: ReactNode }) {
       <div className="gate-error" role="alert">
         <h1>We couldn’t load your profile</h1>
         <p>{error.message}</p>
-        <button
-          className="button button-primary"
-          onClick={() => void refetch()}
-        >
-          Try again
-        </button>
+        <Button onClick={() => void refetch()}>Try again</Button>
       </div>
     );
   return children;
