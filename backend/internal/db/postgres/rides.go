@@ -131,8 +131,11 @@ func (r rideRepository) AddRideOccupant(ctx context.Context, rideID, userID uuid
 // It returns the number of affected rows or an error. Zero rows means the
 // membership was absent.
 func (r rideRepository) RemoveRideOccupant(ctx context.Context, rideID, userID uuid.UUID) (int64, error) {
-	// TODO(student): Implement RemoveRideOccupant Postgres repository method.
-	return 0, app.ErrNotImplemented
+	numbOfRows, err := r.queries.RemoveRideOccupant(ctx, sqlc.RemoveRideOccupantParams{RideID: rideID, UserID: userID})
+	if err != nil {
+		return numbOfRows, translateTransactionError(err)
+	}
+	return numbOfRows, nil
 }
 
 // ListRides returns rides matching a discovery query, including related users

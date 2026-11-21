@@ -82,7 +82,6 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 
 const listMyRides = `-- name: ListMyRides :many
 
-
 SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
        u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
        dl.id, dl.title, dl.address,
@@ -109,8 +108,6 @@ type ListMyRidesRow struct {
 	Riders     json.RawMessage `json:"riders"`
 }
 
-// RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
-// TODO(student): Write the RemoveRideOccupant SQL query.
 // ListRides: Find active rides matching the supplied route and time filters.
 // TODO(student): Write the ListRides SQL query.
 // ListMyRides: Return the viewer's owned and joined rides, including history.
@@ -160,6 +157,26 @@ func (q *Queries) ListMyRides(ctx context.Context, viewerid uuid.UUID) ([]ListMy
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeRideOccupant = `-- name: RemoveRideOccupant :execrows
+DELETE FROM ride_occupants
+    WHERE ride_id = $1 and user_id = $2
+`
+
+type RemoveRideOccupantParams struct {
+	RideID uuid.UUID `json:"ride_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+// RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
+// TODO(student): Write the RemoveRideOccupant SQL query.
+func (q *Queries) RemoveRideOccupant(ctx context.Context, arg RemoveRideOccupantParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, removeRideOccupant, arg.RideID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateRide = `-- name: UpdateRide :execrows
