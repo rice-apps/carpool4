@@ -80,16 +80,16 @@ func (q *Queries) CreateRide(ctx context.Context, arg CreateRideParams) (uuid.UU
 const getRide = `-- name: GetRide :one
 SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r.owner_id, r.notes, r.capacity, r.status, r.created_at, r.updated_at,
        u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
-       al.id, al.title, al.address,
        dl.id, dl.title, dl.address,
+       al.id, al.title, al.address,
        ride_riders(r.id) riders
 FROM rides r
     JOIN users u
-        ON rides.owner_id = u.id
-    JOIN locations al
-        ON r.arrival_location_id = al.id
+        ON r.owner_id = u.id
     JOIN locations dl
         ON r.departure_location_id = dl.id
+    JOIN locations al
+         ON r.arrival_location_id = al.id
 WHERE r.id = $1
 `
 
