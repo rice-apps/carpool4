@@ -167,7 +167,6 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 // A missing ride, denied owner, or storage failure returns an empty
 // Ride and an error.
 func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID) (Ride, error) {
-	// TODO(student): Implement CancelRide application logic.
 	// checking to see if it is a missing ride
 	if id == uuid.Nil {
 		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)

@@ -85,12 +85,12 @@ SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r
        al.id, al.title, al.address,
        ride_riders(r.id) riders
 FROM rides r
-    JOIN users u
-        ON r.owner_id = u.id
-    JOIN locations dl
-        ON r.departure_location_id = dl.id
-    JOIN locations al
-         ON r.arrival_location_id = al.id
+         JOIN users u
+              ON r.owner_id = u.id
+         JOIN locations dl
+              ON r.departure_location_id = dl.id
+         JOIN locations al
+              ON r.arrival_location_id = al.id
 WHERE r.id = $1
 `
 
@@ -217,15 +217,16 @@ SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r
        al.id, al.title, al.address,
        u.id, u.first_name, u.last_name, u.email, u.phone, u.created_at, u.updated_at,
        ride_riders(r.id) AS riders
-    FROM rides r
-        INNER JOIN locations AS dl ON r.departure_location_id = dl.id
-        INNER JOIN locations AS al ON r.arrival_location_id = al.id
-        INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
-            AND ($1::uuid IS NULL OR r.departure_location_id = $1)
-            AND ($2::uuid IS NULL OR r.arrival_location_id = $2)
-            AND ($3::timestamptz IS NULL OR r.departure_time <= $3)
-            AND (r.departure_time >= $4)
-                 ORDER BY r.departure_time ASC, r.id ASC
+FROM rides r
+         INNER JOIN locations AS dl ON r.departure_location_id = dl.id
+         INNER JOIN locations AS al ON r.arrival_location_id = al.id
+         INNER JOIN users AS u ON u.id = r.owner_id
+WHERE r.status = 'active'
+  AND ($1::uuid IS NULL OR r.departure_location_id = $1)
+  AND ($2::uuid IS NULL OR r.arrival_location_id = $2)
+  AND ($3::timestamptz IS NULL OR r.departure_time <= $3)
+  AND (r.departure_time >= $4)
+ORDER BY r.departure_time ASC, r.id ASC
 `
 
 type ListRidesParams struct {
@@ -298,8 +299,10 @@ func (q *Queries) ListRides(ctx context.Context, arg ListRidesParams) ([]ListRid
 }
 
 const removeRideOccupant = `-- name: RemoveRideOccupant :execrows
-DELETE FROM ride_occupants
-    WHERE ride_id = $1 and user_id = $2
+DELETE
+FROM ride_occupants
+WHERE ride_id = $1
+  and user_id = $2
 `
 
 type RemoveRideOccupantParams struct {
@@ -308,7 +311,6 @@ type RemoveRideOccupantParams struct {
 }
 
 // RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
-// TODO(student): Write the RemoveRideOccupant SQL query.
 func (q *Queries) RemoveRideOccupant(ctx context.Context, arg RemoveRideOccupantParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, removeRideOccupant, arg.RideID, arg.UserID)
 	if err != nil {

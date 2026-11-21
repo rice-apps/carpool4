@@ -20,7 +20,6 @@ import (
 // missing ride, disallowed membership, or storage failure returns
 // an empty Ride and an error.
 func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID uuid.UUID) (Ride, error) {
-	// TODO(student): Implement JoinRide application logic.
 	//if ride ID is not valid, return empty ride and error
 	if rideID == uuid.Nil {
 		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)
