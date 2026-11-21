@@ -1,5 +1,18 @@
 -- GetRide: Load one ride with its owner, locations, and occupants.
--- TODO(student): Write the GetRide SQL query.
+-- name: GetRide :one
+SELECT sqlc.embed(r),
+       sqlc.embed(u),
+       sqlc.embed(al),
+       sqlc.embed(dl),
+       ride_riders(r.id) riders
+FROM rides r
+    JOIN users u
+        ON rides.owner_id = u.id
+    JOIN locations al
+        ON r.arrival_location_id = al.id
+    JOIN locations dl
+        ON r.departure_location_id = dl.id
+WHERE r.id = $1;
 
 -- CreateRide: Store a new ride and return its ID.
 -- name: CreateRide :one
