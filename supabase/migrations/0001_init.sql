@@ -45,7 +45,7 @@ create table ride_occupants
     user_id   uuid        not null references users (id) on delete cascade,
     joined_at timestamptz not null default now(),
     primary key (ride_id, user_id)
-)
+);
 
 create index ride_occupants_user_ride_idx on ride_occupants (user_id, ride_id);
 
