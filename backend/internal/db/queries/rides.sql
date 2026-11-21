@@ -32,6 +32,9 @@ VALUES ($1, $2);
 
 -- RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
 -- TODO(student): Write the RemoveRideOccupant SQL query.
+-- name: RemoveRideOccupant :execrows
+DELETE FROM ride_occupants
+    WHERE ride_id = $1 and user_id = $2;
 
 -- ListRides: Find active rides matching the supplied route and time filters.
 -- TODO(student): Write the ListRides SQL query.
