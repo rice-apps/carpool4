@@ -197,6 +197,10 @@ func (s *Service) CancelRide(ctx context.Context, currentUser CurrentUser, id uu
 	}
 	// get contacts of canceled ride
 	rideInfo, err := getUserViewableRide(ctx, tx, currentUser.ID, id)
+	if err != nil {
+		return Ride{}, err
+	}
+
 	// commiting transaction
 	err = tx.Commit()
 	if err != nil {
