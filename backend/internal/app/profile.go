@@ -22,6 +22,14 @@ import (
 // who has shared a ride with them. An empty target ID, missing
 // profile, or storage failure returns an empty User and an error.
 func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID *uuid.UUID) (User, error) {
+	// Choose the caller's own profile when no other user was requested.
+	target := currentUser.ID
+	if targetID != nil {
+		target = *targetID
+	}
+	if target == uuid.Nil {
+		return User{}, fmt.Errorf("%w: user ID", ErrInvalidArgument)
+	}
 
 	tx, err := s.database.BeginTx(ctx)
 	if err != nil {
@@ -30,11 +38,8 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 	defer tx.Rollback()
 
 	usersRepo := tx.UsersRepo()
-	if targetID == nil {
-		targetID = &currentUser.ID
-	}
 
-	userRecord, err := usersRepo.FindUser(ctx, *targetID)
+	userRecord, err := usersRepo.FindUser(ctx, target)
 	if err != nil {
 		return User{}, err
 	}
