@@ -82,7 +82,7 @@ func validateRideWrite(input RideWriteParams) error {
 	case input.DepartureLocationID == uuid.Nil:
 		return fmt.Errorf("departure location is required: %w", ErrInvalidArgument)
 	case input.Capacity < 1:
-		return ErrCapacityBelowOccupancy
+		return fmt.Errorf("capacity must be at least 1: %w", ErrInvalidArgument)
 	case utf8.RuneCountInString(input.Notes) > 500:
 		return fmt.Errorf("notes must be below 500 characters: %w", ErrInvalidArgument)
 	default:
