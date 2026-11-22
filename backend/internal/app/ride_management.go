@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,18 +32,17 @@ func (s *Service) CreateRide(ctx context.Context, currentUser CurrentUser, input
 	}
 	defer tx.Rollback()
 
-	err = validateRideWrite(input)
-	if err != nil {
-		return Ride{}, err
-	}
-
-	user, err := tx.UsersRepo().FindUser(ctx, currentUser.ID)
-	if err != nil {
-		return Ride{}, err
-	}
-
-	if strings.TrimSpace(user.Phone) == "" {
+	// Riders need a phone number to contact the owner; a missing profile has none.
+	owner, err := tx.UsersRepo().FindUser(ctx, currentUser.ID)
+	if errors.Is(err, ErrUserNotFound) || (err == nil && strings.TrimSpace(owner.Phone) == "") {
 		return Ride{}, ErrPhoneRequired
+	}
+	if err != nil {
+		return Ride{}, err
+	}
+
+	if err := validateRideWrite(input); err != nil {
+		return Ride{}, err
 	}
 
 	ride, err := tx.RidesRepo().CreateRide(ctx, currentUser.ID, input)
