@@ -19,12 +19,14 @@ import (
 //   - tx: most recent fixture transaction.
 //   - fail: operation name where a test injects an error.
 //   - cause: error returned at the chosen operation.
+//   - skip: matching calls allowed through before the error is injected.
 type mutationStore struct {
 	*profileStore
 	state LoadedRide
 	tx    *mutationTx
 	fail  string
 	cause error
+	skip  int
 }
 
 // mutationTx holds ride changes until Commit and can return configured errors.
@@ -67,7 +69,11 @@ func (*mutationTx) LocationsRepo() LocationRepository { panic("unexpected locati
 // step returns an injected error for name or the context error for a normal call.
 func (tx *mutationTx) step(ctx context.Context, name string) error {
 	if tx.store.fail == name {
-		return tx.store.cause
+		if tx.store.skip > 0 {
+			tx.store.skip--
+		} else {
+			return tx.store.cause
+		}
 	}
 	return ctx.Err()
 }
@@ -404,5 +410,36 @@ func TestRideWriteValidationUsesApplicationTypes(t *testing.T) {
 				t.Fatalf("error = %v, want invalid argument", err)
 			}
 		})
+	}
+}
+
+// TestCancelRideReportsProjectionFailure checks that a lookup failure after the
+// cancel reaches the caller instead of being overwritten by the commit result.
+func TestCancelRideReportsProjectionFailure(t *testing.T) {
+	service, store, owner, _, _ := mutationFixture(t)
+	// Let the ownership check load the ride, then fail the lookup that follows the cancel.
+	store.fail, store.cause, store.skip = "visible", errors.New("projection unavailable"), 1
+
+	got, err := service.CancelRide(context.Background(), CurrentUser{ID: owner}, store.state.ID)
+	if !errors.Is(err, store.cause) {
+		t.Fatalf("CancelRide error = %v, want the injected projection failure", err)
+	}
+	if got.ID != uuid.Nil {
+		t.Errorf("CancelRide ride = %#v, want the zero ride", got)
+	}
+	if store.tx.committed {
+		t.Error("CancelRide committed after the projection failed")
+	}
+}
+
+// TestUpdateRideRejectsNilRideID checks the ride ID guard runs before any storage work.
+func TestUpdateRideRejectsNilRideID(t *testing.T) {
+	service, store, owner, _, input := mutationFixture(t)
+
+	if _, err := service.UpdateRide(context.Background(), CurrentUser{ID: owner}, uuid.Nil, input); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("UpdateRide error = %v, want invalid argument", err)
+	}
+	if store.tx != nil {
+		t.Error("UpdateRide opened a transaction for an empty ride ID")
 	}
 }

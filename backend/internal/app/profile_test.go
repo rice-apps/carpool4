@@ -239,3 +239,21 @@ func (s *profileStore) ListContactVisibleUserIDs(_ context.Context, _ uuid.UUID,
 func testUserRecord(id uuid.UUID, email string) UserRecord {
 	return UserRecord{ID: id, FirstName: "Target", LastName: "User", Email: email, Phone: "713-555-0100"}
 }
+
+// TestGetUserRejectsNilTarget checks an unidentified caller and target are refused
+// before any storage work.
+func TestGetUserRejectsNilTarget(t *testing.T) {
+	store := &profileStore{users: map[uuid.UUID]UserRecord{}}
+	service := NewService(store)
+
+	if _, err := service.GetUser(context.Background(), CurrentUser{}, nil); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("GetUser error = %v, want invalid argument", err)
+	}
+	target := uuid.Nil
+	if _, err := service.GetUser(context.Background(), CurrentUser{ID: uuid.New()}, &target); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("GetUser with an empty target = %v, want invalid argument", err)
+	}
+	if store.tx != nil {
+		t.Error("GetUser opened a transaction for an empty user ID")
+	}
+}
