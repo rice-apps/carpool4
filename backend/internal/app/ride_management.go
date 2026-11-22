@@ -106,9 +106,8 @@ func validateRideWrite(input RideWriteParams) error {
 // input, or storage failure returns an empty Ride and an error.
 
 func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uuid.UUID, input RideWriteParams) (Ride, error) {
-	err := validateRideWrite(input) // calls validateRideWrite, checks for error.
-	if err != nil {
-		return Ride{}, err
+	if id == uuid.Nil {
+		return Ride{}, fmt.Errorf("%w: ride ID", ErrInvalidArgument)
 	}
 
 	tx, err := s.database.BeginTx(ctx) // starts a transaction to ensure consistency
@@ -132,6 +131,10 @@ func (s *Service) UpdateRide(ctx context.Context, currentUser CurrentUser, id uu
 
 	if ride.Status == RideStatusCancelled { // checks to ensure the Ride Status is not Cancelled (ensures ride is active)
 		return Ride{}, ErrRideCancelled
+	}
+
+	if err := validateRideWrite(input); err != nil {
+		return Ride{}, err
 	}
 
 	if input.Capacity < int32(len(ride.Riders)) { // checks to ensure new capacity is at least the current occupied seats
