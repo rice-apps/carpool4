@@ -14,5 +14,6 @@ UPDATE SET
     first_name = EXCLUDED.first_name,
     last_name = EXCLUDED.last_name,
     email = EXCLUDED.email,
-    phone = EXCLUDED.phone
+    phone = EXCLUDED.phone,
+    updated_at = now()
     RETURNING *;

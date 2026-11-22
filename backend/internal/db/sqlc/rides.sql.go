@@ -142,15 +142,17 @@ SELECT r.id, r.departure_time, r.departure_location_id, r.arrival_location_id, r
        al.id, al.title, al.address,
        ride_riders(r.id) riders
 FROM rides r
-         INNER JOIN ride_occupants ro
-                    ON r.id = ro.ride_id
          INNER JOIN users u
                     ON u.id = r.owner_id
          INNER JOIN locations dl
                     ON r.departure_location_id = dl.id
          INNER JOIN locations al
                     ON r.arrival_location_id = al.id
-WHERE ro.user_id = $1
+WHERE r.owner_id = $1
+   OR EXISTS (SELECT 1
+              FROM ride_occupants ro
+              WHERE ro.ride_id = r.id
+                AND ro.user_id = $1)
 ORDER BY r.departure_time DESC, r.id DESC
 `
 

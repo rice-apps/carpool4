@@ -42,7 +42,8 @@ UPDATE SET
     first_name = EXCLUDED.first_name,
     last_name = EXCLUDED.last_name,
     email = EXCLUDED.email,
-    phone = EXCLUDED.phone
+    phone = EXCLUDED.phone,
+    updated_at = now()
     RETURNING id, first_name, last_name, email, phone, created_at, updated_at
 `
 
