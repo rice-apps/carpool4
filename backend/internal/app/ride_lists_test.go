@@ -1,113 +1,146 @@
 package app
 
 import (
-	"context"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 )
 
-// TestListRidesAppliesFiltersAndPrivacy checks location and time filters,
-// contact visibility, and closure of the read transaction.
-func TestListRidesAppliesFiltersAndPrivacy(t *testing.T) {
+func TestListRidesAppliesFiltersAndContactPermissions(t *testing.T) {
+	t.Parallel()
 	viewer, owner, rider := uuid.New(), uuid.New(), uuid.New()
 	departureID, arrivalID := uuid.New(), uuid.New()
 	departure := time.Now().Add(2 * time.Hour).Truncate(time.Microsecond)
-	rides := []LoadedRide{
-		testLoadedRide(uuid.New(), owner, rider, departure),
-		testLoadedRide(uuid.New(), owner, rider, departure.Add(time.Minute)),
-	}
-	store := &lookupStore{rides: rides, visible: map[uuid.UUID]bool{rider: true}}
-	service := NewService(store)
 
-	listed, err := service.ListRides(context.Background(), CurrentUser{ID: viewer}, ListRidesInput{
+	ride := testRide(uuid.New(), owner, departure)
+	ride.Riders = append(ride.Riders, testUser(rider, "rider@rice.edu"))
+	fake := newFakeDatabase([]UserRecord{ride.Owner, ride.Riders[1]}, ride)
+	fake.visible = func(_, target uuid.UUID) bool { return target == rider }
+
+	got, err := NewService(fake).ListRides(t.Context(), CurrentUser{ID: viewer}, ListRidesInput{
 		DepartureLocationID: &departureID,
 		ArrivalLocationID:   &arrivalID,
 		DepartureAfter:      &departure,
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("ListRides() error = %v", err)
 	}
-	if store.query == nil || store.query.DepartureLocationID != &departureID || store.query.ArrivalLocationID != &arrivalID || !store.query.DepartureAfter.Equal(departure) {
-		t.Fatalf("ListRides query = %#v, want filters", store.query)
+
+	wantQuery := ListRidesQuery{
+		DepartureLocationID: &departureID,
+		ArrivalLocationID:   &arrivalID,
+		DepartureAfter:      departure,
 	}
-	if len(listed) != len(rides) {
-		t.Fatalf("ListRides returned %d rides, want all %d", len(listed), len(rides))
+	if diff := cmp.Diff(wantQuery, *fake.tx.ridesQuery); diff != "" {
+		t.Errorf("ListRides query mismatch (-want +got):\n%s", diff)
 	}
-	if listed[0].Owner.Email != "" || listed[0].Riders[0].Email == "" {
-		t.Fatalf("ListRides privacy projection = %#v", listed[0])
+	if len(got) != 1 {
+		t.Fatalf("ListRides() returned %d rides, want 1", len(got))
 	}
-	if len(store.visibleCalls) != 1 {
-		t.Fatalf("ListContactVisibleUserIDs calls = %#v, want one batch", store.visibleCalls)
+	if got[0].Owner.Email != "" {
+		t.Errorf("owner email = %q, want it hidden from an unrelated viewer", got[0].Owner.Email)
 	}
-	if !store.begun || !store.rolledBack {
-		t.Fatal("ListRides did not close its read transaction")
+	if got[0].Riders[1].Email == "" {
+		t.Error("rider email is hidden, want it visible to a viewer who may see this rider")
 	}
+	// Contact permissions resolve in one batch for the whole page of rides.
+	if len(fake.tx.contactTargets) != 1 {
+		t.Errorf("contact permission lookups = %d, want 1", len(fake.tx.contactTargets))
+	}
+	requireReadOnly(t, fake)
 }
 
-func TestListRidesAnonymousOmitsPeopleAndNotes(t *testing.T) {
-	ownerID, passengerID := uuid.New(), uuid.New()
-	ride := testLoadedRide(uuid.New(), ownerID, passengerID, time.Now().Add(time.Hour))
-	ride.Riders = []UserRecord{ride.Owner, testUserRecord(passengerID, "passenger@rice.edu")}
+func TestListRidesHidesPeopleAndNotesFromGuests(t *testing.T) {
+	t.Parallel()
+	owner, passenger := uuid.New(), uuid.New()
+	ride := testRide(uuid.New(), owner, time.Now().Add(time.Hour))
+	ride.Riders = append(ride.Riders, testUser(passenger, "passenger@rice.edu"))
 	ride.Notes = "Call me at 713-555-0100"
 	ride.Capacity = 2
-	store := &lookupStore{rides: []LoadedRide{ride}}
+	fake := newFakeDatabase([]UserRecord{ride.Owner, ride.Riders[1]}, ride).showingContacts()
 
-	got, err := NewService(store).ListRides(context.Background(), CurrentUser{}, ListRidesInput{})
+	got, err := NewService(fake).ListRides(t.Context(), CurrentUser{}, ListRidesInput{})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("ListRides() error = %v", err)
 	}
-	if len(got) != 1 || got[0].Owner != (User{}) || len(got[0].Riders) != 0 || got[0].Notes != "" || got[0].OccupiedSeats != 2 {
-		t.Fatalf("anonymous ride = %#v", got)
+
+	want := []Ride{{
+		ID:                ride.ID,
+		DepartureTime:     ride.DepartureTime,
+		DepartureLocation: ride.Departure,
+		ArrivalLocation:   ride.Arrival,
+		Capacity:          2,
+		OccupiedSeats:     2,
+		Status:            RideStatusActive,
+	}}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("guest ListRides mismatch (-want +got):\n%s", diff)
 	}
-	if len(store.visibleCalls) != 0 || !store.rolledBack {
-		t.Fatalf("guest contact lookup or rollback = %#v", store)
+	// A guest has no identity to check contacts against, so asking would leak
+	// the question itself to the database.
+	if fake.called(opVisibleContacts) {
+		t.Error("ListRides consulted contact permissions for a guest, want no lookup")
 	}
 }
 
-// TestListMyRidesUsesCurrentUser checks that the caller's verified ID selects their
-// rides and that a successful read closes its transaction.
-func TestListMyRidesUsesCurrentUser(t *testing.T) {
-	viewer := uuid.New()
-	store := &lookupStore{rides: []LoadedRide{testLoadedRide(uuid.New(), uuid.New(), viewer, time.Now())}}
-	service := NewService(store)
-
-	if _, err := service.ListMyRides(context.Background(), CurrentUser{ID: viewer}); err != nil {
-		t.Fatal(err)
-	}
-	if store.myViewerID != viewer {
-		t.Fatalf("ListMyRides viewer = %v, want currentUser %v", store.myViewerID, viewer)
-	}
-	if !store.begun || !store.rolledBack {
-		t.Fatal("ListMyRides did not close its read transaction")
-	}
-}
-
-// TestListRidesClampsEarlyDepartureAfterToLookback checks a caller cannot widen
-// discovery past the lookback window by asking for an earlier departure bound.
-func TestListRidesClampsEarlyDepartureAfterToLookback(t *testing.T) {
-	store := &lookupStore{}
+// TestListRidesClampsDepartureAfterToLookback checks that the discovery window
+// cannot be widened past the lookback, however early a bound the caller asks for.
+func TestListRidesClampsDepartureAfterToLookback(t *testing.T) {
+	t.Parallel()
 	stale := time.Now().Add(-30 * 24 * time.Hour)
 
-	if _, err := NewService(store).ListRides(context.Background(), CurrentUser{ID: uuid.New()}, ListRidesInput{DepartureAfter: &stale}); err != nil {
-		t.Fatal(err)
-	}
-	cutoff := time.Now().Add(-rideDiscoveryLookback)
-	if store.query == nil || store.query.DepartureAfter.Before(cutoff.Add(-time.Minute)) {
-		t.Fatalf("DepartureAfter = %v, want it clamped up to the %v lookback", store.query, rideDiscoveryLookback)
+	for _, tc := range []struct {
+		name  string
+		input ListRidesInput
+	}{
+		{name: "no bound supplied", input: ListRidesInput{}},
+		{name: "bound earlier than the lookback", input: ListRidesInput{DepartureAfter: &stale}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fake := newFakeDatabase(nil)
+
+			if _, err := NewService(fake).ListRides(t.Context(), CurrentUser{ID: uuid.New()}, tc.input); err != nil {
+				t.Fatalf("ListRides() error = %v", err)
+			}
+
+			cutoff := time.Now().Add(-rideDiscoveryLookback)
+			got := fake.tx.ridesQuery.DepartureAfter
+			if got.Before(cutoff.Add(-time.Minute)) || got.After(cutoff.Add(time.Minute)) {
+				t.Errorf("DepartureAfter = %v, want approximately the %v cutoff %v", got, rideDiscoveryLookback, cutoff)
+			}
+		})
 	}
 }
 
-// TestListRidesUsesLookbackWhenNoDepartureAfter checks the default discovery cutoff.
-func TestListRidesUsesLookbackWhenNoDepartureAfter(t *testing.T) {
-	store := &lookupStore{}
+// TestListRidesKeepsLaterDepartureAfter checks the caller can narrow the window.
+func TestListRidesKeepsLaterDepartureAfter(t *testing.T) {
+	t.Parallel()
+	soon := time.Now().Add(2 * time.Hour).Truncate(time.Microsecond)
+	fake := newFakeDatabase(nil)
 
-	if _, err := NewService(store).ListRides(context.Background(), CurrentUser{ID: uuid.New()}, ListRidesInput{}); err != nil {
-		t.Fatal(err)
+	if _, err := NewService(fake).ListRides(t.Context(), CurrentUser{ID: uuid.New()}, ListRidesInput{DepartureAfter: &soon}); err != nil {
+		t.Fatalf("ListRides() error = %v", err)
 	}
-	cutoff := time.Now().Add(-rideDiscoveryLookback)
-	if store.query == nil || store.query.DepartureAfter.Before(cutoff.Add(-time.Minute)) || store.query.DepartureAfter.After(cutoff.Add(time.Minute)) {
-		t.Fatalf("DepartureAfter = %v, want approximately the %v cutoff", store.query, rideDiscoveryLookback)
+
+	if got := fake.tx.ridesQuery.DepartureAfter; !got.Equal(soon) {
+		t.Errorf("DepartureAfter = %v, want the caller's later bound %v", got, soon)
 	}
+}
+
+func TestListMyRidesUsesVerifiedCaller(t *testing.T) {
+	t.Parallel()
+	viewer := uuid.New()
+	fake := newFakeDatabase(nil, testRide(uuid.New(), uuid.New(), time.Now()))
+
+	if _, err := NewService(fake).ListMyRides(t.Context(), CurrentUser{ID: viewer}); err != nil {
+		t.Fatalf("ListMyRides() error = %v", err)
+	}
+
+	if fake.tx.myRidesViewer != viewer {
+		t.Errorf("ListMyRides queried viewer %v, want the verified caller %v", fake.tx.myRidesViewer, viewer)
+	}
+	requireReadOnly(t, fake)
 }

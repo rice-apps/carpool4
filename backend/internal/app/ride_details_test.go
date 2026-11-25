@@ -1,67 +1,110 @@
 package app
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 )
 
-func TestGetRideAnonymousDiscoveryBoundary(t *testing.T) {
+// TestGetRideGuestDiscoveryBoundary checks which rides a signed-out visitor may
+// open. Cancelled and long-departed rides are reported missing rather than
+// refused, so browsing cannot be used to enumerate them.
+func TestGetRideGuestDiscoveryBoundary(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
-		name         string
-		status       RideStatus
-		departure    time.Time
-		wantNotFound bool
+		name      string
+		status    RideStatus
+		departure time.Time
+		wantFound bool
 	}{
-		{"future", RideStatusActive, time.Now().Add(time.Hour), false},
-		{"cancelled", RideStatusCancelled, time.Now().Add(time.Hour), true},
-		{"old", RideStatusActive, time.Now().Add(-2 * time.Hour), true},
+		{name: "upcoming", status: RideStatusActive, departure: time.Now().Add(time.Hour), wantFound: true},
+		{name: "departed within the lookback", status: RideStatusActive, departure: time.Now().Add(-rideDiscoveryLookback / 2), wantFound: true},
+		{name: "cancelled", status: RideStatusCancelled, departure: time.Now().Add(time.Hour)},
+		{name: "departed before the lookback", status: RideStatusActive, departure: time.Now().Add(-2 * rideDiscoveryLookback)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ride := testLoadedRide(uuid.New(), uuid.New(), uuid.New(), tc.departure)
+			t.Parallel()
+			ride := testRide(uuid.New(), uuid.New(), tc.departure)
 			ride.Status = tc.status
-			ride.Riders = []UserRecord{ride.Owner}
 			ride.Notes = "private note"
-			got, err := NewService(&lookupStore{rides: []LoadedRide{ride}}).GetRide(context.Background(), CurrentUser{}, ride.ID)
-			if tc.wantNotFound {
+			fake := newFakeDatabase([]UserRecord{ride.Owner}, ride).showingContacts()
+
+			got, err := NewService(fake).GetRide(t.Context(), CurrentUser{}, ride.ID)
+			if !tc.wantFound {
 				if !errors.Is(err, ErrRideNotFound) {
-					t.Fatalf("GetRide error = %v, want ride not found", err)
+					t.Fatalf("GetRide(%v) error = %v, want ErrRideNotFound", ride.ID, err)
 				}
 				return
 			}
-			if err != nil || got.Owner != (User{}) || len(got.Riders) != 0 || got.Notes != "" || got.OccupiedSeats != 1 {
-				t.Fatalf("anonymous GetRide = %#v, %v", got, err)
+			if err != nil {
+				t.Fatalf("GetRide(%v) error = %v", ride.ID, err)
+			}
+
+			want := Ride{
+				ID:                ride.ID,
+				DepartureTime:     ride.DepartureTime,
+				DepartureLocation: ride.Departure,
+				ArrivalLocation:   ride.Arrival,
+				Capacity:          ride.Capacity,
+				OccupiedSeats:     1,
+				Status:            tc.status,
+			}
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("guest GetRide(%v) mismatch (-want +got):\n%s", ride.ID, diff)
 			}
 		})
 	}
 }
 
-// TestGetRideShowsViewerAllowedContacts checks a signed-in viewer receives trip
-// details plus the contacts their shared ride entitles them to.
-func TestGetRideShowsViewerAllowedContacts(t *testing.T) {
-	ownerID, strangerID := uuid.New(), uuid.New()
-	ride := testLoadedRide(uuid.New(), ownerID, uuid.New(), time.Now().Add(time.Hour))
-	ride.Riders = []UserRecord{ride.Owner}
+func TestGetRideAppliesContactPermissions(t *testing.T) {
+	t.Parallel()
+	owner, stranger := uuid.New(), uuid.New()
+	ride := testRide(uuid.New(), owner, time.Now().Add(time.Hour))
 	ride.Notes = "meet at the north gate"
 
-	t.Run("rider sees owner contact", func(t *testing.T) {
-		store := &lookupStore{visible: map[uuid.UUID]bool{ownerID: true}}
-		store.rides = []LoadedRide{ride}
-		got, err := NewService(store).GetRide(context.Background(), CurrentUser{ID: ownerID}, ride.ID)
-		if err != nil || got.Owner.ID != ownerID || got.Owner.Email == "" || got.Notes != ride.Notes {
-			t.Fatalf("GetRide = %#v, %v; want the owner's contacts and notes", got, err)
-		}
-	})
+	for _, tc := range []struct {
+		name         string
+		viewer       uuid.UUID
+		wantContacts bool
+	}{
+		{name: "owner sees their own contacts", viewer: owner, wantContacts: true},
+		{name: "stranger sees a redacted owner", viewer: stranger},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fake := newFakeDatabase([]UserRecord{ride.Owner}, ride)
 
-	t.Run("stranger sees redacted owner", func(t *testing.T) {
-		store := &lookupStore{visible: map[uuid.UUID]bool{}}
-		store.rides = []LoadedRide{ride}
-		got, err := NewService(store).GetRide(context.Background(), CurrentUser{ID: strangerID}, ride.ID)
-		if err != nil || got.Owner.ID != ownerID || got.Owner.Email != "" || got.Owner.Phone != "" {
-			t.Fatalf("GetRide = %#v, %v; want the owner without contact fields", got, err)
-		}
-	})
+			got, err := NewService(fake).GetRide(t.Context(), CurrentUser{ID: tc.viewer}, ride.ID)
+			if err != nil {
+				t.Fatalf("GetRide(%v) error = %v", ride.ID, err)
+			}
+
+			wantOwner := User{ID: owner, FirstName: ride.Owner.FirstName, LastName: ride.Owner.LastName}
+			if tc.wantContacts {
+				wantOwner.Email, wantOwner.Phone = ride.Owner.Email, ride.Owner.Phone
+			}
+			if diff := cmp.Diff(wantOwner, got.Owner); diff != "" {
+				t.Errorf("GetRide(%v) owner mismatch (-want +got):\n%s", ride.ID, diff)
+			}
+			// Notes reach every signed-in viewer, unlike contact details.
+			if got.Notes != ride.Notes {
+				t.Errorf("notes = %q, want %q", got.Notes, ride.Notes)
+			}
+		})
+	}
+}
+
+func TestGetRideRejectsEmptyRideID(t *testing.T) {
+	t.Parallel()
+	fake := newFakeDatabase(nil)
+
+	if _, err := NewService(fake).GetRide(t.Context(), CurrentUser{ID: uuid.New()}, uuid.Nil); !errors.Is(err, ErrInvalidArgument) {
+		t.Errorf("GetRide(uuid.Nil) error = %v, want ErrInvalidArgument", err)
+	}
+	if fake.called(opBegin) {
+		t.Error("GetRide opened a transaction for an empty ride ID")
+	}
 }
