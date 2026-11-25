@@ -2,9 +2,7 @@ package rpc_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -12,80 +10,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	"github.com/rice-apps/carpool4/backend/internal/auth"
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
-	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
-	"github.com/rice-apps/carpool4/backend/internal/rpc"
 )
-
-// TestMain runs this package's tests with the disposable database harness.
-func TestMain(m *testing.M) { os.Exit(dbtest.Run(m)) }
-
-// dbMutationFixture holds a database, verified callers, and a reusable ride request.
-//
-// Fields:
-//   - db: the disposable database used for assertions and setup.
-//   - server: the RPC server backed by that database.
-//   - owner: the user who creates and manages the ride.
-//   - first: one competing rider in concurrency tests.
-//   - second: the other competing rider in concurrency tests.
-//   - request: a valid ride creation request reused by tests.
-type dbMutationFixture struct {
-	db                   *sql.DB
-	server               *rpc.Server
-	owner, first, second uuid.UUID
-	request              *v1.CreateRideRequest
-}
-
-// newDBMutationFixture returns a disposable database, three users, two locations,
-// an RPC server, and a valid ride request. Setup failures stop t.
-func newDBMutationFixture(t *testing.T) dbMutationFixture {
-	t.Helper()
-	f := dbMutationFixture{db: dbtest.DB(t), owner: uuid.New(), first: uuid.New(), second: uuid.New()}
-	for _, id := range []uuid.UUID{f.owner, f.first, f.second} {
-		if _, err := f.db.Exec(`INSERT INTO auth.users (id) VALUES ($1)`, id); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := f.db.Exec(`INSERT INTO users (id, first_name, last_name, email, phone) VALUES ($1, 'Test', 'User', $2, '7135550100')`, id, id.String()+"@rice.edu"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	departure, arrival := uuid.New(), uuid.New()
-	if _, err := f.db.Exec(`INSERT INTO locations (id, title, address) VALUES ($1, 'Departure', $3), ($2, 'Arrival', $4)`, departure, arrival, departure.String(), arrival.String()); err != nil {
-		t.Fatal(err)
-	}
-	f.request = &v1.CreateRideRequest{DepartureTime: timestamppb.New(time.Now().Add(24 * time.Hour)), DepartureLocationId: departure.String(), ArrivalLocationId: arrival.String(), Capacity: 2}
-	f.server = newRPCServer(postgres.NewDatabase(f.db))
-	return f
-}
-
-// dbCaller returns a verified context for id using the fixture email convention.
-func dbCaller(id uuid.UUID) context.Context {
-	return auth.WithUser(context.Background(), auth.User{ID: id, Email: id.String() + "@rice.edu"})
-}
-
-// create returns the new ride's ID string after f's owner creates it.
-// It fails t if creation fails or the owner is missing from the riders.
-func (f dbMutationFixture) create(t *testing.T) string {
-	t.Helper()
-	r, err := f.server.CreateRide(dbCaller(f.owner), connect.NewRequest(f.request))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(r.Msg.Ride.Riders) != 1 || r.Msg.Ride.Riders[0].Id != f.owner.String() {
-		t.Fatalf("missing owner occupant: %v", r.Msg.Ride)
-	}
-	return r.Msg.Ride.Id
-}
-
-// update returns a request for ride id with f's route and the given capacity.
-func (f dbMutationFixture) update(id string, capacity int32) *connect.Request[v1.UpdateRideRequest] {
-	return connect.NewRequest(&v1.UpdateRideRequest{Id: id, DepartureTime: f.request.DepartureTime, DepartureLocationId: f.request.DepartureLocationId, ArrivalLocationId: f.request.ArrivalLocationId, Capacity: capacity})
-}
 
 // mutationReadBarrier pauses concurrent mutations after their ride reads.
 //
@@ -207,9 +136,9 @@ type mutationResult struct {
 	err error
 }
 
-// TestMutationDBConcurrentLastSeat checks two joins for one seat yield one commit and one conflict.
+// TestConcurrentJoinsClaimTheLastSeatOnce checks two joins for one seat yield one commit and one conflict.
 // A fresh retry must then see the full ride rather than repeating the stale decision.
-func TestMutationDBConcurrentLastSeat(t *testing.T) {
+func TestConcurrentJoinsClaimTheLastSeatOnce(t *testing.T) {
 	f := newDBMutationFixture(t)
 	id := f.create(t)
 	barrier := newMutationReadBarrier(t)
@@ -224,53 +153,40 @@ func TestMutationDBConcurrentLastSeat(t *testing.T) {
 		}()
 	}
 	barrier.releaseWhenArrived(t, 2)
-	successes, conflicts := 0, 0
-	var conflicted uuid.UUID
-	for range 2 {
-		result := <-results
-		if result.err == nil {
-			successes++
-		} else if connect.CodeOf(result.err) == connect.CodeAborted {
-			conflicts++
-			conflicted = result.who
-		} else {
-			t.Fatalf("join: %v", result.err)
-		}
+	conflicted := assertOneSuccessOneConflict(t, <-results, <-results)
+	if occupants := f.occupants(t, id); occupants != 2 {
+		t.Errorf("occupants = %d, want the ride full at 2", occupants)
 	}
-	if successes != 1 || conflicts != 1 {
-		t.Fatalf("success=%d conflicts=%d", successes, conflicts)
+	// Retrying in a fresh transaction must now see the ride as full, not as a
+	// conflict: the race is over and the seat is gone.
+	_, retryErr := f.server.JoinRide(dbCaller(conflicted), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
+	if got := connect.CodeOf(retryErr); got != connect.CodeFailedPrecondition {
+		t.Errorf("retry after conflict: code = %v, want %v", got, connect.CodeFailedPrecondition)
 	}
-	var occupants int
-	if err := f.db.QueryRow(`SELECT count(*) FROM ride_occupants WHERE ride_id=$1`, id).Scan(&occupants); err != nil {
-		t.Fatal(err)
-	}
-	if occupants != 2 {
-		t.Fatalf("capacity 2 has %d occupants", occupants)
-	}
-	if _, err := f.server.JoinRide(dbCaller(conflicted), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); connect.CodeOf(err) != connect.CodeFailedPrecondition || err.Error() != "failed_precondition: this ride is full" {
-		t.Fatalf("fresh retry after conflict = %v, want full ride", err)
+	if want := "failed_precondition: this ride is full"; retryErr.Error() != want {
+		t.Errorf("retry after conflict: error = %q, want %q", retryErr, want)
 	}
 }
 
-// TestMutationDBConcurrentJoinAndCapacityReduction checks serializable join versus capacity update.
+// TestConcurrentJoinAndCapacityReductionSerialize checks serializable join versus capacity update.
 // The persisted seat count and capacity must match one complete ordering.
-func TestMutationDBConcurrentJoinAndCapacityReduction(t *testing.T) {
+func TestConcurrentJoinAndCapacityReductionSerialize(t *testing.T) {
 	f := newDBMutationFixture(t)
 	id := f.create(t)
 	barrier := newMutationReadBarrier(t)
 	server := newRPCServer(barrierMutationDatabase{Database: postgres.NewDatabase(f.db), barrier: barrier})
-	results := make(chan error, 2)
+	results := make(chan mutationResult, 2)
 	go func() {
 		ctx, cancel := context.WithTimeout(dbCaller(f.first), 10*time.Second)
 		defer cancel()
 		_, err := server.JoinRide(ctx, connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-		results <- err
+		results <- mutationResult{who: f.first, err: err}
 	}()
 	go func() {
 		ctx, cancel := context.WithTimeout(dbCaller(f.owner), 10*time.Second)
 		defer cancel()
 		_, err := server.UpdateRide(ctx, f.update(id, 1))
-		results <- err
+		results <- mutationResult{who: f.owner, err: err}
 	}()
 	barrier.releaseWhenArrived(t, 2)
 	assertOneSuccessOneConflict(t, <-results, <-results)
@@ -285,23 +201,27 @@ func TestMutationDBConcurrentJoinAndCapacityReduction(t *testing.T) {
 }
 
 // assertOneSuccessOneConflict fails t unless two mutation errors contain one nil and one Aborted.
-func assertOneSuccessOneConflict(t *testing.T, first, second error) {
+// assertOneSuccessOneConflict checks that exactly one of two racing mutations
+// committed and the other was told to retry, and returns the caller that lost.
+func assertOneSuccessOneConflict(t *testing.T, results ...mutationResult) uuid.UUID {
 	t.Helper()
-	errors := []error{first, second}
+	var conflicted uuid.UUID
 	successes, conflicts := 0, 0
-	for _, err := range errors {
+	for _, result := range results {
 		switch {
-		case err == nil:
+		case result.err == nil:
 			successes++
-		case connect.CodeOf(err) == connect.CodeAborted:
+		case connect.CodeOf(result.err) == connect.CodeAborted:
 			conflicts++
+			conflicted = result.who
 		default:
-			t.Fatalf("mutation error = %v, want success or transaction conflict", err)
+			t.Fatalf("mutation error = %v, want success or transaction conflict", result.err)
 		}
 	}
 	if successes != 1 || conflicts != 1 {
-		t.Fatalf("mutation errors = %v, want one success and one conflict", errors)
+		t.Fatalf("racing mutations gave %d successes and %d conflicts, want one of each", successes, conflicts)
 	}
+	return conflicted
 }
 
 var errInjectedLoad = errors.New("injected load failure")
@@ -344,13 +264,16 @@ func (failingGetRides) GetRide(context.Context, uuid.UUID) (app.LoadedRide, erro
 	return app.LoadedRide{}, errInjectedLoad
 }
 
-// TestMutationDBPostWriteLoadFailureRollsBackCreate checks response assembly failure rolls back both rows.
-func TestMutationDBPostWriteLoadFailureRollsBackCreate(t *testing.T) {
+// TestFailedPostWriteLoadRollsBackCreate checks response assembly failure rolls back both rows.
+func TestFailedPostWriteLoadRollsBackCreate(t *testing.T) {
 	f := newDBMutationFixture(t)
 	server := newRPCServer(failingLoadDatabase{Database: postgres.NewDatabase(f.db)})
 	_, err := server.CreateRide(dbCaller(f.owner), connect.NewRequest(f.request))
-	if connect.CodeOf(err) != connect.CodeInternal || !errors.Is(err, errInjectedLoad) {
-		t.Fatalf("post-write load failure = %v", err)
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Errorf("code = %v, want %v", got, connect.CodeInternal)
+	}
+	if !errors.Is(err, errInjectedLoad) {
+		t.Errorf("error = %v, want it to wrap the injected load failure", err)
 	}
 	var rides, occupants int
 	if err := f.db.QueryRow(`SELECT (SELECT count(*) FROM rides), (SELECT count(*) FROM ride_occupants)`).Scan(&rides, &occupants); err != nil {
@@ -361,12 +284,11 @@ func TestMutationDBPostWriteLoadFailureRollsBackCreate(t *testing.T) {
 	}
 }
 
-// TestMutationDBMissingProfileInsertFailure checks raw foreign-key diagnostics remain private on the wire.
+// TestJoinWithMissingProfileReportsSanitizedInternal checks raw foreign-key diagnostics remain private on the wire.
 // A failed join must also leave occupancy unchanged.
-func TestMutationDBMissingProfileInsertFailure(t *testing.T) {
-	// Catches classifying occupant foreign-key failures as invalid ride writes:
-	// this adapter operation historically returned the raw failure, which JoinRide
-	// must expose as a generic Internal error with its diagnostic cause retained.
+func TestJoinWithMissingProfileReportsSanitizedInternal(t *testing.T) {
+	// An occupant foreign-key failure is a server fault, not an invalid ride
+	// write, so JoinRide must report Internal while keeping the cause for logs.
 	f := newDBMutationFixture(t)
 	id := f.create(t)
 	if _, err := f.db.Exec(`DELETE FROM users WHERE id=$1`, f.first); err != nil {
@@ -375,22 +297,27 @@ func TestMutationDBMissingProfileInsertFailure(t *testing.T) {
 
 	t.Run("RPC returns sanitized internal", func(t *testing.T) {
 		_, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-		if connect.CodeOf(err) != connect.CodeInternal || err.Error() != "internal: internal server error" {
-			t.Fatalf("JoinRide missing profile = %v, want sanitized Internal", err)
+		if got := connect.CodeOf(err); got != connect.CodeInternal {
+			t.Errorf("code = %v, want %v", got, connect.CodeInternal)
+		}
+		if want := "internal: internal server error"; err.Error() != want {
+			t.Errorf("error = %q, want the sanitized %q", err, want)
 		}
 		var wireError *connect.Error
-		if !errors.As(err, &wireError) || wireError.Message() != "internal server error" {
-			t.Fatalf("unsafe wire message: %v", wireError)
+		if !errors.As(err, &wireError) {
+			t.Fatalf("error = %v, want a *connect.Error", err)
+		}
+		if want := "internal server error"; wireError.Message() != want {
+			t.Errorf("wire message = %q, want %q", wireError.Message(), want)
 		}
 		var pgError *pgconn.PgError
-		if !errors.As(err, &pgError) || pgError.Code != "23503" || !errors.Is(err, pgError) {
-			t.Fatalf("JoinRide discarded PostgreSQL cause: %v", err)
+		if !errors.As(err, &pgError) {
+			t.Fatalf("error = %v, want it to carry a *pgconn.PgError for logs", err)
 		}
-		var occupants int
-		if err := f.db.QueryRow(`SELECT count(*) FROM ride_occupants WHERE ride_id=$1`, id).Scan(&occupants); err != nil {
-			t.Fatal(err)
+		if pgError.Code != "23503" {
+			t.Errorf("SQLSTATE = %q, want a foreign-key violation (23503)", pgError.Code)
 		}
-		if occupants != 1 {
+		if occupants := f.occupants(t, id); occupants != 1 {
 			t.Fatalf("failed join persisted: %d occupants", occupants)
 		}
 	})

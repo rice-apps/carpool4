@@ -12,15 +12,19 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/testing/protocmp"
+
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1/carpoolv1connect"
 )
 
-// registeredServer starts both HTTP services with database, test identity, and captured logs.
-// The returned server is closed by t's cleanup; the buffer lets tests inspect middleware output.
+// registeredServer starts both services over HTTP with a test identity
+// interceptor and captured logs. The returned buffer lets a test inspect what
+// the middleware recorded.
 func registeredServer(t *testing.T, database app.Database) (*httptest.Server, *bytes.Buffer) {
 	t.Helper()
 	var logs bytes.Buffer
@@ -35,167 +39,278 @@ func registeredServer(t *testing.T, database app.Database) (*httptest.Server, *b
 	}
 	mux := http.NewServeMux()
 	if err := Register(mux, newTestServer(database), identity, slog.New(slog.NewJSONHandler(&logs, nil))); err != nil {
-		t.Fatal(err)
+		t.Fatalf("Register() error = %v", err)
 	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return server, &logs
 }
 
-func TestRegisterPublicRideReads(t *testing.T) {
+// publicRideFixture is a ride whose notes and people a guest must not see.
+func publicRideFixture() app.LoadedRide {
 	owner := testUser(uuid.New(), "owner@rice.edu")
 	passenger := testUser(uuid.New(), "passenger@rice.edu")
-	rideID := uuid.New()
-	ride := app.LoadedRide{
-		ID:            rideID,
-		DepartureTime: time.Now().Add(time.Hour),
-		Owner:         owner,
-		Riders:        []app.UserRecord{owner, passenger},
-		Notes:         "Call owner at 713-555-0100",
-		Capacity:      3,
-		Status:        app.RideStatusActive,
-		Departure:     app.LocationRecord{ID: uuid.New(), Title: "Rice"},
-		Arrival:       app.LocationRecord{ID: uuid.New(), Title: "IAH"},
+	return app.LoadedRide{
+		ID: uuid.New(), DepartureTime: time.Now().Add(time.Hour), Owner: owner,
+		Riders: []app.UserRecord{owner, passenger}, Notes: "Call owner at 713-555-0100",
+		Capacity: 3, Status: app.RideStatusActive,
+		Departure: app.LocationRecord{ID: uuid.New(), Title: "Rice"},
+		Arrival:   app.LocationRecord{ID: uuid.New(), Title: "IAH"},
 	}
-	server, _ := registeredServer(t, &fakeStore{
-		rides:     map[uuid.UUID]app.LoadedRide{rideID: ride},
-		listed:    []app.LoadedRide{ride},
+}
+
+// assertGuestRide fails t unless ride carries trip facts and nothing personal.
+// It diffs the whole message so a newly added field cannot leak unnoticed.
+func assertGuestRide(t *testing.T, got *v1.Ride, want app.LoadedRide) {
+	t.Helper()
+	expected := &v1.Ride{
+		Id:                want.ID.String(),
+		DepartureTime:     got.GetDepartureTime(),
+		DepartureLocation: &v1.Location{Id: want.Departure.ID.String(), Title: want.Departure.Title},
+		ArrivalLocation:   &v1.Location{Id: want.Arrival.ID.String(), Title: want.Arrival.Title},
+		Capacity:          want.Capacity,
+		OccupiedSeats:     int32(len(want.Riders)),
+		Status:            v1.RideStatus_RIDE_STATUS_ACTIVE,
+		Riders:            []*v1.User{},
+	}
+	if diff := cmp.Diff(expected, got, protocmp.Transform()); diff != "" {
+		t.Errorf("guest ride mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestRegisterServesGuestReads(t *testing.T) {
+	t.Parallel()
+	ride := publicRideFixture()
+	server, _ := registeredServer(t, &fakeDatabase{
+		rides:     map[uuid.UUID]app.LoadedRide{ride.ID: ride},
+		discovery: []app.LoadedRide{ride},
 		locations: []app.LocationRecord{ride.Departure, ride.Arrival},
 	})
 	rides := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
+
+	t.Run("ListRides", func(t *testing.T) {
+		listed, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{}))
+		if err != nil {
+			t.Fatalf("ListRides() error = %v", err)
+		}
+		if len(listed.Msg.Rides) != 1 {
+			t.Fatalf("ListRides() returned %d rides, want 1", len(listed.Msg.Rides))
+		}
+		assertGuestRide(t, listed.Msg.Rides[0], ride)
+	})
+
+	t.Run("GetRide", func(t *testing.T) {
+		got, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: ride.ID.String()}))
+		if err != nil {
+			t.Fatalf("GetRide() error = %v", err)
+		}
+		assertGuestRide(t, got.Msg.Ride, ride)
+	})
+
+	t.Run("ListLocations", func(t *testing.T) {
+		got, err := rides.ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
+		if err != nil {
+			t.Fatalf("ListLocations() error = %v", err)
+		}
+		if len(got.Msg.Locations) != 2 {
+			t.Errorf("ListLocations() returned %d locations, want 2", len(got.Msg.Locations))
+		}
+	})
+}
+
+func TestRegisterRefusesGuestsOnProtectedReads(t *testing.T) {
+	t.Parallel()
+	server, _ := registeredServer(t, &fakeDatabase{})
+	rides := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
 	users := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
 
-	listed, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{}))
-	if err != nil || len(listed.Msg.Rides) != 1 {
-		t.Fatalf("public list = %v, %v", listed, err)
-	}
-	assertPublicRide(t, listed.Msg.Rides[0], rideID)
-	got, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: rideID.String()}))
-	if err != nil {
-		t.Fatalf("public ride = %v", err)
-	}
-	assertPublicRide(t, got.Msg.Ride, rideID)
-	locations, err := rides.ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
-	if err != nil || len(locations.Msg.Locations) != 2 {
-		t.Fatalf("public locations = %v, %v", locations, err)
-	}
+	t.Run("ListMyRides", func(t *testing.T) {
+		_, err := rides.ListMyRides(context.Background(), connect.NewRequest(&v1.ListMyRidesRequest{}))
+		if got := connect.CodeOf(err); got != connect.CodeUnauthenticated {
+			t.Errorf("ListMyRides() code = %v, want %v", got, connect.CodeUnauthenticated)
+		}
+	})
+	t.Run("GetUser", func(t *testing.T) {
+		_, err := users.GetUser(context.Background(), connect.NewRequest(&v1.GetUserRequest{}))
+		if got := connect.CodeOf(err); got != connect.CodeUnauthenticated {
+			t.Errorf("GetUser() code = %v, want %v", got, connect.CodeUnauthenticated)
+		}
+	})
+}
 
-	if _, err := rides.ListMyRides(context.Background(), connect.NewRequest(&v1.ListMyRidesRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("ListMyRides without auth = %v", err)
-	}
-	if _, err := users.GetUser(context.Background(), connect.NewRequest(&v1.GetUserRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("GetUser without auth = %v", err)
-	}
+// TestRegisterRefusesAnySuppliedCredential checks that the guest exemption
+// applies only when no Authorization header is sent at all. A caller who offers
+// a credential is held to it, so a malformed token cannot buy guest access.
+func TestRegisterRefusesAnySuppliedCredential(t *testing.T) {
+	t.Parallel()
+	ride := publicRideFixture()
+	server, _ := registeredServer(t, &fakeDatabase{
+		rides:     map[uuid.UUID]app.LoadedRide{ride.ID: ride},
+		discovery: []app.LoadedRide{ride},
+		locations: []app.LocationRecord{ride.Departure},
+	})
+	rides := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
 
-	for _, authorization := range []string{"Bearer invalid", "Basic anything", ""} {
-		t.Run("credential_"+authorization, func(t *testing.T) {
-			listReq := connect.NewRequest(&v1.ListRidesRequest{})
-			listReq.Header().Set("Authorization", authorization)
-			if _, err := rides.ListRides(context.Background(), listReq); connect.CodeOf(err) != connect.CodeUnauthenticated {
-				t.Fatalf("ListRides with %q = %v", authorization, err)
+	for _, tc := range []struct {
+		name, authorization string
+	}{
+		{"invalid bearer token", "Bearer invalid"},
+		{"wrong scheme", "Basic anything"},
+		{"empty header", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			calls := []struct {
+				name string
+				send func() error
+			}{
+				{"ListRides", func() error {
+					req := connect.NewRequest(&v1.ListRidesRequest{})
+					req.Header().Set("Authorization", tc.authorization)
+					_, err := rides.ListRides(context.Background(), req)
+					return err
+				}},
+				{"GetRide", func() error {
+					req := connect.NewRequest(&v1.GetRideRequest{Id: ride.ID.String()})
+					req.Header().Set("Authorization", tc.authorization)
+					_, err := rides.GetRide(context.Background(), req)
+					return err
+				}},
+				{"ListLocations", func() error {
+					req := connect.NewRequest(&v1.ListLocationsRequest{})
+					req.Header().Set("Authorization", tc.authorization)
+					_, err := rides.ListLocations(context.Background(), req)
+					return err
+				}},
 			}
-			getReq := connect.NewRequest(&v1.GetRideRequest{Id: rideID.String()})
-			getReq.Header().Set("Authorization", authorization)
-			if _, err := rides.GetRide(context.Background(), getReq); connect.CodeOf(err) != connect.CodeUnauthenticated {
-				t.Fatalf("GetRide with %q = %v", authorization, err)
-			}
-			locationReq := connect.NewRequest(&v1.ListLocationsRequest{})
-			locationReq.Header().Set("Authorization", authorization)
-			if _, err := rides.ListLocations(context.Background(), locationReq); connect.CodeOf(err) != connect.CodeUnauthenticated {
-				t.Fatalf("ListLocations with %q = %v", authorization, err)
+			for _, call := range calls {
+				if got := connect.CodeOf(call.send()); got != connect.CodeUnauthenticated {
+					t.Errorf("%s() with %q: code = %v, want %v", call.name, tc.authorization, got, connect.CodeUnauthenticated)
+				}
 			}
 		})
 	}
-
-	if _, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: "bad-id"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("guest GetRide bad ID = %v", err)
-	}
-	badID := "bad-id"
-	if _, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &badID})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("guest ListRides bad filter = %v", err)
-	}
 }
 
-func assertPublicRide(t *testing.T, ride *v1.Ride, id uuid.UUID) {
-	t.Helper()
-	if ride == nil || ride.Id != id.String() || ride.Owner != nil || len(ride.Riders) != 0 || ride.Notes != "" || ride.OccupiedSeats != 2 || ride.Capacity != 3 {
-		t.Fatalf("public ride = %#v", ride)
-	}
+func TestRegisterRejectsMalformedGuestRequests(t *testing.T) {
+	t.Parallel()
+	server, _ := registeredServer(t, &fakeDatabase{})
+	rides := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
+	bad := "bad-id"
+
+	t.Run("GetRide", func(t *testing.T) {
+		_, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: bad}))
+		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+			t.Errorf("GetRide() code = %v, want %v", got, connect.CodeInvalidArgument)
+		}
+	})
+	t.Run("ListRides", func(t *testing.T) {
+		_, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &bad}))
+		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+			t.Errorf("ListRides() code = %v, want %v", got, connect.CodeInvalidArgument)
+		}
+	})
 }
 
-// TestRegisterServesBothServices checks both generated services are reachable through Register.
 func TestRegisterServesBothServices(t *testing.T) {
-	// Removing either generated registration must break an authenticated successful RPC.
+	t.Parallel()
 	id := uuid.New()
-	server, logs := registeredServer(t, &fakeStore{users: map[uuid.UUID]app.UserRecord{id: testUser(id, "caller@rice.edu")}})
-	userClient := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
+	server, _ := registeredServer(t, &fakeDatabase{users: map[uuid.UUID]app.UserRecord{id: testUser(id, "caller@rice.edu")}})
+
 	userReq := connect.NewRequest(&v1.GetUserRequest{})
 	userReq.Header().Set("X-Test-User", id.String())
-	user, err := userClient.GetUser(context.Background(), userReq)
-	if err != nil || user.Msg.User.Id != id.String() {
-		t.Fatalf("GetUser = %v, %v", user, err)
+	user, err := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL).GetUser(context.Background(), userReq)
+	if err != nil {
+		t.Fatalf("GetUser() error = %v", err)
 	}
-	rideClient := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
+	if user.Msg.User.Id != id.String() {
+		t.Errorf("GetUser() id = %q, want %q", user.Msg.User.Id, id)
+	}
+
 	rideReq := connect.NewRequest(&v1.ListLocationsRequest{})
 	rideReq.Header().Set("X-Test-User", id.String())
-	if _, err := rideClient.ListLocations(context.Background(), rideReq); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Count(logs.String(), `"msg":"request handled"`) != 2 {
-		t.Fatalf("success logs = %s", logs)
+	if _, err := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL).ListLocations(context.Background(), rideReq); err != nil {
+		t.Errorf("ListLocations() error = %v", err)
 	}
 }
 
-// TestRegisterOrdersLoggingAuthenticationAndValidation checks rejection precedence and single logging.
-func TestRegisterOrdersLoggingAuthenticationAndValidation(t *testing.T) {
-	// Removing auth/validation, swapping them, or putting logging inside either loses the expected rejection/log.
-	for _, authenticated := range []bool{false, true} {
-		t.Run(map[bool]string{false: "unauthenticated", true: "invalid authenticated request"}[authenticated], func(t *testing.T) {
-			server, logs := registeredServer(t, &fakeStore{})
+// TestRegisterAuthenticatesBeforeValidating checks interceptor order: an
+// unauthenticated caller is refused without their request being inspected, and
+// either rejection is logged exactly once.
+func TestRegisterAuthenticatesBeforeValidating(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		authenticated bool
+		want          connect.Code
+	}{
+		{name: "no identity", want: connect.CodeUnauthenticated},
+		{name: "identity with an invalid request", authenticated: true, want: connect.CodeInvalidArgument},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server, logs := registeredServer(t, &fakeDatabase{})
 			client := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
-			// Protovalidate rejects the raw 101-character name; the application
-			// would trim it to "A" and successfully save without this interceptor.
+			// Protovalidate rejects the raw 101-character name. The application
+			// would trim it to "A" and save successfully, so only the interceptor
+			// can produce this rejection.
 			req := connect.NewRequest(&v1.UpdateUserRequest{FirstName: strings.Repeat(" ", 100) + "A", LastName: "User"})
-			want := connect.CodeUnauthenticated
-			if authenticated {
+			if tc.authenticated {
 				req.Header().Set("X-Test-User", uuid.NewString())
-				want = connect.CodeInvalidArgument
 			}
+
 			_, err := client.UpdateUser(context.Background(), req)
-			if connect.CodeOf(err) != want {
-				t.Fatalf("error = %v, want %v", err, want)
+
+			if got := connect.CodeOf(err); got != tc.want {
+				t.Errorf("UpdateUser() code = %v, want %v", got, tc.want)
 			}
-			if strings.Count(strings.TrimSpace(logs.String()), "\n") != 0 || !strings.Contains(logs.String(), `"code":"`+want.String()+`"`) {
-				t.Fatalf("rejection log = %s", logs)
+			if lines := strings.Count(strings.TrimSpace(logs.String()), "\n") + 1; lines != 1 {
+				t.Errorf("logged %d lines, want exactly 1:\n%s", lines, logs)
+			}
+			if want := `"code":"` + tc.want.String() + `"`; !strings.Contains(logs.String(), want) {
+				t.Errorf("log does not record %s:\n%s", want, logs)
 			}
 		})
 	}
 }
 
-// TestRegisterLimitsRequestBody checks oversized payloads fail at the HTTP read limit.
 func TestRegisterLimitsRequestBody(t *testing.T) {
-	// Omitting the configured read limit changes this rejection to validation or auth failure.
-	server, _ := registeredServer(t, &fakeStore{})
+	t.Parallel()
+	server, _ := registeredServer(t, &fakeDatabase{})
 	client := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
+
 	_, err := client.CreateRide(context.Background(), connect.NewRequest(&v1.CreateRideRequest{Notes: strings.Repeat("x", 70<<10)}))
-	if connect.CodeOf(err) != connect.CodeResourceExhausted {
-		t.Fatalf("error = %v, want resource_exhausted", err)
+
+	if got := connect.CodeOf(err); got != connect.CodeResourceExhausted {
+		t.Errorf("CreateRide() with a 70KB body: code = %v, want %v", got, connect.CodeResourceExhausted)
 	}
 }
 
-// TestRegisterSanitizesUnknownErrorsAndLogsCauseOnce checks private storage details stay out of client errors.
-func TestRegisterSanitizesUnknownErrorsAndLogsCauseOnce(t *testing.T) {
-	// Returning the storage cause exposes a secret; logging the public error loses diagnostics.
+// TestRegisterSanitizesUnknownErrors checks the two halves of the contract: the
+// storage detail never reaches the client, and it reaches the log exactly once.
+func TestRegisterSanitizesUnknownErrors(t *testing.T) {
+	t.Parallel()
 	const secret = "postgres://service-role:secret@db.internal/carpool"
-	server, logs := registeredServer(t, &fakeStore{findErr: errors.New(secret)})
+	server, logs := registeredServer(t, (&fakeDatabase{}).failing(opFindUser, errors.New(secret)))
 	client := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
 	req := connect.NewRequest(&v1.GetUserRequest{})
 	req.Header().Set("X-Test-User", uuid.NewString())
+
 	_, err := client.GetUser(context.Background(), req)
-	if connect.CodeOf(err) != connect.CodeInternal || strings.Contains(err.Error(), secret) || !strings.Contains(err.Error(), "internal server error") {
-		t.Fatalf("client error = %v", err)
+
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Errorf("GetUser() code = %v, want %v", got, connect.CodeInternal)
 	}
-	if strings.Count(logs.String(), secret) != 1 || !strings.Contains(logs.String(), `"code":"internal"`) || !strings.Contains(logs.String(), carpoolv1connect.UserServiceGetUserProcedure) {
-		t.Fatalf("cause log = %s", logs)
+	if strings.Contains(err.Error(), secret) {
+		t.Errorf("client error leaked the storage detail: %v", err)
+	}
+	if !strings.Contains(err.Error(), "internal server error") {
+		t.Errorf("client error = %v, want the generic message", err)
+	}
+	if got := strings.Count(logs.String(), secret); got != 1 {
+		t.Errorf("logged the cause %d times, want exactly 1:\n%s", got, logs)
+	}
+	if !strings.Contains(logs.String(), carpoolv1connect.UserServiceGetUserProcedure) {
+		t.Errorf("log does not name the procedure:\n%s", logs)
 	}
 }

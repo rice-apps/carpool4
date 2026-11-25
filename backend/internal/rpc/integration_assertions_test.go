@@ -28,3 +28,16 @@ func assertRPCContactRedacted(t *testing.T, got *v1.User, wantID uuid.UUID) {
 		t.Fatalf("user %s exposed protected fields: email=%q phone=%q", got.Id, got.Email, got.Phone)
 	}
 }
+
+// assertContactsHidden fails t unless got carries no protected contact fields.
+// Use it where the expected ID is not known independently of got; deriving the
+// want from the value under test would make the ID check a tautology.
+func assertContactsHidden(t *testing.T, got *v1.User) {
+	t.Helper()
+	if got == nil {
+		t.Fatal("user is nil")
+	}
+	if got.Email != "" || got.Phone != "" {
+		t.Errorf("user %s exposed protected fields: email=%q phone=%q", got.Id, got.Email, got.Phone)
+	}
+}
