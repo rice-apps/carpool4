@@ -64,25 +64,27 @@ func TestDBPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 	}
 }
 
-// TestDBUpdateUserCreatesFirstProfile checks a verified auth user can create a normalized profile.
-func TestDBUpdateUserCreatesFirstProfile(t *testing.T) {
-	// UpdateUser must insert a normalized profile for a verified caller who
-	// exists only in auth_users; an update-only implementation must fail here.
+// TestDBUpdateUserCreatesAndNormalizesProfile checks the first write for a caller who
+// exists only in auth_users inserts rather than updates, that stored fields are
+// normalized, that an optional value can be cleared, and that a differently-cased
+// self ID resolves to the same profile.
+func TestDBUpdateUserCreatesAndNormalizesProfile(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	id := uuid.New()
 	if _, err := db.Exec(`INSERT INTO auth_users (id) VALUES ($1)`, id); err != nil {
 		t.Fatal(err)
 	}
 	server := newRPCServer(postgres.NewDatabase(db))
-	updated, err := server.UpdateUser(dbCaller(id), connect.NewRequest(&v1.UpdateUserRequest{
-		FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  ",
-	}))
+
+	request := &v1.UpdateUserRequest{FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  "}
+	updated, err := server.UpdateUser(dbCaller(id), connect.NewRequest(request))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := updated.Msg.User; got.Id != id.String() || got.Email != id.String()+"@rice.edu" || got.FirstName != "Ada" || got.LastName != "Lovelace" || got.Phone != "713-555-0100" {
 		t.Fatalf("created profile = %v", got)
 	}
+
 	var persistedID uuid.UUID
 	var email, firstName, lastName, phone string
 	if err := db.QueryRow(`SELECT id, email, first_name, last_name, phone FROM users WHERE id=$1`, id).Scan(&persistedID, &email, &firstName, &lastName, &phone); err != nil {
@@ -91,31 +93,18 @@ func TestDBUpdateUserCreatesFirstProfile(t *testing.T) {
 	if persistedID != id || email != id.String()+"@rice.edu" || firstName != "Ada" || lastName != "Lovelace" || phone != "713-555-0100" {
 		t.Fatalf("persisted profile: id=%s email=%q name=%q %q phone=%q", persistedID, email, firstName, lastName, phone)
 	}
-}
 
-// TestDBUserNormalizationAndEquivalentSelfID checks normalized writes, cleared optional fields, and UUID equality.
-func TestDBUserNormalizationAndEquivalentSelfID(t *testing.T) {
-	// The adapter must persist normalized fields, including optional values being cleared.
-	f := newDBMutationFixture(t)
-	request := &v1.UpdateUserRequest{FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  "}
-	updated, err := f.server.UpdateUser(dbCaller(f.owner), connect.NewRequest(request))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updated.Msg.User.FirstName != "Ada" || updated.Msg.User.LastName != "Lovelace" || updated.Msg.User.Phone != "713-555-0100" {
-		t.Fatalf("normalization = %v", updated.Msg.User)
-	}
-	upper := strings.ToUpper(f.owner.String())
-	got, err := f.server.GetUser(dbCaller(f.owner), connect.NewRequest(&v1.GetUserRequest{UserId: &upper}))
-	if err != nil || got.Msg.User.Email != f.owner.String()+"@rice.edu" {
+	upper := strings.ToUpper(id.String())
+	got, err := server.GetUser(dbCaller(id), connect.NewRequest(&v1.GetUserRequest{UserId: &upper}))
+	if err != nil || got.Msg.User.Email != id.String()+"@rice.edu" {
 		t.Fatalf("equivalent self ID = %v, %v", got, err)
 	}
+
 	request.Phone = "   "
-	if _, err := f.server.UpdateUser(dbCaller(f.owner), connect.NewRequest(request)); err != nil {
+	if _, err := server.UpdateUser(dbCaller(id), connect.NewRequest(request)); err != nil {
 		t.Fatal(err)
 	}
-	var phone string
-	if err := f.db.QueryRow(`SELECT phone FROM users WHERE id=$1`, f.owner).Scan(&phone); err != nil {
+	if err := db.QueryRow(`SELECT phone FROM users WHERE id=$1`, id).Scan(&phone); err != nil {
 		t.Fatal(err)
 	}
 	if phone != "" {
@@ -159,6 +148,17 @@ func TestDBListFiltersMembershipAndOrdering(t *testing.T) {
 	if err != nil || len(listed.Msg.Rides) != 3 {
 		t.Fatalf("discovery = %v, %v", listed, err)
 	}
+	// Discovery runs the real contact-visibility SQL, so a stranger browsing rides
+	// must not receive anyone's contact details.
+	for _, ride := range listed.Msg.Rides {
+		assertRPCContactRedacted(t, ride.Owner, uuid.MustParse(ride.Owner.Id))
+		for _, rider := range ride.Riders {
+			if rider.Id == f.second.String() {
+				continue // the caller always sees their own contacts
+			}
+			assertRPCContactRedacted(t, rider, uuid.MustParse(rider.Id))
+		}
+	}
 	wrong, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &f.request.ArrivalLocationId}))
 	if err != nil || len(wrong.Msg.Rides) != 0 {
 		t.Fatalf("wrong location = %v, %v", wrong, err)
@@ -182,64 +182,65 @@ func TestDBInvalidLocationAndSameLocationConstraint(t *testing.T) {
 
 // TestDBRideLifecycle exercises membership, capacity, authorization, and cancellation against Postgres.
 func TestDBRideLifecycle(t *testing.T) {
-	// Retains the old core lifecycle checks against real persistence after moving ownership to RPCs.
+	// Only what needs real persistence. The business rules themselves are covered by
+	// the fake-backed app tests, and their error-to-code mapping by errors_test.go;
+	// what cannot be faked is whether the database actually holds what we claim.
 	f := newDBMutationFixture(t)
 	id := f.create(t)
-	check := func(err error, code connect.Code) {
-		t.Helper()
-		if connect.CodeOf(err) != code {
-			t.Fatalf("error = %v, want %v", err, code)
-		}
+
+	var occupants int
+	if err := f.db.QueryRow(`SELECT count(*) FROM ride_occupants WHERE ride_id=$1 AND user_id=$2`, id, f.owner).Scan(&occupants); err != nil {
+		t.Fatal(err)
 	}
-	_, err := f.server.JoinRide(dbCaller(f.owner), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
-	_, err = f.server.LeaveRide(dbCaller(f.owner), connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
+	if occupants != 1 {
+		t.Fatalf("owner occupies %d seats after create, want 1", occupants)
+	}
+
 	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
-	_, err = f.server.JoinRide(dbCaller(f.second), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
-	_, err = f.server.UpdateRide(dbCaller(f.owner), f.update(id, 1))
-	check(err, connect.CodeFailedPrecondition)
+
+	// A rejected capacity shrink must leave the stored ride untouched.
+	if _, err := f.server.UpdateRide(dbCaller(f.owner), f.update(id, 1)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("capacity shrink error = %v, want failed precondition", err)
+	}
 	var capacity int
 	if err := f.db.QueryRow(`SELECT capacity FROM rides WHERE id=$1`, id).Scan(&capacity); err != nil || capacity != 2 {
-		t.Fatalf("failed shrink capacity=%d err=%v", capacity, err)
+		t.Fatalf("rejected shrink persisted capacity=%d err=%v", capacity, err)
 	}
-	_, err = f.server.UpdateRide(dbCaller(f.second), f.update(id, 3))
-	check(err, connect.CodePermissionDenied)
-	updated, err := f.server.UpdateRide(dbCaller(f.owner), f.update(id, 3))
-	if err != nil || updated.Msg.Ride.Capacity != 3 {
-		t.Fatalf("update = %v, %v", updated, err)
-	}
-	_, err = f.server.LeaveRide(dbCaller(f.second), connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
+
+	// Leaving must actually delete the occupant row, not just return a ride.
 	left, err := f.server.LeaveRide(dbCaller(f.first), connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
 	if err != nil || len(left.Msg.Ride.Riders) != 1 {
 		t.Fatalf("leave = %v, %v", left, err)
 	}
-	_, err = f.server.GetRide(dbCaller(f.owner), connect.NewRequest(&v1.GetRideRequest{Id: uuid.NewString()}))
-	check(err, connect.CodeNotFound)
-	_, err = f.server.CancelRide(dbCaller(f.second), connect.NewRequest(&v1.CancelRideRequest{Id: id}))
-	check(err, connect.CodePermissionDenied)
+	if err := f.db.QueryRow(`SELECT count(*) FROM ride_occupants WHERE ride_id=$1`, id).Scan(&occupants); err != nil {
+		t.Fatal(err)
+	}
+	if occupants != 1 {
+		t.Fatalf("after leave the ride holds %d occupants, want only the owner", occupants)
+	}
+
 	cancelled, err := f.server.CancelRide(dbCaller(f.owner), connect.NewRequest(&v1.CancelRideRequest{Id: id}))
 	if err != nil || cancelled.Msg.Ride.Status != v1.RideStatus_RIDE_STATUS_CANCELLED {
 		t.Fatalf("cancel = %v, %v", cancelled, err)
 	}
-	_, err = f.server.JoinRide(dbCaller(f.second), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
-	check(err, connect.CodeFailedPrecondition)
-	_, err = f.server.UpdateRide(dbCaller(f.owner), f.update(id, 3))
-	check(err, connect.CodeFailedPrecondition)
+	var status string
+	if err := f.db.QueryRow(`SELECT status FROM rides WHERE id=$1`, id).Scan(&status); err != nil || status != "cancelled" {
+		t.Fatalf("stored status = %q, err = %v", status, err)
+	}
+
+	// Both profile prerequisites answer the same way, and neither can be faked.
 	if _, err := f.db.Exec(`UPDATE users SET phone='' WHERE id=$1`, f.second); err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.server.CreateRide(dbCaller(f.second), connect.NewRequest(f.request))
-	check(err, connect.CodeFailedPrecondition)
+	if _, err := f.server.CreateRide(dbCaller(f.second), connect.NewRequest(f.request)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("create without a phone = %v, want failed precondition", err)
+	}
 	if _, err := f.db.Exec(`DELETE FROM users WHERE id=$1`, f.second); err != nil {
 		t.Fatal(err)
 	}
-	_, err = f.server.CreateRide(dbCaller(f.second), connect.NewRequest(f.request))
-	check(err, connect.CodeFailedPrecondition)
+	if _, err := f.server.CreateRide(dbCaller(f.second), connect.NewRequest(f.request)); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("create without a profile = %v, want failed precondition", err)
+	}
 }

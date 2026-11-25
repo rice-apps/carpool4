@@ -44,8 +44,14 @@ func TestConnectErrorMapsApplicationVocabulary(t *testing.T) {
 		{app.ErrInvalidArgument, connect.CodeInvalidArgument},
 		{app.ErrPermissionDenied, connect.CodePermissionDenied},
 		{app.ErrRideNotFound, connect.CodeNotFound},
+		{app.ErrUserNotFound, connect.CodeNotFound},
 		{app.ErrOwnerCannotChangeMembership, connect.CodeFailedPrecondition},
 		{app.ErrFullCapacity, connect.CodeFailedPrecondition},
+		{app.ErrPhoneRequired, connect.CodeFailedPrecondition},
+		{app.ErrRideCancelled, connect.CodeFailedPrecondition},
+		{app.ErrCapacityBelowOccupancy, connect.CodeFailedPrecondition},
+		{app.ErrAlreadyJoined, connect.CodeFailedPrecondition},
+		{app.ErrNotJoined, connect.CodeFailedPrecondition},
 		{context.Canceled, connect.CodeCanceled},
 		{context.DeadlineExceeded, connect.CodeDeadlineExceeded},
 	} {
@@ -61,5 +67,25 @@ func TestConnectErrorSanitizesUnknownCause(t *testing.T) {
 	err := convertToConnectError(cause)
 	if connect.CodeOf(err) != connect.CodeInternal || strings.Contains(err.Error(), "password") || !errors.Is(err, cause) {
 		t.Fatalf("convertToConnectError unknown cause = %v", err)
+	}
+}
+
+// TestConnectErrorReplacesDatabaseConstraintDetail checks a constraint violation reaches
+// clients as a generic invalid-argument message with the raw database detail removed.
+func TestConnectErrorReplacesDatabaseConstraintDetail(t *testing.T) {
+	cause := fmt.Errorf("%w: duplicate key value violates unique constraint \"rides_pkey\"", app.ErrInvalidRideWrite)
+
+	err := convertToConnectError(cause)
+	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+		t.Fatalf("code = %v, want invalid argument", got)
+	}
+	if msg := err.Error(); !strings.Contains(msg, "ride violates a database constraint") {
+		t.Fatalf("message = %q, want the substituted constraint message", msg)
+	}
+	if msg := err.Error(); strings.Contains(msg, "rides_pkey") {
+		t.Fatalf("message = %q, want the raw constraint detail removed", msg)
+	}
+	if !errors.Is(err, app.ErrInvalidRideWrite) {
+		t.Error("convertToConnectError dropped the application cause")
 	}
 }

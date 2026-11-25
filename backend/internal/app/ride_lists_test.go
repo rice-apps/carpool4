@@ -83,3 +83,31 @@ func TestListMyRidesUsesCurrentUser(t *testing.T) {
 		t.Fatal("ListMyRides did not close its read transaction")
 	}
 }
+
+// TestListRidesClampsEarlyDepartureAfterToLookback checks a caller cannot widen
+// discovery past the lookback window by asking for an earlier departure bound.
+func TestListRidesClampsEarlyDepartureAfterToLookback(t *testing.T) {
+	store := &lookupStore{}
+	stale := time.Now().Add(-30 * 24 * time.Hour)
+
+	if _, err := NewService(store).ListRides(context.Background(), CurrentUser{ID: uuid.New()}, ListRidesInput{DepartureAfter: &stale}); err != nil {
+		t.Fatal(err)
+	}
+	cutoff := time.Now().Add(-rideDiscoveryLookback)
+	if store.query == nil || store.query.DepartureAfter.Before(cutoff.Add(-time.Minute)) {
+		t.Fatalf("DepartureAfter = %v, want it clamped up to the %v lookback", store.query, rideDiscoveryLookback)
+	}
+}
+
+// TestListRidesUsesLookbackWhenNoDepartureAfter checks the default discovery cutoff.
+func TestListRidesUsesLookbackWhenNoDepartureAfter(t *testing.T) {
+	store := &lookupStore{}
+
+	if _, err := NewService(store).ListRides(context.Background(), CurrentUser{ID: uuid.New()}, ListRidesInput{}); err != nil {
+		t.Fatal(err)
+	}
+	cutoff := time.Now().Add(-rideDiscoveryLookback)
+	if store.query == nil || store.query.DepartureAfter.Before(cutoff.Add(-time.Minute)) || store.query.DepartureAfter.After(cutoff.Add(time.Minute)) {
+		t.Fatalf("DepartureAfter = %v, want approximately the %v cutoff", store.query, rideDiscoveryLookback)
+	}
+}

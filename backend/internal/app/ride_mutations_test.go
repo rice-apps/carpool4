@@ -307,6 +307,7 @@ func TestRideMutationsReturnApplicationRejections(t *testing.T) {
 			input.DepartureTime = time.Now().Add(-time.Hour)
 		}},
 		{"nonowner update", "update", ErrPermissionDenied, func(_ *mutationStore, caller *uuid.UUID, _ *RideWriteParams) { *caller = uuid.New() }},
+		{"nonowner cancel", "cancel", ErrPermissionDenied, func(_ *mutationStore, caller *uuid.UUID, _ *RideWriteParams) { *caller = uuid.New() }},
 		{"cancelled update", "update", ErrRideCancelled, func(s *mutationStore, _ *uuid.UUID, _ *RideWriteParams) { s.state.Status = RideStatusCancelled }},
 		{"capacity below occupancy", "update", ErrCapacityBelowOccupancy, func(s *mutationStore, _ *uuid.UUID, input *RideWriteParams) {
 			s.state.Riders = append(s.state.Riders, UserRecord{ID: uuid.New()})
@@ -432,14 +433,31 @@ func TestCancelRideReportsProjectionFailure(t *testing.T) {
 	}
 }
 
-// TestUpdateRideRejectsNilRideID checks the ride ID guard runs before any storage work.
-func TestUpdateRideRejectsNilRideID(t *testing.T) {
-	service, store, owner, _, input := mutationFixture(t)
-
-	if _, err := service.UpdateRide(context.Background(), CurrentUser{ID: owner}, uuid.Nil, input); !errors.Is(err, ErrInvalidArgument) {
-		t.Fatalf("UpdateRide error = %v, want invalid argument", err)
-	}
-	if store.tx != nil {
-		t.Error("UpdateRide opened a transaction for an empty ride ID")
+// TestRideOperationsRejectNilRideID checks every ride operation refuses an empty ID
+// before opening a transaction.
+func TestRideOperationsRejectNilRideID(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name string
+		call func(*Service, CurrentUser) error
+	}{
+		{"GetRide", func(s *Service, c CurrentUser) error { _, err := s.GetRide(ctx, c, uuid.Nil); return err }},
+		{"UpdateRide", func(s *Service, c CurrentUser) error {
+			_, err := s.UpdateRide(ctx, c, uuid.Nil, RideWriteParams{})
+			return err
+		}},
+		{"CancelRide", func(s *Service, c CurrentUser) error { _, err := s.CancelRide(ctx, c, uuid.Nil); return err }},
+		{"JoinRide", func(s *Service, c CurrentUser) error { _, err := s.JoinRide(ctx, c, uuid.Nil); return err }},
+		{"LeaveRide", func(s *Service, c CurrentUser) error { _, err := s.LeaveRide(ctx, c, uuid.Nil); return err }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service, store, owner, _, _ := mutationFixture(t)
+			if err := tc.call(service, CurrentUser{ID: owner}); !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("%s error = %v, want invalid argument", tc.name, err)
+			}
+			if store.tx != nil {
+				t.Errorf("%s opened a transaction for an empty ride ID", tc.name)
+			}
+		})
 	}
 }

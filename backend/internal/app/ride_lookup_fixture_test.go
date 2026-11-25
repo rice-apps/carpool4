@@ -10,7 +10,7 @@ import (
 //
 // Fields:
 //   - orderTx: fallback repository methods that these tests must not reach.
-//   - rides: fixture rides returned by list queries.
+//   - rides: fixture rides returned by list and detail queries.
 //   - query: last ride-discovery filters received.
 //   - myViewerID: user ID passed to the personal ride list.
 //   - visible: which users' contacts the viewer may see.
@@ -49,9 +49,14 @@ func (s *lookupStore) Rollback() error {
 	return nil
 }
 
-// GetRide panics because these list fixtures must not perform a detail lookup.
-func (*lookupStore) GetRide(context.Context, uuid.UUID) (LoadedRide, error) {
-	panic("unexpected ride lookup")
+// GetRide returns the fixture ride matching id, or reports it missing.
+func (s *lookupStore) GetRide(_ context.Context, id uuid.UUID) (LoadedRide, error) {
+	for _, ride := range s.rides {
+		if ride.ID == id {
+			return ride, nil
+		}
+	}
+	return LoadedRide{}, ErrRideNotFound
 }
 
 // ListRides records query filters and returns the fixture rides.

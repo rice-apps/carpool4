@@ -27,8 +27,9 @@ The `.env` holds `DATABASE_URL`, `TEST_DATABASE_URL`, `SUPABASE_URL`, and `SUPAB
 #### Backend Development (run from `backend/`)
 
 ```bash
-go build ./...    # Compile backend packages
-go test ./...     # Run backend test suite
+go build ./...        # Compile backend packages
+go test ./...         # Run backend test suite (needs TEST_DATABASE_URL)
+go test -short ./...  # Skip the tests that need a database
 sqlc generate     # Generate Go code from SQL queries
 sqlc diff         # Verify SQL query changes against database schema
 ```

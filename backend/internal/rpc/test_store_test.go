@@ -35,15 +35,19 @@ func testUser(id uuid.UUID, email string) app.UserRecord {
 //   - rides: ride records available for lookup.
 //   - listed: rides returned by list operations.
 //   - locations: locations returned by list operations.
+//   - locationsErr: optional failure injected into the location list.
+//   - query: last ride-discovery filters received.
 type fakeStore struct {
 	app.UserRepository
 	app.RideRepository
-	users     map[uuid.UUID]app.UserRecord
-	findErr   error
-	loadErr   error
-	rides     map[uuid.UUID]app.LoadedRide
-	listed    []app.LoadedRide
-	locations []app.LocationRecord
+	users        map[uuid.UUID]app.UserRecord
+	findErr      error
+	loadErr      error
+	rides        map[uuid.UUID]app.LoadedRide
+	listed       []app.LoadedRide
+	locations    []app.LocationRecord
+	locationsErr error
+	query        *app.ListRidesQuery
 }
 
 // GetRide returns the requested fixture ride, an injected failure, or ErrRideNotFound.
@@ -77,11 +81,12 @@ func (s *fakeStore) FindUser(_ context.Context, id uuid.UUID) (app.UserRecord, e
 
 // ListLocations returns the fixture locations without database access.
 func (s *fakeStore) ListLocations(context.Context) ([]app.LocationRecord, error) {
-	return s.locations, nil
+	return s.locations, s.locationsErr
 }
 
 // ListRides returns fixture rides; SQL filtering is covered by integration tests.
-func (s *fakeStore) ListRides(context.Context, app.ListRidesQuery) ([]app.LoadedRide, error) {
+func (s *fakeStore) ListRides(_ context.Context, query app.ListRidesQuery) ([]app.LoadedRide, error) {
+	s.query = &query
 	return s.listed, nil
 }
 

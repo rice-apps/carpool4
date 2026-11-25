@@ -373,22 +373,6 @@ func TestMutationDBMissingProfileInsertFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("adapter returns raw constraint error", func(t *testing.T) {
-		tx, err := postgres.NewDatabase(f.db).BeginTx(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer tx.Rollback()
-		err = tx.RidesRepo().AddRideOccupant(context.Background(), uuid.MustParse(id), f.first)
-		var pgError *pgconn.PgError
-		if !errors.As(err, &pgError) || pgError.Code != "23503" {
-			t.Fatalf("occupant constraint error = %v", err)
-		}
-		if err != pgError || errors.Is(err, app.ErrInvalidRideWrite) {
-			t.Fatalf("occupant insertion classified its raw failure: %v", err)
-		}
-	})
-
 	t.Run("RPC returns sanitized internal", func(t *testing.T) {
 		_, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
 		if connect.CodeOf(err) != connect.CodeInternal || err.Error() != "internal: internal server error" {

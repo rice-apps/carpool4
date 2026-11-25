@@ -15,15 +15,3 @@ func TestConvertRideToProtoKeepsGuestOwnerAbsent(t *testing.T) {
 		t.Fatalf("guest ride = %#v", got)
 	}
 }
-
-func TestConvertRideToProtoKeepsSignedInOwner(t *testing.T) {
-	ownerID := uuid.New()
-	ride := app.Ride{
-		ID: uuid.New(), DepartureTime: time.Now(),
-		Owner: app.User{ID: ownerID, FirstName: "Alex"}, OccupiedSeats: 1,
-	}
-	got := convertRideToProto(ride)
-	if got.Owner == nil || got.Owner.Id != ownerID.String() || got.OccupiedSeats != 1 {
-		t.Fatalf("signed-in ride = %#v", got)
-	}
-}

@@ -34,6 +34,12 @@ func TestServeDrainsActiveRequest(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// One budget for the whole test rather than one per wait: Done() stays closed,
+	// so a hang fails the remaining waits immediately instead of serially. Sized for
+	// a loaded CI runner under -race, where listener setup, a full round trip and a
+	// graceful drain all come out of this budget.
+	deadline, cancelDeadline := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelDeadline()
 	// Hold one request open while the test asks the server to stop.
 	started, release := make(chan struct{}), make(chan struct{})
 	shutdownStarted := make(chan struct{})
@@ -62,14 +68,14 @@ func TestServeDrainsActiveRequest(t *testing.T) {
 	}()
 	select {
 	case <-started:
-	case <-time.After(5 * time.Second):
+	case <-deadline.Done():
 		t.Fatal("request did not start")
 	}
 	// Shutdown should begin, but serving must wait for the held response.
 	cancel()
 	select {
 	case <-shutdownStarted:
-	case <-time.After(5 * time.Second):
+	case <-deadline.Done():
 		close(release)
 		t.Fatal("shutdown did not start")
 	}
@@ -89,7 +95,7 @@ func TestServeDrainsActiveRequest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-deadline.Done():
 		t.Fatal("server did not stop")
 	}
 }

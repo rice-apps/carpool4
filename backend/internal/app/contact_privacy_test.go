@@ -14,7 +14,7 @@ func TestBuildRidesForViewerHidesPeopleAndNotesFromGuests(t *testing.T) {
 		ID: uuid.New(), DepartureTime: time.Now().Add(time.Hour), Owner: owner,
 		Riders: []UserRecord{owner}, Notes: "Private pickup details", Capacity: 2,
 	}
-	db := &starterDB{}
+	db := &lookupStore{}
 	got, err := buildRidesForViewer(context.Background(), db, uuid.Nil, []LoadedRide{loaded})
 	if err != nil {
 		t.Fatal(err)
@@ -22,15 +22,15 @@ func TestBuildRidesForViewerHidesPeopleAndNotesFromGuests(t *testing.T) {
 	if len(got) != 1 || got[0].Owner != (User{}) || len(got[0].Riders) != 0 || got[0].Notes != "" || got[0].OccupiedSeats != 1 {
 		t.Fatalf("guest ride = %#v", got)
 	}
-	if db.contactLookups != 0 {
-		t.Fatalf("guest checked contact visibility %d times", db.contactLookups)
+	if len(db.visibleCalls) != 0 {
+		t.Fatalf("guest checked contact visibility %d times", len(db.visibleCalls))
 	}
 }
 
 func TestBuildRidesForViewerKeepsSignedInPeople(t *testing.T) {
 	owner := UserRecord{ID: uuid.New(), FirstName: "Alex", Email: "alex@rice.edu"}
 	loaded := LoadedRide{ID: uuid.New(), Owner: owner, Riders: []UserRecord{owner}, Notes: "Pickup at gate", Capacity: 2}
-	got, err := buildRidesForViewer(context.Background(), &starterDB{}, owner.ID, []LoadedRide{loaded})
+	got, err := buildRidesForViewer(context.Background(), &lookupStore{visible: map[uuid.UUID]bool{owner.ID: true}}, owner.ID, []LoadedRide{loaded})
 	if err != nil {
 		t.Fatal(err)
 	}

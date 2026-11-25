@@ -29,28 +29,41 @@ func TestDirectAPIRolesCannotAccessApplicationData(t *testing.T) {
 	if err := db.QueryRow(`SELECT current_schema()`).Scan(&schema); err != nil {
 		t.Fatal(err)
 	}
-	// PostgreSQL includes inherited grants in its effective privilege checks.
-	for _, role := range []string{"anon", "authenticated"} {
-		for _, table := range []string{"users", "rides", "ride_occupants", "locations"} {
-			t.Run(role+"/"+table, func(t *testing.T) {
-				var rls bool
-				if err := db.QueryRow(`SELECT relrowsecurity FROM pg_class WHERE oid = $1::regclass`, schema+"."+table).Scan(&rls); err != nil {
-					t.Fatal(err)
-				}
-				if !rls {
-					t.Error("row security is disabled")
-				}
-				for _, privilege := range []string{"SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE"} {
-					var allowed bool
-					if err := db.QueryRow(`SELECT has_table_privilege($1, $2, $3)`, role, schema+"."+table, privilege).Scan(&allowed); err != nil {
-						t.Fatal(err)
-					}
-					if allowed {
-						t.Errorf("%s still has %s on %s", role, privilege, table)
-					}
-				}
-			})
+	// One round trip for the whole role x table x privilege matrix. PostgreSQL
+	// includes inherited grants in its effective privilege checks.
+	rows, err := db.Query(`
+		SELECT t.name, r.role, p.privilege,
+		       has_table_privilege(r.role, c.oid, p.privilege),
+		       c.relrowsecurity
+		FROM unnest(ARRAY['users', 'rides', 'ride_occupants', 'locations']) AS t(name)
+		JOIN pg_class c ON c.oid = (quote_ident($1) || '.' || quote_ident(t.name))::regclass
+		CROSS JOIN unnest(ARRAY['anon', 'authenticated']) AS r(role)
+		CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) AS p(privilege)`, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	checked := 0
+	for rows.Next() {
+		var table, role, privilege string
+		var allowed, rowSecurity bool
+		if err := rows.Scan(&table, &role, &privilege, &allowed, &rowSecurity); err != nil {
+			t.Fatal(err)
 		}
+		if allowed {
+			t.Errorf("%s still has %s on %s", role, privilege, table)
+		}
+		if !rowSecurity {
+			t.Errorf("row security is disabled on %s", table)
+		}
+		checked++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if want := 4 * 2 * 5; checked != want {
+		t.Fatalf("checked %d role/table/privilege combinations, want %d", checked, want)
 	}
 }
 

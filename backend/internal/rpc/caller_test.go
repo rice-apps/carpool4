@@ -2,29 +2,13 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
-
-// TestGetCurrentUserRequiresNonNilIdentity checks that missing or zero caller IDs cannot authenticate.
-func TestGetCurrentUserRequiresNonNilIdentity(t *testing.T) {
-	for name, ctx := range map[string]context.Context{
-		"missing": context.Background(),
-		"nil ID":  auth.WithUser(context.Background(), auth.User{Email: "caller@rice.edu"}),
-	} {
-		t.Run(name, func(t *testing.T) {
-			if _, err := getCurrentUser(ctx); !errors.Is(err, app.ErrUnauthenticated) {
-				t.Fatalf("getCurrentUser() error = %v, want ErrUnauthenticated", err)
-			}
-		})
-	}
-}
 
 // TestProtectedRPCsRequireVerifiedIdentity checks authentication before request
 // parsing or application calls. No application service is available in this test.
@@ -101,17 +85,5 @@ func TestPublicReadRPCsRejectInvalidIdentity(t *testing.T) {
 				t.Fatalf("%s() error = %v, want Unauthenticated", operation, err)
 			}
 		})
-	}
-}
-
-// TestGetCurrentUserPreservesVerifiedIdentity checks that the currentUser uses the context's ID and email.
-func TestGetCurrentUserPreservesVerifiedIdentity(t *testing.T) {
-	user := auth.User{ID: uuid.New(), Email: "caller@rice.edu"}
-	currentUser, err := getCurrentUser(auth.WithUser(context.Background(), user))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if currentUser != (app.CurrentUser{ID: user.ID, Email: user.Email}) {
-		t.Fatalf("getCurrentUser() = %#v, want verified identity %#v", currentUser, user)
 	}
 }

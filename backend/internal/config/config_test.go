@@ -70,37 +70,34 @@ func TestLoad_RejectsInvalidResourceConfiguration(t *testing.T) {
 	}
 }
 
-// TestLoad_MissingSupabaseURL checks that auth configuration is required.
-func TestLoad_MissingSupabaseURL(t *testing.T) {
-	t.Setenv("SUPABASE_URL", "")
-	t.Setenv("DATABASE_URL", "postgres://localhost/test")
-
-	if _, err := config.Load(); err == nil {
-		t.Error("expected an error with SUPABASE_URL unset, got nil")
+// TestLoad_RequiresConnectionTargetsAndDefaultsPort checks the required variables and
+// the port fallback.
+func TestLoad_RequiresConnectionTargetsAndDefaultsPort(t *testing.T) {
+	for _, tc := range []struct {
+		name, supabaseURL, databaseURL string
+	}{
+		{"missing Supabase URL", "", "postgres://localhost/test"},
+		{"missing database URL", "http://localhost:54321", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("SUPABASE_URL", tc.supabaseURL)
+			t.Setenv("DATABASE_URL", tc.databaseURL)
+			if _, err := config.Load(); err == nil {
+				t.Errorf("Load() with %s = nil, want an error", tc.name)
+			}
+		})
 	}
-}
 
-// TestLoad_MissingDatabaseURL checks that a database target is required.
-func TestLoad_MissingDatabaseURL(t *testing.T) {
-	t.Setenv("SUPABASE_URL", "http://localhost:54321")
-	t.Setenv("DATABASE_URL", "")
-
-	if _, err := config.Load(); err == nil {
-		t.Error("expected an error with DATABASE_URL unset, got nil")
-	}
-}
-
-// TestLoad_DefaultPort checks the HTTP port used when PORT is unset.
-func TestLoad_DefaultPort(t *testing.T) {
-	t.Setenv("SUPABASE_URL", "http://localhost:54321")
-	t.Setenv("DATABASE_URL", "postgres://localhost/test")
-	t.Setenv("PORT", "")
-
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if got, want := cfg.Port, "8080"; got != want {
-		t.Errorf("Port = %q, want %q", got, want)
-	}
+	t.Run("default port", func(t *testing.T) {
+		t.Setenv("SUPABASE_URL", "http://localhost:54321")
+		t.Setenv("DATABASE_URL", "postgres://localhost/test")
+		t.Setenv("PORT", "")
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.Port != "8080" {
+			t.Errorf("Port = %q, want %q", cfg.Port, "8080")
+		}
+	})
 }

@@ -12,23 +12,6 @@ import (
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
-// TestGetUserExtractsCurrentUserAndConvertsResult checks self lookup and projected contact conversion.
-func TestGetUserExtractsCurrentUserAndConvertsResult(t *testing.T) {
-	id := uuid.New()
-	server := newTestServer(&fakeStore{users: map[uuid.UUID]app.UserRecord{
-		id: testUser(id, "caller@rice.edu"),
-	}})
-
-	response, err := server.GetUser(testContext(id, "caller@rice.edu"), connect.NewRequest(&v1.GetUserRequest{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := response.Msg.User
-	if got.Id != id.String() || got.Email != "caller@rice.edu" || got.Phone != "713-555-0100" {
-		t.Fatalf("GetUser response = %#v, want converted caller profile", got)
-	}
-}
-
 // TestGetUserRejectsMalformedID checks invalid target UUIDs become InvalidArgument.
 func TestGetUserRejectsMalformedID(t *testing.T) {
 	server := newTestServer(&fakeStore{})

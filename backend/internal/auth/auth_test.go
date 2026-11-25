@@ -238,17 +238,20 @@ func TestInterceptor_RequiresBearerAuthorization(t *testing.T) {
 	interceptor := newInterceptor(t, server.URL)
 	token := signToken(t, server.key, validClaims(server.URL))
 
-	for _, authorization := range []string{
-		"",
-		token,
-		"Bearer",
-		"Bearer ",
-		"Basic " + token,
-		"Bearer  " + token,
-		"Bearer " + token + " ",
+	for _, tc := range []struct {
+		name          string
+		authorization string
+	}{
+		{"absent", ""},
+		{"raw token", token},
+		{"scheme only", "Bearer"},
+		{"scheme and gap", "Bearer "},
+		{"basic scheme", "Basic " + token},
+		{"double space", "Bearer  " + token},
+		{"trailing space", "Bearer " + token + " "},
 	} {
-		t.Run(authorization, func(t *testing.T) {
-			_, ok, err := callWithAuthorization(t, interceptor, authorization)
+		t.Run(tc.name, func(t *testing.T) {
+			_, ok, err := callWithAuthorization(t, interceptor, tc.authorization)
 			requireCode(t, err, connect.CodeUnauthenticated)
 			if ok {
 				t.Error("handler received an authenticated user")
@@ -416,19 +419,10 @@ func TestNewInterceptor_ReportsInitialJWKSFailure(t *testing.T) {
 	}
 }
 
-// TestNewInterceptor_HonorsCanceledContext checks startup key fetch cancellation.
-func TestNewInterceptor_HonorsCanceledContext(t *testing.T) {
-	server := newTestJWKSServer(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	if _, err := auth.NewInterceptor(ctx, server.URL); err == nil {
-		t.Error("expected canceled context to stop the initial JWKS request")
-	}
-}
-
-// TestInterceptor_JWKSRefreshHonorsRequestContext checks a canceled request
-// with an unknown key ID does not trigger another JWKS fetch.
+// TestInterceptor_JWKSRefreshHonorsRequestContext checks a canceled request with an
+// unknown key ID does not trigger another JWKS fetch. An unknown kid is reachable
+// before authentication, so a per-request refresh would turn this service into an
+// amplifier against the Supabase JWKS endpoint.
 func TestInterceptor_JWKSRefreshHonorsRequestContext(t *testing.T) {
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)

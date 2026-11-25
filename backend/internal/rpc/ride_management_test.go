@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
-	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	carpoolv1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestCreateRideRejectsMalformedInput(t *testing.T) {
@@ -45,4 +46,10 @@ func TestCreateRideRejectsMalformedInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+type unavailableDatabase struct{}
+
+func (unavailableDatabase) BeginTx(context.Context) (app.Transaction, error) {
+	return nil, errors.New("database unavailable in authentication test")
 }

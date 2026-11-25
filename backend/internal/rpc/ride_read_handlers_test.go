@@ -1,12 +1,16 @@
 package rpc
 
 import (
-	"connectrpc.com/connect"
-	"github.com/google/uuid"
-	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // TestRideReadHandlersParseWireValues checks invalid ride and location UUIDs become InvalidArgument.
@@ -22,51 +26,45 @@ func TestRideReadHandlersParseWireValues(t *testing.T) {
 	}
 }
 
-// TestListMyRidesReturnsCompleteHistory checks that adapter conversion keeps all fixture rides.
-func TestListMyRidesReturnsCompleteHistory(t *testing.T) {
-	viewer := uuid.New()
-	owner := testUser(viewer, "viewer@rice.edu")
-	rides := listedRides(51, owner)
-	server := newTestServer(&fakeStore{listed: rides})
+// TestListRidesRejectsMalformedArrivalFilter checks the second location filter is parsed.
+func TestListRidesRejectsMalformedArrivalFilter(t *testing.T) {
+	server := newTestServer(&fakeStore{})
+	bad := "not-a-uuid"
 
-	response, err := server.ListMyRides(testContext(viewer, owner.Email), connect.NewRequest(&v1.ListMyRidesRequest{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Msg.Rides) != len(rides) {
-		t.Fatalf("ListMyRides returned %d rides, want all %d", len(response.Msg.Rides), len(rides))
+	_, err := server.ListRides(testContext(uuid.New(), "viewer@rice.edu"), connect.NewRequest(&v1.ListRidesRequest{ArrivalLocationId: &bad}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("ListRides malformed arrival filter error = %v", err)
 	}
 }
 
-// TestListRidesReturnsEveryMatch checks that discovery conversion keeps all fixture matches.
-func TestListRidesReturnsEveryMatch(t *testing.T) {
-	viewer := uuid.New()
-	owner := testUser(viewer, "viewer@rice.edu")
-	rides := listedRides(51, owner)
-	server := newTestServer(&fakeStore{listed: rides})
+// TestListRidesForwardsTimeBounds checks both departure bounds reach the service.
+func TestListRidesForwardsTimeBounds(t *testing.T) {
+	store := &fakeStore{}
+	after, before := time.Now().Add(time.Hour), time.Now().Add(48*time.Hour)
 
-	response, err := server.ListRides(testContext(viewer, owner.Email), connect.NewRequest(&v1.ListRidesRequest{}))
+	_, err := newTestServer(store).ListRides(testContext(uuid.New(), "viewer@rice.edu"), connect.NewRequest(&v1.ListRidesRequest{
+		DepartureAfter: timestamppb.New(after), DepartureBefore: timestamppb.New(before),
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Msg.Rides) != len(rides) {
-		t.Fatalf("ListRides returned %d rides, want all %d", len(response.Msg.Rides), len(rides))
+	if store.query == nil || store.query.DepartureBefore == nil || !store.query.DepartureBefore.Equal(before.UTC()) {
+		t.Fatalf("DepartureBefore = %v, want %v", store.query, before.UTC())
+	}
+	if store.query.DepartureAfter.Before(after.UTC()) {
+		t.Fatalf("DepartureAfter = %v, want at least %v", store.query.DepartureAfter, after.UTC())
 	}
 }
 
-// listedRides builds count distinct active ride records for owner to exercise list conversion.
-func listedRides(count int, owner app.UserRecord) []app.LoadedRide {
-	rides := make([]app.LoadedRide, count)
-	for i := range rides {
-		rides[i] = app.LoadedRide{
-			ID:            uuid.New(),
-			DepartureTime: time.Now().Add(time.Duration(i) * time.Hour),
-			Capacity:      2,
-			Status:        app.RideStatusActive,
-			Owner:         owner,
-			Departure:     app.LocationRecord{ID: uuid.New(), Title: "Rice"},
-			Arrival:       app.LocationRecord{ID: uuid.New(), Title: "IAH"},
-		}
+// TestListLocationsMapsServiceFailure checks a storage failure is not reported as success.
+func TestListLocationsMapsServiceFailure(t *testing.T) {
+	store := &fakeStore{locationsErr: errors.New("locations unavailable")}
+
+	_, err := newTestServer(store).ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
+	if connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("ListLocations error = %v, want internal", err)
 	}
-	return rides
+	if !errors.Is(err, store.locationsErr) {
+		t.Error("ListLocations dropped the underlying cause")
+	}
 }
