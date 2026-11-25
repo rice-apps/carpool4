@@ -21,7 +21,6 @@ jobs:
     outputs:
       tools: ${{ steps.filter.outputs.tools }}
       backend: ${{ steps.filter.outputs.backend }}
-      backendTests: ${{ steps.filter.outputs.backendTests }}
       frontend: ${{ steps.filter.outputs.frontend }}
       proto: ${{ steps.filter.outputs.proto }}
       sqlc: ${{ steps.filter.outputs.sqlc }}
@@ -41,11 +40,7 @@ jobs:
           backend:
             - *ci
             - backend/**
-          backendTests:
-            - *ci
-            - backend/**
             - supabase/**
-            - scripts/ci-db.sh
           frontend:
             - *ci
             - frontend/**
@@ -78,6 +73,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -96,29 +92,8 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Check package boundaries
-      run: go test ./internal/architecture
-
-
-  backend-tests:
-    needs: changes
-    if: needs.changes.outputs.backendTests == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v4
-      with:
-        go-version-file: backend/go.mod
-        cache-dependency-path: backend/go.sum
-    - name: Prepare isolated SQL fixtures
-      working-directory: .
-      run: bash scripts/ci-db.sh
-    - name: Run backend tests
-      run: go test -count=1 -timeout 5m ./...
+    - name: Test
+      run: go test -count=1 -timeout 10m ./...
 
   frontend:
     needs: changes
@@ -190,7 +165,7 @@ jobs:
 
   ci-ok:
     if: always()
-    needs: [changes, dev-tools, backend, backend-tests, frontend, proto, sqlc]
+    needs: [changes, dev-tools, backend, frontend, proto, sqlc]
     runs-on: ubuntu-latest
     steps:
     - name: Fail if any job failed or was cancelled

@@ -13,9 +13,18 @@ npm run setup
 npm run dev
 ```
 
-The frontend runs at http://localhost:3000. The API runs at http://localhost:8080. The database and Google sign-in are hosted. Development data is shared across the team. SQL tests get their own private fixtures. Ctrl+C stops everything.
+The frontend runs at http://localhost:3000. The API runs at http://localhost:8080. The database and Google sign-in are hosted, and development data is shared across the team. Ctrl+C stops everything.
 
-The `.env` holds `DATABASE_URL`, `TEST_DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`. The helpers read these and set things up. Write SQL and application code the normal way. You do not need admin credentials or an OAuth client.
+The `.env` holds `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`, which the helpers read to run the app. Write SQL and application code the normal way. You do not need admin credentials or an OAuth client.
+
+Tests need none of this. `go test ./...` starts its own PostgreSQL container, applies the migrations and throws it away; the only prerequisite is a running Docker daemon.
+
+If your Docker runtime does not provide `/var/run/docker.sock`, point Testcontainers at your socket once:
+
+```bash
+export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')"
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+```
 
 ---
 
@@ -28,10 +37,9 @@ The `.env` holds `DATABASE_URL`, `TEST_DATABASE_URL`, `SUPABASE_URL`, and `SUPAB
 
 ```bash
 go build ./...        # Compile backend packages
-go test ./...         # Run backend test suite (needs TEST_DATABASE_URL)
-go test -short ./...  # Skip the tests that need a database
-sqlc generate     # Generate Go code from SQL queries
-sqlc diff         # Verify SQL query changes against database schema
+go test ./...         # Run the backend test suite
+sqlc generate         # Generate Go code from SQL queries
+sqlc diff             # Verify SQL query changes against database schema
 ```
 
 #### Code Generation

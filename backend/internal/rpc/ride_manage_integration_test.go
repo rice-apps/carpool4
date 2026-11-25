@@ -17,13 +17,13 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
+	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/rpc"
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
 )
 
 // TestMain runs this package's tests with the disposable database harness.
-func TestMain(m *testing.M) { os.Exit(testutil.Run(m)) }
+func TestMain(m *testing.M) { os.Exit(dbtest.Run(m)) }
 
 // dbMutationFixture holds a database, verified callers, and a reusable ride request.
 //
@@ -45,9 +45,9 @@ type dbMutationFixture struct {
 // an RPC server, and a valid ride request. Setup failures stop t.
 func newDBMutationFixture(t *testing.T) dbMutationFixture {
 	t.Helper()
-	f := dbMutationFixture{db: testutil.SetupTestDB(t), owner: uuid.New(), first: uuid.New(), second: uuid.New()}
+	f := dbMutationFixture{db: dbtest.DB(t), owner: uuid.New(), first: uuid.New(), second: uuid.New()}
 	for _, id := range []uuid.UUID{f.owner, f.first, f.second} {
-		if _, err := f.db.Exec(`INSERT INTO auth_users (id) VALUES ($1)`, id); err != nil {
+		if _, err := f.db.Exec(`INSERT INTO auth.users (id) VALUES ($1)`, id); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := f.db.Exec(`INSERT INTO users (id, first_name, last_name, email, phone) VALUES ($1, 'Test', 'User', $2, '7135550100')`, id, id.String()+"@rice.edu"); err != nil {

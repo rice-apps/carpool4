@@ -11,14 +11,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
+	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 )
 
 // TestListMyRidesFindsOwnedRideWithoutOccupantRow checks ownership is matched on the
 // ride itself, so a missing occupant row cannot hide a ride from the person who owns it.
 func TestListMyRidesFindsOwnedRideWithoutOccupantRow(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	rideID, _ := insertTransactionRide(t, db)
 
 	var owner uuid.UUID
@@ -50,7 +50,7 @@ func TestListMyRidesFindsOwnedRideWithoutOccupantRow(t *testing.T) {
 // One sandbox setup covers all three.
 func TestRideRepositoryReadAndMembershipEdges(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	rideID, params := insertTransactionRide(t, db)
 
 	tx, err := NewDatabase(db).BeginTx(ctx)

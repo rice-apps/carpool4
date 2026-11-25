@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
+	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 )
 
 // TestUpsertUserRefreshesUpdatedAt checks an edited profile records when it changed,
 // so the column keeps tracking reality after the first insert.
 func TestUpsertUserRefreshesUpdatedAt(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	id := insertTransactionUsers(t, db, 1)[0]
 
 	var before time.Time

@@ -10,8 +10,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
+	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
 )
 
 // TestDBPastSharedRideGrantsSelectiveContactVisibility checks historical co-rider access.
@@ -65,13 +65,13 @@ func TestDBPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 }
 
 // TestDBUpdateUserCreatesAndNormalizesProfile checks the first write for a caller who
-// exists only in auth_users inserts rather than updates, that stored fields are
+// exists only in auth.users inserts rather than updates, that stored fields are
 // normalized, that an optional value can be cleared, and that a differently-cased
 // self ID resolves to the same profile.
 func TestDBUpdateUserCreatesAndNormalizesProfile(t *testing.T) {
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	id := uuid.New()
-	if _, err := db.Exec(`INSERT INTO auth_users (id) VALUES ($1)`, id); err != nil {
+	if _, err := db.Exec(`INSERT INTO auth.users (id) VALUES ($1)`, id); err != nil {
 		t.Fatal(err)
 	}
 	server := newRPCServer(postgres.NewDatabase(db))

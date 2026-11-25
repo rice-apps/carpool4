@@ -12,18 +12,18 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	"github.com/rice-apps/carpool4/backend/internal/testutil"
+	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 )
 
 // TestMain lets the shared test harness release its PostgreSQL container after
 // the package tests complete and preserves their exit status.
-func TestMain(m *testing.M) { os.Exit(testutil.Run(m)) }
+func TestMain(m *testing.M) { os.Exit(dbtest.Run(m)) }
 
 // TestBeginTxUsesSerializableIsolation checks the transaction isolation seen
 // by PostgreSQL, which protects application read-check-write decisions.
 func TestBeginTxUsesSerializableIsolation(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	tx, err := NewDatabase(db).BeginTx(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -47,9 +47,9 @@ func TestBeginTxUsesSerializableIsolation(t *testing.T) {
 // inside one transaction and the absence of those writes after rollback.
 func TestTransactionWritesAreVisibleThenRollbackTogether(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	id := uuid.New()
-	if _, err := db.ExecContext(ctx, `INSERT INTO auth_users (id) VALUES ($1)`, id); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO auth.users (id) VALUES ($1)`, id); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +86,7 @@ func TestTransactionWritesAreVisibleThenRollbackTogether(t *testing.T) {
 // updates and checks a statement-level serialization abort is classified.
 func TestTransactionQueryClassifiesSerializationFailure(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	rideID, params := insertTransactionRide(t, db)
 	database := NewDatabase(db)
 	first, err := database.BeginTx(ctx)
@@ -124,7 +124,7 @@ func TestTransactionQueryClassifiesSerializationFailure(t *testing.T) {
 // membership writes and checks the conflict surfaced at commit.
 func TestTransactionCommitClassifiesSerializationFailure(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	rideID, _ := insertTransactionRide(t, db)
 	users := insertTransactionUsers(t, db, 2)
 	firstUser, secondUser := users[0], users[1]
@@ -171,7 +171,7 @@ func TestTransactionCommitClassifiesSerializationFailure(t *testing.T) {
 // the application not-found sentinel and the SQL no-rows cause.
 func TestRideWritesPreserveMissingRideErrors(t *testing.T) {
 	ctx := context.Background()
-	db := testutil.SetupTestDB(t)
+	db := dbtest.DB(t)
 	_, params := insertTransactionRide(t, db)
 	tx, err := NewDatabase(db).BeginTx(ctx)
 	if err != nil {
@@ -218,7 +218,7 @@ func insertTransactionUsers(t *testing.T, db *sql.DB, count int) []uuid.UUID {
 	ids := make([]uuid.UUID, count)
 	for i := range ids {
 		ids[i] = uuid.New()
-		if _, err := db.Exec(`INSERT INTO auth_users (id) VALUES ($1)`, ids[i]); err != nil {
+		if _, err := db.Exec(`INSERT INTO auth.users (id) VALUES ($1)`, ids[i]); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := db.Exec(`INSERT INTO users (id, first_name, last_name, email) VALUES ($1, 'Test', 'User', $2)`, ids[i], ids[i].String()+"@rice.edu"); err != nil {

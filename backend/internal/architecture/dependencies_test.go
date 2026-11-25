@@ -42,10 +42,10 @@ func inPackageTree(path, root string) bool {
 }
 
 // TestForbiddenImportIgnoresSimilarlyNamedPackages checks the boundary check matches
-// whole package paths, so internal/dbtest is not mistaken for internal/db.
+// whole package paths, so internal/dbfixtures is not mistaken for internal/db.
 func TestForbiddenImportIgnoresSimilarlyNamedPackages(t *testing.T) {
-	if forbiddenImport(module+"/internal/app", module+"/internal/dbtest") {
-		t.Error("internal/dbtest was treated as a database package")
+	if forbiddenImport(module+"/internal/app", module+"/internal/dbfixtures") {
+		t.Error("internal/dbfixtures was treated as a database package")
 	}
 	if !forbiddenImport(module+"/internal/app", module+"/internal/db/sqlc") {
 		t.Error("internal/db/sqlc was not treated as a database package")
