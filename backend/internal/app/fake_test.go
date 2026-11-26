@@ -354,9 +354,7 @@ func newRideFixture(t *testing.T) rideFixture {
 	}
 }
 
-// editRide changes the stored ride before the service runs. Tests go through
-// this rather than indexing db.rides, so adding a second fixture ride cannot
-// silently change what a test means.
+// editRide changes the stored ride before the service runs.
 func (f rideFixture) editRide(change func(*LoadedRide)) rideFixture {
 	for i := range f.fake.rides {
 		if f.fake.rides[i].ID == f.ride.ID {

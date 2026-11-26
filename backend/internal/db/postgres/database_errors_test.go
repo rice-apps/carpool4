@@ -3,30 +3,37 @@ package postgres
 import (
 	"database/sql"
 	"errors"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/rice-apps/carpool4/backend/internal/app"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/rice-apps/carpool4/backend/internal/app"
 )
 
-// TestClassifyErrors checks missing rows and invalid ride writes map to their
-// application sentinels while unrelated failures pass through.
-func TestClassifyErrors(t *testing.T) {
+// TestTranslatorsMapDatabaseFailuresToSentinels checks that a missing row and a
+// rejected ride write reach callers as application errors, and that an
+// unrelated failure is left alone.
+func TestTranslatorsMapDatabaseFailuresToSentinels(t *testing.T) {
 	t.Parallel()
-	if got := translateUserError(sql.ErrNoRows); !errors.Is(got, app.ErrUserNotFound) {
-		t.Fatalf("translateUserError(sql.ErrNoRows) = %v, want ErrUserNotFound", got)
-	}
-	if got := translateRideError(sql.ErrNoRows); !errors.Is(got, app.ErrRideNotFound) {
-		t.Fatalf("translateRideError(sql.ErrNoRows) = %v, want ErrRideNotFound", got)
-	}
-	for _, code := range []string{"23503", "23514"} {
-		got := translateRideWriteError(&pgconn.PgError{Code: code})
-		if !errors.Is(got, app.ErrInvalidRideWrite) {
-			t.Fatalf("translateRideWriteError(%s) = %v, want ErrInvalidRideWrite", code, got)
-		}
-	}
-	other := errors.New("database unavailable")
-	if got := translateRideWriteError(other); !errors.Is(got, other) {
-		t.Fatalf("translateRideWriteError(other) = %v, want original error", got)
+	unrelated := errors.New("database unavailable")
+
+	for _, tc := range []struct {
+		name string
+		got  error
+		want error
+	}{
+		{name: "missing user row", got: translateUserError(sql.ErrNoRows), want: app.ErrUserNotFound},
+		{name: "missing ride row", got: translateRideError(sql.ErrNoRows), want: app.ErrRideNotFound},
+		{name: "foreign key violation", got: translateRideWriteError(&pgconn.PgError{Code: foreignKeyViolation}), want: app.ErrInvalidRideWrite},
+		{name: "check violation", got: translateRideWriteError(&pgconn.PgError{Code: checkViolation}), want: app.ErrInvalidRideWrite},
+		{name: "unrelated ride write failure", got: translateRideWriteError(unrelated), want: unrelated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if !errors.Is(tc.got, tc.want) {
+				t.Errorf("translated error = %v, want %v", tc.got, tc.want)
+			}
+		})
 	}
 }
 
@@ -34,7 +41,7 @@ func TestClassifyErrors(t *testing.T) {
 // the original cause, with unrelated errors unchanged.
 func TestTranslateTransactionError(t *testing.T) {
 	t.Parallel()
-	cause := &pgconn.PgError{Code: "40001", Message: "could not serialize access"}
+	cause := &pgconn.PgError{Code: serializationFailure, Message: "could not serialize access"}
 	got := translateTransactionError(cause)
 	if !errors.Is(got, app.ErrTransactionConflict) {
 		t.Fatalf("translateTransactionError(40001) = %v, want ErrTransactionConflict", got)
@@ -53,7 +60,7 @@ func TestTranslateTransactionError(t *testing.T) {
 // classifier preserves the conflict sentinel and PostgreSQL cause.
 func TestSpecializedClassifiersPreserveTransactionConflicts(t *testing.T) {
 	t.Parallel()
-	cause := &pgconn.PgError{Code: "40001", Message: "could not serialize access"}
+	cause := &pgconn.PgError{Code: serializationFailure, Message: "could not serialize access"}
 	for _, tc := range []struct {
 		name     string
 		classify func(error) error

@@ -43,19 +43,26 @@ func TestListRidesRejectsMalformedFilters(t *testing.T) {
 }
 
 // TestListRidesForwardsTimeBounds checks both wire timestamps reach the service.
-// The lower bound is clamped to the discovery window by the application, so only
-// the upper bound survives verbatim.
+// The lower bound is later than the discovery lookback, so it survives the
+// clamp the application applies to earlier bounds.
 func TestListRidesForwardsTimeBounds(t *testing.T) {
 	t.Parallel()
 	fake := &fakeDatabase{}
+	after := time.Now().Add(2 * time.Hour).Truncate(time.Microsecond)
 	before := time.Now().Add(48 * time.Hour)
 
 	_, err := newTestServer(fake).ListRides(testContext(uuid.New(), "viewer@rice.edu"),
-		connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureBefore: timestamppb.New(before)}))
+		connect.NewRequest(&carpoolv1.ListRidesRequest{
+			DepartureAfter:  timestamppb.New(after),
+			DepartureBefore: timestamppb.New(before),
+		}))
 	if err != nil {
 		t.Fatalf("ListRides() error = %v", err)
 	}
 
+	if got := fake.ridesQuery.DepartureAfter; !got.Equal(after.UTC()) {
+		t.Errorf("DepartureAfter = %v, want the caller's lower bound %v", got, after.UTC())
+	}
 	if fake.ridesQuery.DepartureBefore == nil {
 		t.Fatal("DepartureBefore = nil, want the caller's upper bound")
 	}

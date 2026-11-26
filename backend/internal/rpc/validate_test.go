@@ -19,7 +19,7 @@ func TestValidationInterceptorEnforcesProfileContract(t *testing.T) {
 		request *carpoolv1.UpdateUserRequest
 		valid   bool
 	}{
-		{name: "valid profile", request: validUpdateUserRequest(), valid: true},
+		{name: "valid profile", request: &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace"}, valid: true},
 		{name: "empty first name", request: &carpoolv1.UpdateUserRequest{LastName: "Lovelace"}},
 		{name: "whitespace last name", request: &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "   "}},
 		{name: "oversized phone", request: &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace", Phone: strings.Repeat("1", 33)}},
@@ -39,13 +39,8 @@ func TestValidationInterceptorEnforcesProfileContract(t *testing.T) {
 	}
 }
 
-// validUpdateUserRequest returns the minimum valid profile message for validation tests.
-func validUpdateUserRequest() *carpoolv1.UpdateUserRequest {
-	return &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace"}
-}
-
 // validateRequest runs request through the validation interceptor and returns its rejection, if any.
-func validateRequest[Req any](t *testing.T, request *Req) error {
+func validateRequest(t *testing.T, request *carpoolv1.UpdateUserRequest) error {
 	t.Helper()
 	interceptor, err := newValidationInterceptor()
 	if err != nil {

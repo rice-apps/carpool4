@@ -13,8 +13,8 @@ import (
 )
 
 // TestUpsertUserRefreshesUpdatedAt checks an edited profile records when it
-// changed. The column is NOT NULL DEFAULT now(), so it looks maintained whether
-// or not the update path sets it, and nothing else in the suite reads it.
+// changed. The column is NOT NULL DEFAULT now(), so it holds a plausible value
+// whether or not the update path sets it.
 func TestUpsertUserRefreshesUpdatedAt(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.DB(t)

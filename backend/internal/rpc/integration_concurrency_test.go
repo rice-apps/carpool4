@@ -17,11 +17,6 @@ import (
 )
 
 // mutationReadBarrier pauses concurrent mutations after their ride reads.
-//
-// Fields:
-//   - arrived: signals that a mutation reached its ride read.
-//   - release: signals waiting mutations to continue.
-//   - once: ensures release is signaled only once.
 type mutationReadBarrier struct {
 	arrived chan struct{}
 	release chan struct{}
@@ -72,10 +67,6 @@ func (b *mutationReadBarrier) releaseWhenArrived(t *testing.T, want int) {
 }
 
 // barrierMutationDatabase wraps transactions so ride reads can be synchronized.
-//
-// Fields:
-//   - Database: the underlying database used to begin real transactions.
-//   - barrier: the shared pause point for ride reads.
 type barrierMutationDatabase struct {
 	app.Database
 	barrier *mutationReadBarrier
@@ -92,10 +83,6 @@ func (s barrierMutationDatabase) BeginTx(ctx context.Context) (app.Transaction, 
 }
 
 // barrierMutationTx delegates transaction work while intercepting ride repository access.
-//
-// Fields:
-//   - Transaction: the real transaction used for delegated operations.
-//   - barrier: the shared pause point passed to its ride repository.
 type barrierMutationTx struct {
 	app.Transaction
 	barrier *mutationReadBarrier
@@ -107,10 +94,6 @@ func (tx barrierMutationTx) RidesRepo() app.RideRepository {
 }
 
 // barrierRideRepository delegates storage and pauses after a successful GetRide.
-//
-// Fields:
-//   - RideRepository: the underlying repository used for ride operations.
-//   - barrier: the pause point reached after a successful ride load.
 type barrierRideRepository struct {
 	app.RideRepository
 	barrier *mutationReadBarrier
@@ -127,10 +110,6 @@ func (r barrierRideRepository) GetRide(ctx context.Context, id uuid.UUID) (app.L
 }
 
 // mutationResult pairs a concurrent caller with its mutation error.
-//
-// Fields:
-//   - who: the caller whose mutation completed.
-//   - err: that mutation's error, or nil on success.
 type mutationResult struct {
 	who uuid.UUID
 	err error
@@ -226,9 +205,6 @@ func assertOneSuccessOneConflict(t *testing.T, results ...mutationResult) uuid.U
 var errInjectedLoad = errors.New("injected load failure")
 
 // failingLoadDatabase injects a post-write ride-load failure into real transactions.
-//
-// Fields:
-//   - Database: the underlying database used to begin real transactions.
 type failingLoadDatabase struct{ app.Database }
 
 // BeginTx returns a real transaction whose ride loads fail with errInjectedLoad,
@@ -242,9 +218,6 @@ func (s failingLoadDatabase) BeginTx(ctx context.Context) (app.Transaction, erro
 }
 
 // failingLoadTx delegates transaction work except ride repository access.
-//
-// Fields:
-//   - Transaction: the real transaction used for delegated operations.
 type failingLoadTx struct{ app.Transaction }
 
 // RidesRepo returns a repository that fails every ride load.
@@ -253,9 +226,6 @@ func (tx failingLoadTx) RidesRepo() app.RideRepository {
 }
 
 // failingGetRides injects an error when the service assembles the response ride.
-//
-// Fields:
-//   - RideRepository: the underlying repository for operations other than GetRide.
 type failingGetRides struct{ app.RideRepository }
 
 // GetRide returns the shared injected error instead of reading the requested UUID.
@@ -322,10 +292,9 @@ func TestJoinWithMissingProfileReportsSanitizedInternal(t *testing.T) {
 	})
 }
 
-// TestConcurrentLeaveAndCapacityReductionSerialize checks the remaining
-// read-then-write pair: a rider leaving while the owner shrinks the ride. Either
-// order is acceptable, but the stored ride must never end up seating more people
-// than it has room for.
+// TestConcurrentLeaveAndCapacityReductionSerialize races a rider leaving against
+// the owner shrinking the ride. Either order is acceptable, but the stored ride
+// must never end up seating more people than it has room for.
 func TestConcurrentLeaveAndCapacityReductionSerialize(t *testing.T) {
 	f := newDBMutationFixture(t)
 	id := f.create(t)

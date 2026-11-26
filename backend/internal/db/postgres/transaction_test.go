@@ -57,9 +57,8 @@ func TestConflictingUpdateFailsAtTheStatement(t *testing.T) {
 	requireSerializationConflict(t, second.RidesRepo().UpdateRide(ctx, rideID, params))
 }
 
-// TestConflictingMembershipFailsAtCommit covers the other place a conflict can
-// surface. Commit classifies errors separately from the statement path above,
-// so a conflict detected there needs its own coverage.
+// TestConflictingMembershipFailsAtCommit covers a conflict that surfaces at
+// Commit, which classifies errors separately from the statement path.
 func TestConflictingMembershipFailsAtCommit(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.DB(t)

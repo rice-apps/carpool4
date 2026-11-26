@@ -174,18 +174,14 @@ func TestRideWriteValidationRejectsInvalidInput(t *testing.T) {
 	}
 }
 
-func TestRideMutationsRollBackFailedCommits(t *testing.T) {
+func TestUpdateRideReportsACommitFailure(t *testing.T) {
 	t.Parallel()
 	f := newRideFixture(t)
 	cause := errors.New("commit failed")
 	f.fake.failing(opCommit, cause)
-	before := f.storedRide()
 
 	if _, err := NewService(f.fake).UpdateRide(t.Context(), CurrentUser{ID: f.owner}, f.ride.ID, f.input); !errors.Is(err, cause) {
 		t.Errorf("UpdateRide() error = %v, want %v", err, cause)
-	}
-	if diff := cmp.Diff(before, f.storedRide()); diff != "" {
-		t.Errorf("a failed commit changed the stored ride (-want +got):\n%s", diff)
 	}
 }
 

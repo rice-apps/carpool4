@@ -35,9 +35,8 @@ func trimmedProfileRequest() *carpoolv1.UpdateUserRequest {
 	return &carpoolv1.UpdateUserRequest{FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  "}
 }
 
-// TestUpdateUserCreatesAProfileForANewCaller checks the first write inserts
-// rather than updates. An update-only implementation passes every fake-backed
-// test and fails here.
+// TestUpdateUserCreatesAProfileForANewCaller checks that the first write for a
+// caller who exists only in auth.users inserts rather than updates.
 func TestUpdateUserCreatesAProfileForANewCaller(t *testing.T) {
 	server, db, id := newProfileServer(t)
 
@@ -186,7 +185,9 @@ func TestRideListsFilterAndOrderInSQL(t *testing.T) {
 			if rider.Id == f.second.String() {
 				continue // the caller always sees their own contacts
 			}
-			assertContactsHidden(t, rider)
+			if rider.Email != "" || rider.Phone != "" {
+				t.Errorf("rider %s exposed protected fields: email=%q phone=%q", rider.Id, rider.Email, rider.Phone)
+			}
 		}
 	}
 	wrong, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureLocationId: &f.request.ArrivalLocationId}))
@@ -219,7 +220,7 @@ func TestRideLifecyclePersistsEachStep(t *testing.T) {
 
 	// Each step builds on the one before, so these subtests share a fixture and
 	// run in order. They assert what the database holds, not what the response
-	// claims; the responses themselves are covered by the handler tests.
+	// claims.
 	t.Run("create seats the owner", func(t *testing.T) {
 		if got := f.occupants(t, id); got != 1 {
 			t.Errorf("occupants = %d, want the owner alone", got)
@@ -274,8 +275,6 @@ func TestRideLifecyclePersistsEachStep(t *testing.T) {
 		}
 	})
 
-	// Both prerequisites are read from real rows, so neither can be set up with
-	// a fake.
 	t.Run("posting needs a reachable owner", func(t *testing.T) {
 		if _, err := f.db.Exec(`UPDATE users SET phone='' WHERE id=$1`, f.second); err != nil {
 			t.Fatalf("clear phone: %v", err)

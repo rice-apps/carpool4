@@ -86,8 +86,7 @@ func insertRide(t *testing.T, db *sql.DB) (uuid.UUID, uuid.UUID, app.RideWritePa
 }
 
 // requireSerializationConflict fails t unless err carries both the application
-// sentinel, which the RPC layer turns into CodeAborted for the client to retry,
-// and the PostgreSQL cause for logs.
+// sentinel callers match on and the PostgreSQL cause for logs.
 func requireSerializationConflict(t *testing.T, err error) {
 	t.Helper()
 	if !errors.Is(err, app.ErrTransactionConflict) {

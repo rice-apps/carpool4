@@ -23,14 +23,6 @@ import (
 func TestMain(m *testing.M) { os.Exit(dbtest.Run(m)) }
 
 // dbMutationFixture holds a database, verified callers, and a reusable ride request.
-//
-// Fields:
-//   - db: the disposable database used for assertions and setup.
-//   - server: the RPC server backed by that database.
-//   - owner: the user who creates and manages the ride.
-//   - first: one competing rider in concurrency tests.
-//   - second: the other competing rider in concurrency tests.
-//   - request: a valid ride creation request reused by tests.
 type dbMutationFixture struct {
 	db                   *sql.DB
 	server               *rpc.Server

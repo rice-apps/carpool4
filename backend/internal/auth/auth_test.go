@@ -27,13 +27,6 @@ const (
 
 // testJWKSServer serves a signing key and records JWKS request paths under a
 // mutex so tests can inspect startup and refresh behavior.
-//
-// Fields:
-//   - URL: gives the fixture's Supabase base URL.
-//   - key: signs tokens accepted by the fixture's JWKS.
-//   - server: serves the JWKS response during tests.
-//   - mu: protects the recorded request paths.
-//   - requestURI: records paths fetched from the fixture.
 type testJWKSServer struct {
 	URL        string
 	key        *ecdsa.PrivateKey
@@ -317,8 +310,8 @@ func TestInterceptorAcceptsAnyBearerCase(t *testing.T) {
 }
 
 // TestInterceptorLeavesDomainPolicyToSupabase checks this verifier accepts any
-// email. Rice-only admission is enforced by the signup hook in
-// supabase/migrations, so a change here must not silently become the only gate.
+// email: restricting admission to Rice is a signup-time policy, not a property
+// of a token that has already been issued.
 func TestInterceptorLeavesDomainPolicyToSupabase(t *testing.T) {
 	t.Parallel()
 	server := newTestJWKSServer(t)

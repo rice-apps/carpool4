@@ -49,6 +49,9 @@ func testUser(id uuid.UUID, email string) app.UserRecord {
 // fakeDatabase serves fixture records to handler tests and can fail any single
 // storage call. Handlers only parse requests, call one service method and map
 // the result, so the fake stores records rather than enforcing any rule.
+//
+// The embedded repositories are nil: a method no test configures compiles and
+// panics when called, rather than failing the build.
 type fakeDatabase struct {
 	app.UserRepository
 	app.RideRepository

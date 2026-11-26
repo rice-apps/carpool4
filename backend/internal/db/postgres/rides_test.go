@@ -42,7 +42,6 @@ func TestRideWritesPreserveMissingRideErrors(t *testing.T) {
 		{"CancelRide", func(r app.RideRepository) error { return r.CancelRide(ctx, missing) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Each case opens its own transaction so one can be run alone.
 			err := tc.call(begin(t, db).RidesRepo())
 
 			if !errors.Is(err, app.ErrRideNotFound) {
@@ -84,8 +83,8 @@ func TestRemoveRideOccupantReportsWhetherAnyoneLeft(t *testing.T) {
 }
 
 // TestAddRideOccupantReturnsTheRawConstraintFailure checks this adapter leaves a
-// foreign-key violation unclassified. JoinRide relies on that to report a server
-// fault rather than an invalid ride write.
+// foreign-key violation unclassified, so a caller can tell a missing row from a
+// ride write the schema rejected.
 func TestAddRideOccupantReturnsTheRawConstraintFailure(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.DB(t)
