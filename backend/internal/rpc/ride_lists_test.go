@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -22,6 +23,8 @@ func TestListRidesRejectsMalformedFilters(t *testing.T) {
 	}{
 		{name: "departure location", request: &v1.ListRidesRequest{DepartureLocationId: &bad}},
 		{name: "arrival location", request: &v1.ListRidesRequest{ArrivalLocationId: &bad}},
+		{name: "departure after", request: &v1.ListRidesRequest{DepartureAfter: &timestamppb.Timestamp{Seconds: math.MaxInt64}}},
+		{name: "departure before", request: &v1.ListRidesRequest{DepartureBefore: &timestamppb.Timestamp{Nanos: -1}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

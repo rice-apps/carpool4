@@ -82,6 +82,22 @@ func TestGetUserRejectsEmptyTarget(t *testing.T) {
 	}
 }
 
+func TestUpdateUserRejectsAnUnidentifiedCaller(t *testing.T) {
+	t.Parallel()
+	fake := newFakeDatabase(nil)
+
+	_, err := NewService(fake).UpdateUser(t.Context(), CurrentUser{Email: "caller@rice.edu"}, UserInput{
+		FirstName: "Ada", LastName: "Lovelace",
+	})
+
+	if !errors.Is(err, ErrInvalidArgument) {
+		t.Errorf("UpdateUser() error = %v, want ErrInvalidArgument", err)
+	}
+	if fake.called(opBegin) {
+		t.Error("UpdateUser opened a transaction for an empty user ID")
+	}
+}
+
 // TestUpdateUserTakesIdentityFromTheVerifiedCaller checks that the saved profile
 // is keyed on the token's user and email rather than anything in the request,
 // and that surrounding whitespace is removed.

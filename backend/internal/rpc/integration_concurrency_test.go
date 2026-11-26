@@ -321,3 +321,49 @@ func TestJoinWithMissingProfileReportsSanitizedInternal(t *testing.T) {
 		}
 	})
 }
+
+// TestConcurrentLeaveAndCapacityReductionSerialize checks the remaining
+// read-then-write pair: a rider leaving while the owner shrinks the ride. Either
+// order is acceptable, but the stored ride must never end up seating more people
+// than it has room for.
+func TestConcurrentLeaveAndCapacityReductionSerialize(t *testing.T) {
+	f := newDBMutationFixture(t)
+	id := f.create(t)
+	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); err != nil {
+		t.Fatalf("JoinRide() error = %v", err)
+	}
+
+	barrier := newMutationReadBarrier(t)
+	server := newRPCServer(barrierMutationDatabase{Database: postgres.NewDatabase(f.db), barrier: barrier})
+	results := make(chan mutationResult, 2)
+	go func() {
+		ctx, cancel := context.WithTimeout(dbCaller(f.first), 10*time.Second)
+		defer cancel()
+		_, err := server.LeaveRide(ctx, connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
+		results <- mutationResult{who: f.first, err: err}
+	}()
+	go func() {
+		ctx, cancel := context.WithTimeout(dbCaller(f.owner), 10*time.Second)
+		defer cancel()
+		_, err := server.UpdateRide(ctx, f.update(id, 1))
+		results <- mutationResult{who: f.owner, err: err}
+	}()
+	barrier.releaseWhenArrived(t, 2)
+
+	for range 2 {
+		result := <-results
+		switch code := connect.CodeOf(result.err); {
+		case result.err == nil, code == connect.CodeAborted, code == connect.CodeFailedPrecondition:
+		default:
+			t.Errorf("mutation by %v = %v, want success, a conflict, or a refusal", result.who, result.err)
+		}
+	}
+
+	var capacity int
+	if err := f.db.QueryRow(`SELECT capacity FROM rides WHERE id=$1`, id).Scan(&capacity); err != nil {
+		t.Fatalf("read stored capacity: %v", err)
+	}
+	if occupants := f.occupants(t, id); occupants > capacity {
+		t.Errorf("stored ride seats %d of %d, want occupants within capacity", occupants, capacity)
+	}
+}

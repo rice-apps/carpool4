@@ -63,6 +63,11 @@ func (s *Service) GetUser(ctx context.Context, currentUser CurrentUser, targetID
 // Returns the saved User, including the caller's contact details. Invalid
 // information or a storage failure returns an empty User and an error.
 func (s *Service) UpdateUser(ctx context.Context, currentUser CurrentUser, input UserInput) (User, error) {
+	// The stored row is keyed on the caller, so an unidentified one has nothing
+	// to write to.
+	if currentUser.ID == uuid.Nil {
+		return User{}, fmt.Errorf("%w: user ID", ErrInvalidArgument)
+	}
 
 	userWriteParams := UserWriteParams{
 		FirstName: strings.TrimSpace(input.FirstName),
