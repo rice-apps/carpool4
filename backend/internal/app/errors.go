@@ -15,6 +15,9 @@ var (
 	ErrPhoneRequired = errors.New("phone number required before creating a ride")
 	// ErrRideCancelled means a cancelled ride cannot be updated or joined.
 	ErrRideCancelled = errors.New("this ride has been cancelled")
+	// ErrRideDeparted means the ride left longer ago than the discovery lookback,
+	// so it can no longer be joined.
+	ErrRideDeparted = errors.New("it's too late to join this ride")
 	// ErrCapacityBelowOccupancy means the new capacity is too small for current riders.
 	ErrCapacityBelowOccupancy = errors.New("capacity cannot be below current occupancy")
 	// ErrOwnerCannotChangeMembership means an owner cannot join or leave their ride.
