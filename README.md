@@ -31,7 +31,6 @@ npm run setup         # Install packages and verify config
 npm run dev           # Start backend + frontend
 npm run backend       # Backend only
 npm run frontend      # Frontend only
-npm run test:backend  # Backend checks using root .env
 ```
 
 ---

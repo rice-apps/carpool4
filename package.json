@@ -7,7 +7,6 @@
     "frontend": "node scripts/dev.mjs frontend",
     "dev": "node scripts/dev.mjs dev",
     "test": "node --test scripts/*.test.mjs",
-    "test:backend": "node scripts/dev.mjs test:backend",
     "db:provision": "go -C backend run ./cmd/devdb provision --env-file ../.env.admin",
     "db:verify": "go -C backend run ./cmd/devdb verify"
   },
