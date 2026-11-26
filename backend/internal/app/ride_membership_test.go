@@ -75,8 +75,11 @@ func TestJoinRideFillsTheLastSeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("JoinRide() for the last seat error = %v, want success", err)
 	}
-	if got.OccupiedSeats != got.Capacity {
-		t.Errorf("occupied seats = %d, want the ride full at %d", got.OccupiedSeats, got.Capacity)
+	if got.Capacity != f.ride.Capacity {
+		t.Errorf("capacity = %d, want the fixture's %d", got.Capacity, f.ride.Capacity)
+	}
+	if got.OccupiedSeats != f.ride.Capacity {
+		t.Errorf("occupied seats = %d, want the ride full at %d", got.OccupiedSeats, f.ride.Capacity)
 	}
 }
 

@@ -58,8 +58,8 @@ func TestConflictingUpdateFailsAtTheStatement(t *testing.T) {
 }
 
 // TestConflictingMembershipFailsAtCommit covers the other place a conflict can
-// surface. Commit is the path the application's retry contract depends on, and
-// it classifies errors separately from the statement path above.
+// surface. Commit classifies errors separately from the statement path above,
+// so a conflict detected there needs its own coverage.
 func TestConflictingMembershipFailsAtCommit(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.DB(t)

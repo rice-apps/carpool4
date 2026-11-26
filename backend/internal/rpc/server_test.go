@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
@@ -65,7 +66,7 @@ func assertGuestRide(t *testing.T, got *v1.Ride, want app.LoadedRide) {
 	t.Helper()
 	expected := &v1.Ride{
 		Id:                want.ID.String(),
-		DepartureTime:     got.GetDepartureTime(),
+		DepartureTime:     timestamppb.New(want.DepartureTime),
 		DepartureLocation: &v1.Location{Id: want.Departure.ID.String(), Title: want.Departure.Title},
 		ArrivalLocation:   &v1.Location{Id: want.Arrival.ID.String(), Title: want.Arrival.Title},
 		Capacity:          want.Capacity,

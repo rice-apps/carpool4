@@ -100,16 +100,9 @@ func validClaims(serverURL string) jwt.MapClaims {
 	}
 }
 
-// signToken signs claims with key and the fixture's default key ID.
-func signToken(t *testing.T, key *ecdsa.PrivateKey, claims jwt.MapClaims) string {
-	return signTokenWithKID(t, key, claims, "test-key")
-}
-
-// signTokenWithKID signs claims with an ES256 private key and selected key ID.
-// It fails the calling test if signing fails.
-func signTokenWithKID(t *testing.T, key *ecdsa.PrivateKey, claims jwt.MapClaims, kid string) string {
+// signToken signs claims as Supabase does, under the given key ID.
+func signToken(t *testing.T, key *ecdsa.PrivateKey, claims jwt.MapClaims, kid string) string {
 	t.Helper()
-
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	token.Header["kid"] = kid
 
@@ -120,46 +113,28 @@ func signTokenWithKID(t *testing.T, key *ecdsa.PrivateKey, claims jwt.MapClaims,
 	return signed
 }
 
-// newInterceptor constructs an interceptor for a test Supabase URL and ties
-// its key-refresh context to test cleanup.
+// newInterceptor constructs an interceptor for a test Supabase URL and ties its
+// key-refresh context to test cleanup.
 func newInterceptor(t *testing.T, supabaseURL string) connect.UnaryInterceptorFunc {
 	t.Helper()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
+
 	interceptor, err := auth.NewInterceptor(ctx, supabaseURL)
 	if err != nil {
-		t.Fatalf("NewInterceptor: %v", err)
+		t.Fatalf("NewInterceptor() error = %v", err)
 	}
 	return interceptor
 }
 
-// callWithAuthorization invokes a Connect interceptor with the supplied
-// Authorization header. It returns the user seen by the handler, whether one
-// was present, and the interceptor error.
-func callWithAuthorization(
-	t *testing.T,
-	interceptor connect.UnaryInterceptorFunc,
-	authorization string,
-) (auth.User, bool, error) {
-	return callWithAuthorizationContext(t, context.Background(), interceptor, authorization)
-}
-
-// callWithAuthorizationContext runs the authentication fixture under ctx so
-// tests can check cancellation, returning the observed user and call error.
-func callWithAuthorizationContext(
-	t *testing.T,
-	ctx context.Context,
-	interceptor connect.UnaryInterceptorFunc,
-	authorization string,
-) (auth.User, bool, error) {
+// call runs the interceptor under ctx with the given Authorization header and
+// reports the identity the downstream handler saw.
+func call(t *testing.T, ctx context.Context, interceptor connect.UnaryInterceptorFunc, authorization string) (auth.User, bool, error) {
 	t.Helper()
-
-	// Capture the identity that reaches the downstream handler.
 	var got auth.User
-	var ok bool
-	handler := interceptor(func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		got, ok = auth.GetSignedInUser(ctx)
+	var signedIn bool
+	handler := interceptor(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
+		got, signedIn = auth.GetSignedInUser(ctx)
 		return connect.NewResponse(&struct{}{}), nil
 	})
 
@@ -167,272 +142,246 @@ func callWithAuthorizationContext(
 	if authorization != "" {
 		req.Header().Set("Authorization", authorization)
 	}
-
 	_, err := handler(ctx, req)
-	return got, ok, err
+	return got, signedIn, err
 }
 
-// callWithToken calls the fixture with token formatted as a Bearer credential.
-func callWithToken(
-	t *testing.T,
-	interceptor connect.UnaryInterceptorFunc,
-	token string,
-) (auth.User, bool, error) {
+// requireRejected fails t unless the call was refused without an identity
+// reaching the handler.
+func requireRejected(t *testing.T, signedIn bool, err error) {
 	t.Helper()
-	return callWithAuthorization(t, interceptor, "Bearer "+token)
-}
-
-// requireCode reports a test error unless err carries the expected Connect code.
-func requireCode(t *testing.T, err error, want connect.Code) {
-	t.Helper()
-	if got := connect.CodeOf(err); got != want {
-		t.Errorf("code = %v, want %v (error: %v)", got, want, err)
+	if got := connect.CodeOf(err); got != connect.CodeUnauthenticated {
+		t.Errorf("code = %v, want %v (error: %v)", got, connect.CodeUnauthenticated, err)
+	}
+	if signedIn {
+		t.Error("a rejected token still placed an identity in the handler context")
 	}
 }
 
-// TestInterceptor_ValidSupabaseToken checks that verified claims reach the
-// downstream handler as a typed caller identity.
-func TestInterceptor_ValidSupabaseToken(t *testing.T) {
+func TestInterceptorAcceptsAValidSupabaseToken(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)
-	token := signToken(t, server.key, validClaims(server.URL))
+	token := signToken(t, server.key, validClaims(server.URL), "test-key")
 
-	user, ok, err := callWithToken(t, interceptor, token)
+	user, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+token)
 	if err != nil {
-		t.Fatalf("handler: %v", err)
+		t.Fatalf("call with a valid token error = %v", err)
 	}
-	if !ok {
-		t.Fatal("expected auth.User in context, found none")
+
+	if !signedIn {
+		t.Fatal("no identity reached the handler")
 	}
-	if got, want := user.ID, uuid.MustParse(validSubject); got != want {
-		t.Errorf("ID = %q, want %q", got, want)
+	if user.ID != uuid.MustParse(validSubject) {
+		t.Errorf("ID = %v, want %v", user.ID, validSubject)
 	}
-	if got, want := user.Email, validEmail; got != want {
-		t.Errorf("Email = %q, want %q", got, want)
+	if user.Email != validEmail {
+		t.Errorf("Email = %q, want %q", user.Email, validEmail)
 	}
 }
 
-// TestInterceptor_BearerSchemeIsCaseInsensitive checks accepted scheme casing.
-func TestInterceptor_BearerSchemeIsCaseInsensitive(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-	token := signToken(t, server.key, validClaims(server.URL))
+// TestInterceptorRejectsBadRegisteredClaims checks the claims a Supabase token
+// must carry. Each case starts from a valid set and breaks exactly one thing.
+func TestInterceptorRejectsBadRegisteredClaims(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		mutate func(jwt.MapClaims)
+	}{
+		{"expired", func(c jwt.MapClaims) { c["exp"] = time.Now().Add(-time.Hour).Unix() }},
+		{"no expiry", func(c jwt.MapClaims) { delete(c, "exp") }},
+		{"no issuer", func(c jwt.MapClaims) { delete(c, "iss") }},
+		{"another project's issuer", func(c jwt.MapClaims) { c["iss"] = "https://another.supabase.co/auth/v1" }},
+		{"no audience", func(c jwt.MapClaims) { delete(c, "aud") }},
+		{"anon audience", func(c jwt.MapClaims) { c["aud"] = "anon" }},
+		{"subject is not a UUID", func(c jwt.MapClaims) { c["sub"] = "user-123" }},
+		{"subject is the nil UUID", func(c jwt.MapClaims) { c["sub"] = uuid.Nil.String() }},
+		{"no email", func(c jwt.MapClaims) { delete(c, "email") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := newTestJWKSServer(t)
+			interceptor := newInterceptor(t, server.URL)
+			claims := validClaims(server.URL)
+			tc.mutate(claims)
 
-	for _, scheme := range []string{"Bearer", "bearer", "BEARER"} {
-		t.Run(scheme, func(t *testing.T) {
-			user, ok, err := callWithAuthorization(t, interceptor, scheme+" "+token)
-			if err != nil {
-				t.Fatalf("handler: %v", err)
-			}
-			if !ok || user.ID != uuid.MustParse(validSubject) {
-				t.Fatalf("user = %+v, present = %v", user, ok)
-			}
+			_, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+signToken(t, server.key, claims, "test-key"))
+
+			requireRejected(t, signedIn, err)
 		})
 	}
 }
 
-// TestInterceptor_RequiresBearerAuthorization checks malformed or absent
-// credentials are rejected before a handler sees a user.
-func TestInterceptor_RequiresBearerAuthorization(t *testing.T) {
+// TestInterceptorRejectsForgedSignatures covers the signature attacks a public
+// endpoint invites: an unsigned token, a token signed with HMAC using the
+// public verification key as the shared secret, and one signed with a key the
+// JWKS does not publish.
+func TestInterceptorRejectsForgedSignatures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unsigned token", func(t *testing.T) {
+		t.Parallel()
+		server := newTestJWKSServer(t)
+		interceptor := newInterceptor(t, server.URL)
+		token := jwt.NewWithClaims(jwt.SigningMethodNone, validClaims(server.URL))
+		token.Header["kid"] = "test-key"
+		forged, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+		if err != nil {
+			t.Fatalf("sign unsigned token: %v", err)
+		}
+
+		_, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+forged)
+
+		requireRejected(t, signedIn, err)
+	})
+
+	t.Run("HMAC signed with the public key", func(t *testing.T) {
+		t.Parallel()
+		server := newTestJWKSServer(t)
+		interceptor := newInterceptor(t, server.URL)
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, validClaims(server.URL))
+		token.Header["kid"] = "test-key"
+		public := elliptic.Marshal(server.key.Curve, server.key.X, server.key.Y)
+		forged, err := token.SignedString(public)
+		if err != nil {
+			t.Fatalf("sign HMAC token: %v", err)
+		}
+
+		_, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+forged)
+
+		requireRejected(t, signedIn, err)
+	})
+
+	t.Run("signed with an unpublished key", func(t *testing.T) {
+		t.Parallel()
+		server := newTestJWKSServer(t)
+		interceptor := newInterceptor(t, server.URL)
+		forgedKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			t.Fatalf("generate forged key: %v", err)
+		}
+
+		_, signedIn, err := call(t, t.Context(), interceptor,
+			"Bearer "+signToken(t, forgedKey, validClaims(server.URL), "test-key"))
+
+		requireRejected(t, signedIn, err)
+	})
+}
+
+func TestInterceptorRequiresABearerCredential(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)
-	token := signToken(t, server.key, validClaims(server.URL))
+	token := signToken(t, server.key, validClaims(server.URL), "test-key")
 
 	for _, tc := range []struct {
-		name          string
-		authorization string
+		name, authorization string
 	}{
 		{"absent", ""},
-		{"raw token", token},
-		{"scheme only", "Bearer"},
-		{"scheme and gap", "Bearer "},
-		{"basic scheme", "Basic " + token},
+		{"bare token with no scheme", token},
+		{"scheme with no token", "Bearer"},
+		{"scheme and a space only", "Bearer "},
+		{"wrong scheme", "Basic " + token},
 		{"double space", "Bearer  " + token},
 		{"trailing space", "Bearer " + token + " "},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, ok, err := callWithAuthorization(t, interceptor, tc.authorization)
-			requireCode(t, err, connect.CodeUnauthenticated)
-			if ok {
-				t.Error("handler received an authenticated user")
+			t.Parallel()
+			_, signedIn, err := call(t, t.Context(), interceptor, tc.authorization)
+
+			requireRejected(t, signedIn, err)
+		})
+	}
+}
+
+// TestInterceptorAcceptsAnyBearerCase checks the scheme match is
+// case-insensitive, as RFC 7235 requires.
+func TestInterceptorAcceptsAnyBearerCase(t *testing.T) {
+	t.Parallel()
+	server := newTestJWKSServer(t)
+	interceptor := newInterceptor(t, server.URL)
+	token := signToken(t, server.key, validClaims(server.URL), "test-key")
+
+	for _, scheme := range []string{"Bearer", "bearer", "BEARER"} {
+		t.Run(scheme, func(t *testing.T) {
+			t.Parallel()
+			_, signedIn, err := call(t, t.Context(), interceptor, scheme+" "+token)
+			if err != nil {
+				t.Fatalf("call with %q scheme error = %v", scheme, err)
+			}
+			if !signedIn {
+				t.Errorf("scheme %q did not authenticate", scheme)
 			}
 		})
 	}
 }
 
-// TestInterceptor_RejectsExpiredToken checks expired signed claims fail auth.
-func TestInterceptor_RejectsExpiredToken(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-	claims := validClaims(server.URL)
-	claims["exp"] = time.Now().Add(-time.Hour).Unix()
-
-	_, _, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-	requireCode(t, err, connect.CodeUnauthenticated)
-}
-
-// TestInterceptor_RequiresExpiration checks tokens without exp fail auth.
-func TestInterceptor_RequiresExpiration(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-	claims := validClaims(server.URL)
-	delete(claims, "exp")
-
-	_, _, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-	requireCode(t, err, connect.CodeUnauthenticated)
-}
-
-// TestInterceptor_RequiresExpectedIssuer checks the configured Supabase issuer.
-func TestInterceptor_RequiresExpectedIssuer(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-
-	for name, issuer := range map[string]any{
-		"missing": nil,
-		"wrong":   "https://another-project.supabase.co/auth/v1",
-	} {
-		t.Run(name, func(t *testing.T) {
-			claims := validClaims(server.URL)
-			if issuer == nil {
-				delete(claims, "iss")
-			} else {
-				claims["iss"] = issuer
-			}
-			_, _, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-			requireCode(t, err, connect.CodeUnauthenticated)
-		})
-	}
-}
-
-// TestInterceptor_RequiresAuthenticatedAudience checks that anon and missing
-// audiences cannot enter the authenticated API.
-func TestInterceptor_RequiresAuthenticatedAudience(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-
-	for name, audience := range map[string]any{
-		"missing": nil,
-		"wrong":   "anon",
-	} {
-		t.Run(name, func(t *testing.T) {
-			claims := validClaims(server.URL)
-			if audience == nil {
-				delete(claims, "aud")
-			} else {
-				claims["aud"] = audience
-			}
-			_, _, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-			requireCode(t, err, connect.CodeUnauthenticated)
-		})
-	}
-}
-
-// TestInterceptor_RequiresNonNilUUIDSubject checks subject parsing and the
-// nil UUID rejection before identity is placed in context.
-func TestInterceptor_RequiresNonNilUUIDSubject(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-
-	for _, subject := range []string{"user-123", "00000000-0000-0000-0000-000000000000"} {
-		t.Run(subject, func(t *testing.T) {
-			claims := validClaims(server.URL)
-			claims["sub"] = subject
-			_, ok, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-			requireCode(t, err, connect.CodeUnauthenticated)
-			if ok {
-				t.Error("handler received an authenticated user")
-			}
-		})
-	}
-}
-
-// TestInterceptor_RejectsWrongSigningKey checks signatures against the JWKS.
-func TestInterceptor_RejectsWrongSigningKey(t *testing.T) {
-	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-	forgedKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("generate forged key: %v", err)
-	}
-
-	_, _, err = callWithToken(t, interceptor, signToken(t, forgedKey, validClaims(server.URL)))
-	requireCode(t, err, connect.CodeUnauthenticated)
-}
-
-// TestInterceptor_DoesNotApplyEmailDomainPolicy checks that account admission
-// stays with Supabase rather than the Go JWT verifier.
-func TestInterceptor_DoesNotApplyEmailDomainPolicy(t *testing.T) {
+// TestInterceptorLeavesDomainPolicyToSupabase checks this verifier accepts any
+// email. Rice-only admission is enforced by the signup hook in
+// supabase/migrations, so a change here must not silently become the only gate.
+func TestInterceptorLeavesDomainPolicyToSupabase(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)
 	claims := validClaims(server.URL)
 	claims["email"] = "alex@gmail.com"
 
-	user, ok, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
+	user, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+signToken(t, server.key, claims, "test-key"))
 	if err != nil {
-		t.Fatalf("handler: %v", err)
+		t.Fatalf("call error = %v", err)
 	}
-	if !ok {
-		t.Fatal("expected auth.User in context, found none")
+
+	if !signedIn {
+		t.Fatal("no identity reached the handler")
 	}
-	if got, want := user.Email, "alex@gmail.com"; got != want {
-		t.Errorf("Email = %q, want %q", got, want)
+	if user.Email != "alex@gmail.com" {
+		t.Errorf("Email = %q, want it passed through unchanged", user.Email)
 	}
 }
 
-// TestInterceptor_RequiresEmailClaim checks missing caller email is rejected.
-func TestInterceptor_RequiresEmailClaim(t *testing.T) {
+func TestNewInterceptorDerivesTheJWKSURL(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
-	interceptor := newInterceptor(t, server.URL)
-	claims := validClaims(server.URL)
-	delete(claims, "email")
 
-	_, ok, err := callWithToken(t, interceptor, signToken(t, server.key, claims))
-	requireCode(t, err, connect.CodeUnauthenticated)
-	if ok {
-		t.Error("handler received an authenticated user")
-	}
-}
-
-// TestNewInterceptor_DerivesJWKSURLFromSupabaseURL checks the initial fetch
-// path and trailing-slash normalization.
-func TestNewInterceptor_DerivesJWKSURLFromSupabaseURL(t *testing.T) {
-	server := newTestJWKSServer(t)
 	_ = newInterceptor(t, server.URL+"/")
 
 	requests := server.requestedURIs()
 	if len(requests) != 1 {
-		t.Fatalf("JWKS requests = %v, want exactly one startup request", requests)
+		t.Fatalf("JWKS requests = %v, want exactly one at startup", requests)
 	}
-	if got, want := requests[0], "/auth/v1/.well-known/jwks.json"; got != want {
-		t.Errorf("JWKS request URI = %q, want %q", got, want)
+	if want := "/auth/v1/.well-known/jwks.json"; requests[0] != want {
+		t.Errorf("JWKS request URI = %q, want %q", requests[0], want)
 	}
 }
 
-// TestNewInterceptor_ReportsInitialJWKSFailure checks startup fails when
-// signing keys cannot be fetched.
-func TestNewInterceptor_ReportsInitialJWKSFailure(t *testing.T) {
+// TestNewInterceptorReportsInitialJWKSFailure checks the server refuses to boot
+// without signing keys, rather than starting and rejecting every request.
+func TestNewInterceptorReportsInitialJWKSFailure(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
 	server.server.Close()
 
 	if _, err := auth.NewInterceptor(context.Background(), server.URL); err == nil {
-		t.Error("expected an error constructing the interceptor with an unreachable JWKS URL")
+		t.Error("NewInterceptor() with an unreachable JWKS = nil, want an error")
 	}
 }
 
-// TestInterceptor_JWKSRefreshHonorsRequestContext checks a canceled request with an
-// unknown key ID does not trigger another JWKS fetch. An unknown kid is reachable
-// before authentication, so a per-request refresh would turn this service into an
-// amplifier against the Supabase JWKS endpoint.
-func TestInterceptor_JWKSRefreshHonorsRequestContext(t *testing.T) {
+// TestInterceptorDoesNotRefreshKeysForACancelledRequest checks an unknown key ID
+// cannot drive repeated JWKS fetches. An unknown kid is reachable before
+// authentication, so a per-request refresh would make this service an amplifier
+// against the Supabase JWKS endpoint.
+func TestInterceptorDoesNotRefreshKeysForACancelledRequest(t *testing.T) {
+	t.Parallel()
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)
-	token := signTokenWithKID(t, server.key, validClaims(server.URL), "unknown-key")
+	token := signToken(t, server.key, validClaims(server.URL), "unknown-key")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, _, err := callWithAuthorizationContext(t, ctx, interceptor, "Bearer "+token)
-	requireCode(t, err, connect.CodeUnauthenticated)
+	_, signedIn, err := call(t, ctx, interceptor, "Bearer "+token)
+
+	requireRejected(t, signedIn, err)
 	if got := server.requestedURIs(); len(got) != 1 {
-		t.Errorf("JWKS requests = %v, want no refresh after request cancellation", got)
+		t.Errorf("JWKS requests = %v, want only the startup fetch", got)
 	}
 }

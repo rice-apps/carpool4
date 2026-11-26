@@ -200,7 +200,6 @@ func TestConcurrentJoinAndCapacityReductionSerialize(t *testing.T) {
 	}
 }
 
-// assertOneSuccessOneConflict fails t unless two mutation errors contain one nil and one Aborted.
 // assertOneSuccessOneConflict checks that exactly one of two racing mutations
 // committed and the other was told to retry, and returns the caller that lost.
 func assertOneSuccessOneConflict(t *testing.T, results ...mutationResult) uuid.UUID {

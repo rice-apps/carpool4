@@ -98,6 +98,10 @@ func NewInterceptor(ctx context.Context, supabaseURL string) (connect.UnaryInter
 				tokenStr,
 				&c,
 				kf.KeyfuncCtx(ctx),
+				// Supabase signs with ES256. Stating the allowed algorithm keeps a
+				// forged header from choosing a weaker one, rather than relying on
+				// the JWKS key type to reject it.
+				jwt.WithValidMethods([]string{jwt.SigningMethodES256.Alg()}),
 				jwt.WithExpirationRequired(),
 				jwt.WithIssuer(issuer),
 				jwt.WithAudience(authenticatedAudience),

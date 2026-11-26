@@ -130,7 +130,6 @@ func TestGetUserAcceptsADifferentlyCasedSelfID(t *testing.T) {
 
 // TestRideListsFilterAndOrderInSQL checks real SQL discovery filters and personal ride history.
 func TestRideListsFilterAndOrderInSQL(t *testing.T) {
-	// Actual SQL must preserve membership, discovery filters, cancelled history,
 	f := newDBMutationFixture(t)
 	base := time.Now().Add(24 * time.Hour).Truncate(time.Microsecond)
 	ids := make([]string, 4)

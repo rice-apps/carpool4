@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -60,8 +61,8 @@ func TestFindUserReportsMissingProfile(t *testing.T) {
 
 	t.Run("absent profile", func(t *testing.T) {
 		_, err := begin(t, db).UsersRepo().FindUser(ctx, uuid.New())
-		if err == nil {
-			t.Error("FindUser() of an absent profile succeeded, want ErrUserNotFound")
+		if !errors.Is(err, app.ErrUserNotFound) {
+			t.Errorf("FindUser() of an absent profile = %v, want ErrUserNotFound", err)
 		}
 	})
 }
