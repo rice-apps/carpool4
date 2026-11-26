@@ -143,9 +143,6 @@ func startupError(err error) string {
 	if strings.Contains(strings.ToLower(err.Error()), "docker") {
 		return "cannot reach Docker, which these tests need for a disposable PostgreSQL container.\n" +
 			"Start Docker and re-run `go test ./...`.\n\n" +
-			"If your Docker runtime does not provide /var/run/docker.sock, set:\n" +
-			"  export DOCKER_HOST=\"$(docker context inspect --format '{{.Endpoints.docker.Host}}')\"\n" +
-			"  export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock\n\n" +
 			"underlying error: " + err.Error()
 	}
 	return "start PostgreSQL container: " + err.Error()

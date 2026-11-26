@@ -1,18 +1,15 @@
-# Adapted from https://github.com/actions/starter-workflows/blob/main/ci/go.yml
-
 name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -25,49 +22,49 @@ jobs:
       proto: ${{ steps.filter.outputs.proto }}
       sqlc: ${{ steps.filter.outputs.sqlc }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: dorny/paths-filter@v3
-      id: filter
-      with:
-        filters: |
-          ci: &ci
-            - .github/workflows/ci.yml
-          tools:
-            - *ci
-            - package.json
-            - package-lock.json
-            - scripts/**
-          backend:
-            - *ci
-            - backend/**
-            - supabase/**
-          frontend:
-            - *ci
-            - frontend/**
-            - proto/**
-          proto:
-            - *ci
-            - proto/**
-            - backend/internal/gen/**
-          sqlc:
-            - *ci
-            - backend/**
-            - supabase/migrations/**
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ci: &ci
+              - .github/workflows/ci.yml
+            tools:
+              - *ci
+              - package.json
+              - package-lock.json
+              - scripts/**
+            backend:
+              - *ci
+              - backend/**
+              - supabase/**
+            frontend:
+              - *ci
+              - frontend/**
+              - proto/**
+            proto:
+              - *ci
+              - proto/**
+              - backend/internal/gen/**
+            sqlc:
+              - *ci
+              - backend/**
+              - supabase/migrations/**
 
   dev-tools:
     needs: changes
     if: needs.changes.outputs.tools == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
-    - run: npm ci
-    - run: npm test
+      - run: npm ci
+      - run: npm test
 
   backend:
     needs: changes
@@ -78,22 +75,22 @@ jobs:
       run:
         working-directory: backend
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version-file: backend/go.mod
-        cache-dependency-path: backend/go.sum
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
 
-    - name: Vet
-      run: go vet ./...
+      - name: Vet
+        run: go vet ./...
 
-    - name: Build
-      run: go build -v ./...
+      - name: Build
+        run: go build -v ./...
 
-    - name: Test
-      run: go test -count=1 -timeout 10m ./...
+      - name: Test
+        run: go test -count=1 -timeout 10m ./...
 
   frontend:
     needs: changes
@@ -103,48 +100,48 @@ jobs:
       run:
         working-directory: frontend
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
-        cache-dependency-path: frontend/package-lock.json
-    - uses: bufbuild/buf-setup-action@v1
-      with:
-        version: '1.73.0'
-    - run: npm ci
-    - run: npm run generate
-    - name: Confirm checked-in frontend generated code is up to date
-      run: git diff --exit-code -- src/gen
-    - run: npx playwright install --with-deps chromium
-    - run: npm test
-    - run: npm run test:e2e
-    - run: npm run lint
-    - run: npx tsc --noEmit
-    - run: npm run build
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.73.0"
+      - run: npm ci
+      - run: npm run generate
+      - name: Confirm checked-in frontend generated code is up to date
+        run: git diff --exit-code -- src/gen
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
 
   proto:
     needs: changes
     if: needs.changes.outputs.proto == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - uses: bufbuild/buf-setup-action@v1
-      with:
-        version: '1.73.0'
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.73.0"
 
-    - uses: bufbuild/buf-lint-action@v1
-      with:
-        input: proto
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: proto
 
-    - name: Confirm checked-in generated code is up to date
-      working-directory: proto
-      run: |
-        buf generate
-        git diff --exit-code -- ../backend/internal/gen
+      - name: Confirm checked-in generated code is up to date
+        working-directory: proto
+        run: |
+          buf generate
+          git diff --exit-code -- ../backend/internal/gen
 
   sqlc:
     needs: changes
@@ -154,20 +151,20 @@ jobs:
       run:
         working-directory: backend
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: sqlc-dev/setup-sqlc@v3
-      with:
-        sqlc-version: '1.31.1'
+      - uses: sqlc-dev/setup-sqlc@v3
+        with:
+          sqlc-version: "1.31.1"
 
-    - name: Confirm checked-in generated code is up to date
-      run: sqlc diff
+      - name: Confirm checked-in generated code is up to date
+        run: sqlc diff
 
   ci-ok:
     if: always()
     needs: [changes, dev-tools, backend, frontend, proto, sqlc]
     runs-on: ubuntu-latest
     steps:
-    - name: Fail if any job failed or was cancelled
-      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-      run: exit 1
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

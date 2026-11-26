@@ -11,7 +11,7 @@ import (
 
 func TestGetVisibleProfileAppliesContactPermissions(t *testing.T) {
 	t.Parallel()
-	record := testUser(uuid.New(), "alex@rice.edu")
+	record := testUser(uuid.New(), "omar@rice.edu")
 	viewer := uuid.New()
 
 	for _, tc := range []struct {
@@ -68,7 +68,7 @@ func TestGetVisibleProfileAppliesContactPermissions(t *testing.T) {
 
 func TestGetVisibleProfileReturnsPermissionLookupFailure(t *testing.T) {
 	t.Parallel()
-	record := testUser(uuid.New(), "alex@rice.edu")
+	record := testUser(uuid.New(), "omar@rice.edu")
 	cause := errors.New("permission lookup failed")
 	fake := newFakeDatabase([]UserRecord{record}).failing(opVisibleContacts, cause)
 	tx, err := fake.BeginTx(t.Context())

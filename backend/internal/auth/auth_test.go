@@ -22,7 +22,7 @@ import (
 
 const (
 	validSubject = "4f091c48-d3ad-4b09-bce2-a7549a760a49"
-	validEmail   = "alex@rice.edu"
+	validEmail   = "omar@rice.edu"
 )
 
 // testJWKSServer serves a signing key and records JWKS request paths under a
@@ -317,7 +317,7 @@ func TestInterceptorLeavesDomainPolicyToSupabase(t *testing.T) {
 	server := newTestJWKSServer(t)
 	interceptor := newInterceptor(t, server.URL)
 	claims := validClaims(server.URL)
-	claims["email"] = "alex@gmail.com"
+	claims["email"] = "omar@gmail.com"
 
 	user, signedIn, err := call(t, t.Context(), interceptor, "Bearer "+signToken(t, server.key, claims, "test-key"))
 	if err != nil {
@@ -327,7 +327,7 @@ func TestInterceptorLeavesDomainPolicyToSupabase(t *testing.T) {
 	if !signedIn {
 		t.Fatal("no identity reached the handler")
 	}
-	if user.Email != "alex@gmail.com" {
+	if user.Email != "omar@gmail.com" {
 		t.Errorf("Email = %q, want it passed through unchanged", user.Email)
 	}
 }
