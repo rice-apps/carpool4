@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // TestConvertRideToProtoOmitsPeopleForGuests checks that a ride the application
@@ -23,15 +23,15 @@ func TestConvertRideToProtoOmitsPeopleForGuests(t *testing.T) {
 
 	got := convertRideToProto(ride)
 
-	want := &v1.Ride{
+	want := &carpoolv1.Ride{
 		Id:            ride.ID.String(),
 		DepartureTime: timestamppb.New(departure),
 		// Both locations are zero values, so their IDs convert to the nil UUID.
-		DepartureLocation: &v1.Location{Id: uuid.Nil.String()},
-		ArrivalLocation:   &v1.Location{Id: uuid.Nil.String()},
+		DepartureLocation: &carpoolv1.Location{Id: uuid.Nil.String()},
+		ArrivalLocation:   &carpoolv1.Location{Id: uuid.Nil.String()},
 		Capacity:          2,
 		OccupiedSeats:     1,
-		Riders:            []*v1.User{},
+		Riders:            []*carpoolv1.User{},
 	}
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("convertRideToProto() mismatch (-want +got):\n%s", diff)
@@ -47,11 +47,11 @@ func TestConvertRideToProtoKeepsVisibleContacts(t *testing.T) {
 
 	got := convertRideToProto(ride)
 
-	wantOwner := &v1.User{Id: owner.ID.String(), FirstName: "Ada", LastName: "Lovelace", Email: "ada@rice.edu", Phone: "713-555-0100"}
+	wantOwner := &carpoolv1.User{Id: owner.ID.String(), FirstName: "Ada", LastName: "Lovelace", Email: "ada@rice.edu", Phone: "713-555-0100"}
 	if diff := cmp.Diff(wantOwner, got.Owner, protocmp.Transform()); diff != "" {
 		t.Errorf("owner mismatch (-want +got):\n%s", diff)
 	}
-	if diff := cmp.Diff([]*v1.User{wantOwner}, got.Riders, protocmp.Transform()); diff != "" {
+	if diff := cmp.Diff([]*carpoolv1.User{wantOwner}, got.Riders, protocmp.Transform()); diff != "" {
 		t.Errorf("riders mismatch (-want +got):\n%s", diff)
 	}
 }

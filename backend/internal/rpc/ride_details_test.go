@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestGetRideRejectsMalformedRideID(t *testing.T) {
@@ -16,7 +16,7 @@ func TestGetRideRejectsMalformedRideID(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	_, err := newTestServer(fake).GetRide(testContext(uuid.New(), "viewer@rice.edu"),
-		connect.NewRequest(&v1.GetRideRequest{Id: "not-a-uuid"}))
+		connect.NewRequest(&carpoolv1.GetRideRequest{Id: "not-a-uuid"}))
 
 	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 		t.Errorf("GetRide(\"not-a-uuid\") code = %v, want %v", got, connect.CodeInvalidArgument)
@@ -39,7 +39,7 @@ func TestGetRideReturnsTheRequestedRide(t *testing.T) {
 	}
 
 	got, err := newTestServer(fake).GetRide(testContext(owner.ID, owner.Email),
-		connect.NewRequest(&v1.GetRideRequest{Id: ride.ID.String()}))
+		connect.NewRequest(&carpoolv1.GetRideRequest{Id: ride.ID.String()}))
 	if err != nil {
 		t.Fatalf("GetRide(%v) error = %v", ride.ID, err)
 	}
@@ -57,7 +57,7 @@ func TestGetRideMapsMissingRideToNotFound(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	_, err := newTestServer(fake).GetRide(testContext(uuid.New(), "viewer@rice.edu"),
-		connect.NewRequest(&v1.GetRideRequest{Id: uuid.NewString()}))
+		connect.NewRequest(&carpoolv1.GetRideRequest{Id: uuid.NewString()}))
 
 	if got := connect.CodeOf(err); got != connect.CodeNotFound {
 		t.Errorf("GetRide() code = %v, want %v", got, connect.CodeNotFound)

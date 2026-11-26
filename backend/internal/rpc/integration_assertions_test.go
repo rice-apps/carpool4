@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/rpc"
 )
 
@@ -16,7 +16,7 @@ func newRPCServer(database app.Database) *rpc.Server {
 }
 
 // assertRPCContactRedacted fails t unless got keeps wantID but hides every protected contact field.
-func assertRPCContactRedacted(t *testing.T, got *v1.User, wantID uuid.UUID) {
+func assertRPCContactRedacted(t *testing.T, got *carpoolv1.User, wantID uuid.UUID) {
 	t.Helper()
 	if got == nil {
 		t.Fatal("user is nil")
@@ -32,7 +32,7 @@ func assertRPCContactRedacted(t *testing.T, got *v1.User, wantID uuid.UUID) {
 // assertContactsHidden fails t unless got carries no protected contact fields.
 // Use it where the expected ID is not known independently of got; deriving the
 // want from the value under test would make the ID check a tautology.
-func assertContactsHidden(t *testing.T, got *v1.User) {
+func assertContactsHidden(t *testing.T, got *carpoolv1.User) {
 	t.Helper()
 	if got == nil {
 		t.Fatal("user is nil")

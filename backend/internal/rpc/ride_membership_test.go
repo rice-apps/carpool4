@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestMembershipHandlersRejectMalformedRideID(t *testing.T) {
@@ -19,12 +19,12 @@ func TestMembershipHandlersRejectMalformedRideID(t *testing.T) {
 	}{
 		{"JoinRide", func(s *Server) error {
 			_, err := s.JoinRide(testContext(uuid.New(), "rider@rice.edu"),
-				connect.NewRequest(&v1.JoinRideRequest{RideId: "not-a-uuid"}))
+				connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: "not-a-uuid"}))
 			return err
 		}},
 		{"LeaveRide", func(s *Server) error {
 			_, err := s.LeaveRide(testContext(uuid.New(), "rider@rice.edu"),
-				connect.NewRequest(&v1.LeaveRideRequest{RideId: "not-a-uuid"}))
+				connect.NewRequest(&carpoolv1.LeaveRideRequest{RideId: "not-a-uuid"}))
 			return err
 		}},
 	} {
@@ -58,7 +58,7 @@ func TestJoinRideReturnsTheUpdatedRide(t *testing.T) {
 	}
 
 	got, err := newTestServer(fake).JoinRide(testContext(rider.ID, rider.Email),
-		connect.NewRequest(&v1.JoinRideRequest{RideId: ride.ID.String()}))
+		connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: ride.ID.String()}))
 	if err != nil {
 		t.Fatalf("JoinRide() error = %v", err)
 	}
@@ -87,7 +87,7 @@ func TestLeaveRideMapsAbsentMembershipToFailedPrecondition(t *testing.T) {
 	}
 
 	_, err := newTestServer(fake).LeaveRide(testContext(stranger.ID, stranger.Email),
-		connect.NewRequest(&v1.LeaveRideRequest{RideId: ride.ID.String()}))
+		connect.NewRequest(&carpoolv1.LeaveRideRequest{RideId: ride.ID.String()}))
 
 	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
 		t.Errorf("LeaveRide() code = %v, want %v", got, connect.CodeFailedPrecondition)

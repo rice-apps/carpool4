@@ -7,7 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // TestValidationInterceptorEnforcesProfileContract checks declarative profile rules before handler execution.
@@ -16,13 +16,13 @@ func TestValidationInterceptorEnforcesProfileContract(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		request *v1.UpdateUserRequest
+		request *carpoolv1.UpdateUserRequest
 		valid   bool
 	}{
 		{name: "valid profile", request: validUpdateUserRequest(), valid: true},
-		{name: "empty first name", request: &v1.UpdateUserRequest{LastName: "Lovelace"}},
-		{name: "whitespace last name", request: &v1.UpdateUserRequest{FirstName: "Ada", LastName: "   "}},
-		{name: "oversized phone", request: &v1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace", Phone: strings.Repeat("1", 33)}},
+		{name: "empty first name", request: &carpoolv1.UpdateUserRequest{LastName: "Lovelace"}},
+		{name: "whitespace last name", request: &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "   "}},
+		{name: "oversized phone", request: &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace", Phone: strings.Repeat("1", 33)}},
 	}
 
 	for _, tc := range tests {
@@ -40,8 +40,8 @@ func TestValidationInterceptorEnforcesProfileContract(t *testing.T) {
 }
 
 // validUpdateUserRequest returns the minimum valid profile message for validation tests.
-func validUpdateUserRequest() *v1.UpdateUserRequest {
-	return &v1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace"}
+func validUpdateUserRequest() *carpoolv1.UpdateUserRequest {
+	return &carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace"}
 }
 
 // validateRequest runs request through the validation interceptor and returns its rejection, if any.

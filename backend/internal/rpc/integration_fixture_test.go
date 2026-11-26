@@ -14,7 +14,7 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/auth"
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
 	"github.com/rice-apps/carpool4/backend/internal/dbtest"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/rpc"
 )
 
@@ -35,7 +35,7 @@ type dbMutationFixture struct {
 	db                   *sql.DB
 	server               *rpc.Server
 	owner, first, second uuid.UUID
-	request              *v1.CreateRideRequest
+	request              *carpoolv1.CreateRideRequest
 }
 
 // occupants returns how many people the stored ride seats.
@@ -65,7 +65,7 @@ func newDBMutationFixture(t *testing.T) dbMutationFixture {
 	if _, err := f.db.Exec(`INSERT INTO locations (id, title, address) VALUES ($1, 'Departure', $3), ($2, 'Arrival', $4)`, departure, arrival, departure.String(), arrival.String()); err != nil {
 		t.Fatal(err)
 	}
-	f.request = &v1.CreateRideRequest{DepartureTime: timestamppb.New(time.Now().Add(24 * time.Hour)), DepartureLocationId: departure.String(), ArrivalLocationId: arrival.String(), Capacity: 2}
+	f.request = &carpoolv1.CreateRideRequest{DepartureTime: timestamppb.New(time.Now().Add(24 * time.Hour)), DepartureLocationId: departure.String(), ArrivalLocationId: arrival.String(), Capacity: 2}
 	f.server = newRPCServer(postgres.NewDatabase(f.db))
 	return f
 }
@@ -90,6 +90,6 @@ func (f dbMutationFixture) create(t *testing.T) string {
 }
 
 // update returns a request for ride id with f's route and the given capacity.
-func (f dbMutationFixture) update(id string, capacity int32) *connect.Request[v1.UpdateRideRequest] {
-	return connect.NewRequest(&v1.UpdateRideRequest{Id: id, DepartureTime: f.request.DepartureTime, DepartureLocationId: f.request.DepartureLocationId, ArrivalLocationId: f.request.ArrivalLocationId, Capacity: capacity})
+func (f dbMutationFixture) update(id string, capacity int32) *connect.Request[carpoolv1.UpdateRideRequest] {
+	return connect.NewRequest(&carpoolv1.UpdateRideRequest{Id: id, DepartureTime: f.request.DepartureTime, DepartureLocationId: f.request.DepartureLocationId, ArrivalLocationId: f.request.ArrivalLocationId, Capacity: capacity})
 }

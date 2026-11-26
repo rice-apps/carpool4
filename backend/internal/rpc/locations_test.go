@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestListLocationsConvertsEveryLocation(t *testing.T) {
@@ -20,12 +20,12 @@ func TestListLocationsConvertsEveryLocation(t *testing.T) {
 	airport := app.LocationRecord{ID: uuid.New(), Title: "IAH", Address: "2800 N Terminal Rd"}
 	fake := &fakeDatabase{locations: []app.LocationRecord{rice, airport}}
 
-	got, err := newTestServer(fake).ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
+	got, err := newTestServer(fake).ListLocations(context.Background(), connect.NewRequest(&carpoolv1.ListLocationsRequest{}))
 	if err != nil {
 		t.Fatalf("ListLocations() error = %v", err)
 	}
 
-	want := []*v1.Location{
+	want := []*carpoolv1.Location{
 		{Id: rice.ID.String(), Title: "Rice", Address: "6100 Main St"},
 		{Id: airport.ID.String(), Title: "IAH", Address: "2800 N Terminal Rd"},
 	}
@@ -41,7 +41,7 @@ func TestListLocationsReportsStorageFailure(t *testing.T) {
 	cause := errors.New("locations unavailable")
 	fake := (&fakeDatabase{}).failing(opListLocations, cause)
 
-	_, err := newTestServer(fake).ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
+	_, err := newTestServer(fake).ListLocations(context.Background(), connect.NewRequest(&carpoolv1.ListLocationsRequest{}))
 	if got := connect.CodeOf(err); got != connect.CodeInternal {
 		t.Errorf("ListLocations() code = %v, want %v", got, connect.CodeInternal)
 	}

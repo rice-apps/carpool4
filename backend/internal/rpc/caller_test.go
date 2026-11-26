@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/auth"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // rpcCall names one handler and invokes it with a context the test controls.
@@ -20,35 +20,35 @@ type rpcCall struct {
 // protectedCalls are the handlers that refuse an unverified caller outright.
 var protectedCalls = []rpcCall{
 	{"GetUser", func(s *Server, ctx context.Context) error {
-		_, err := s.GetUser(ctx, connect.NewRequest(&v1.GetUserRequest{}))
+		_, err := s.GetUser(ctx, connect.NewRequest(&carpoolv1.GetUserRequest{}))
 		return err
 	}},
 	{"UpdateUser", func(s *Server, ctx context.Context) error {
-		_, err := s.UpdateUser(ctx, connect.NewRequest(&v1.UpdateUserRequest{}))
+		_, err := s.UpdateUser(ctx, connect.NewRequest(&carpoolv1.UpdateUserRequest{}))
 		return err
 	}},
 	{"ListMyRides", func(s *Server, ctx context.Context) error {
-		_, err := s.ListMyRides(ctx, connect.NewRequest(&v1.ListMyRidesRequest{}))
+		_, err := s.ListMyRides(ctx, connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 		return err
 	}},
 	{"CreateRide", func(s *Server, ctx context.Context) error {
-		_, err := s.CreateRide(ctx, connect.NewRequest(&v1.CreateRideRequest{}))
+		_, err := s.CreateRide(ctx, connect.NewRequest(&carpoolv1.CreateRideRequest{}))
 		return err
 	}},
 	{"UpdateRide", func(s *Server, ctx context.Context) error {
-		_, err := s.UpdateRide(ctx, connect.NewRequest(&v1.UpdateRideRequest{}))
+		_, err := s.UpdateRide(ctx, connect.NewRequest(&carpoolv1.UpdateRideRequest{}))
 		return err
 	}},
 	{"CancelRide", func(s *Server, ctx context.Context) error {
-		_, err := s.CancelRide(ctx, connect.NewRequest(&v1.CancelRideRequest{}))
+		_, err := s.CancelRide(ctx, connect.NewRequest(&carpoolv1.CancelRideRequest{}))
 		return err
 	}},
 	{"JoinRide", func(s *Server, ctx context.Context) error {
-		_, err := s.JoinRide(ctx, connect.NewRequest(&v1.JoinRideRequest{}))
+		_, err := s.JoinRide(ctx, connect.NewRequest(&carpoolv1.JoinRideRequest{}))
 		return err
 	}},
 	{"LeaveRide", func(s *Server, ctx context.Context) error {
-		_, err := s.LeaveRide(ctx, connect.NewRequest(&v1.LeaveRideRequest{}))
+		_, err := s.LeaveRide(ctx, connect.NewRequest(&carpoolv1.LeaveRideRequest{}))
 		return err
 	}},
 }
@@ -56,11 +56,11 @@ var protectedCalls = []rpcCall{
 // publicReadCalls are the handlers a signed-out visitor may reach.
 var publicReadCalls = []rpcCall{
 	{"GetRide", func(s *Server, ctx context.Context) error {
-		_, err := s.GetRide(ctx, connect.NewRequest(&v1.GetRideRequest{Id: uuid.NewString()}))
+		_, err := s.GetRide(ctx, connect.NewRequest(&carpoolv1.GetRideRequest{Id: uuid.NewString()}))
 		return err
 	}},
 	{"ListRides", func(s *Server, ctx context.Context) error {
-		_, err := s.ListRides(ctx, connect.NewRequest(&v1.ListRidesRequest{}))
+		_, err := s.ListRides(ctx, connect.NewRequest(&carpoolv1.ListRidesRequest{}))
 		return err
 	}},
 }

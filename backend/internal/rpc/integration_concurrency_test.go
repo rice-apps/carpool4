@@ -13,7 +13,7 @@ import (
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // mutationReadBarrier pauses concurrent mutations after their ride reads.
@@ -148,7 +148,7 @@ func TestConcurrentJoinsClaimTheLastSeatOnce(t *testing.T) {
 		go func() {
 			ctx, cancel := context.WithTimeout(dbCaller(who), 10*time.Second)
 			defer cancel()
-			_, err := server.JoinRide(ctx, connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
+			_, err := server.JoinRide(ctx, connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id}))
 			results <- mutationResult{who: who, err: err}
 		}()
 	}
@@ -159,7 +159,7 @@ func TestConcurrentJoinsClaimTheLastSeatOnce(t *testing.T) {
 	}
 	// Retrying in a fresh transaction must now see the ride as full, not as a
 	// conflict: the race is over and the seat is gone.
-	_, retryErr := f.server.JoinRide(dbCaller(conflicted), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
+	_, retryErr := f.server.JoinRide(dbCaller(conflicted), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id}))
 	if got := connect.CodeOf(retryErr); got != connect.CodeFailedPrecondition {
 		t.Errorf("retry after conflict: code = %v, want %v", got, connect.CodeFailedPrecondition)
 	}
@@ -179,7 +179,7 @@ func TestConcurrentJoinAndCapacityReductionSerialize(t *testing.T) {
 	go func() {
 		ctx, cancel := context.WithTimeout(dbCaller(f.first), 10*time.Second)
 		defer cancel()
-		_, err := server.JoinRide(ctx, connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
+		_, err := server.JoinRide(ctx, connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id}))
 		results <- mutationResult{who: f.first, err: err}
 	}()
 	go func() {
@@ -295,7 +295,7 @@ func TestJoinWithMissingProfileReportsSanitizedInternal(t *testing.T) {
 	}
 
 	t.Run("RPC returns sanitized internal", func(t *testing.T) {
-		_, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id}))
+		_, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id}))
 		if got := connect.CodeOf(err); got != connect.CodeInternal {
 			t.Errorf("code = %v, want %v", got, connect.CodeInternal)
 		}
@@ -329,7 +329,7 @@ func TestJoinWithMissingProfileReportsSanitizedInternal(t *testing.T) {
 func TestConcurrentLeaveAndCapacityReductionSerialize(t *testing.T) {
 	f := newDBMutationFixture(t)
 	id := f.create(t)
-	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); err != nil {
+	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id})); err != nil {
 		t.Fatalf("JoinRide() error = %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestConcurrentLeaveAndCapacityReductionSerialize(t *testing.T) {
 	go func() {
 		ctx, cancel := context.WithTimeout(dbCaller(f.first), 10*time.Second)
 		defer cancel()
-		_, err := server.LeaveRide(ctx, connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
+		_, err := server.LeaveRide(ctx, connect.NewRequest(&carpoolv1.LeaveRideRequest{RideId: id}))
 		results <- mutationResult{who: f.first, err: err}
 	}()
 	go func() {

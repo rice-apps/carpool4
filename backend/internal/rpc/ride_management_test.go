@@ -9,13 +9,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // validCreateRequest returns a request whose every wire value parses, so a test
 // can corrupt exactly one field.
-func validCreateRequest() *v1.CreateRideRequest {
-	return &v1.CreateRideRequest{
+func validCreateRequest() *carpoolv1.CreateRideRequest {
+	return &carpoolv1.CreateRideRequest{
 		DepartureTime:       timestamppb.New(time.Now().Add(time.Hour)),
 		DepartureLocationId: uuid.NewString(),
 		ArrivalLocationId:   uuid.NewString(),
@@ -24,8 +24,8 @@ func validCreateRequest() *v1.CreateRideRequest {
 }
 
 // validUpdateRequest is the UpdateRide equivalent of validCreateRequest.
-func validUpdateRequest() *v1.UpdateRideRequest {
-	return &v1.UpdateRideRequest{
+func validUpdateRequest() *carpoolv1.UpdateRideRequest {
+	return &carpoolv1.UpdateRideRequest{
 		Id:                  uuid.NewString(),
 		DepartureTime:       timestamppb.New(time.Now().Add(time.Hour)),
 		DepartureLocationId: uuid.NewString(),
@@ -41,14 +41,14 @@ func TestCreateRideParsesEveryWireValue(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name    string
-		corrupt func(*v1.CreateRideRequest)
+		corrupt func(*carpoolv1.CreateRideRequest)
 	}{
-		{name: "missing departure time", corrupt: func(r *v1.CreateRideRequest) { r.DepartureTime = nil }},
-		{name: "departure time out of range", corrupt: func(r *v1.CreateRideRequest) {
+		{name: "missing departure time", corrupt: func(r *carpoolv1.CreateRideRequest) { r.DepartureTime = nil }},
+		{name: "departure time out of range", corrupt: func(r *carpoolv1.CreateRideRequest) {
 			r.DepartureTime = &timestamppb.Timestamp{Seconds: 253402300800}
 		}},
-		{name: "departure location", corrupt: func(r *v1.CreateRideRequest) { r.DepartureLocationId = "not-a-uuid" }},
-		{name: "arrival location", corrupt: func(r *v1.CreateRideRequest) { r.ArrivalLocationId = "not-a-uuid" }},
+		{name: "departure location", corrupt: func(r *carpoolv1.CreateRideRequest) { r.DepartureLocationId = "not-a-uuid" }},
+		{name: "arrival location", corrupt: func(r *carpoolv1.CreateRideRequest) { r.ArrivalLocationId = "not-a-uuid" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -75,14 +75,14 @@ func TestUpdateRideParsesEveryWireValue(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name    string
-		corrupt func(*v1.UpdateRideRequest)
+		corrupt func(*carpoolv1.UpdateRideRequest)
 	}{
-		{name: "ride ID", corrupt: func(r *v1.UpdateRideRequest) { r.Id = "not-a-uuid" }},
-		{name: "departure time", corrupt: func(r *v1.UpdateRideRequest) {
+		{name: "ride ID", corrupt: func(r *carpoolv1.UpdateRideRequest) { r.Id = "not-a-uuid" }},
+		{name: "departure time", corrupt: func(r *carpoolv1.UpdateRideRequest) {
 			r.DepartureTime = &timestamppb.Timestamp{Seconds: 253402300800}
 		}},
-		{name: "departure location", corrupt: func(r *v1.UpdateRideRequest) { r.DepartureLocationId = "not-a-uuid" }},
-		{name: "arrival location", corrupt: func(r *v1.UpdateRideRequest) { r.ArrivalLocationId = "not-a-uuid" }},
+		{name: "departure location", corrupt: func(r *carpoolv1.UpdateRideRequest) { r.DepartureLocationId = "not-a-uuid" }},
+		{name: "arrival location", corrupt: func(r *carpoolv1.UpdateRideRequest) { r.ArrivalLocationId = "not-a-uuid" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -104,7 +104,7 @@ func TestCancelRideRejectsMalformedRideID(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	_, err := newTestServer(fake).CancelRide(testContext(uuid.New(), "owner@rice.edu"),
-		connect.NewRequest(&v1.CancelRideRequest{Id: "not-a-uuid"}))
+		connect.NewRequest(&carpoolv1.CancelRideRequest{Id: "not-a-uuid"}))
 
 	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 		t.Errorf("CancelRide() code = %v, want %v", got, connect.CodeInvalidArgument)

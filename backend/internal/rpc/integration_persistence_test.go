@@ -14,7 +14,7 @@ import (
 
 	"github.com/rice-apps/carpool4/backend/internal/db/postgres"
 	"github.com/rice-apps/carpool4/backend/internal/dbtest"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/rpc"
 )
 
@@ -31,8 +31,8 @@ func newProfileServer(t *testing.T) (*rpc.Server, *sql.DB, uuid.UUID) {
 }
 
 // trimmedProfileRequest carries padded values so a test can check normalization.
-func trimmedProfileRequest() *v1.UpdateUserRequest {
-	return &v1.UpdateUserRequest{FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  "}
+func trimmedProfileRequest() *carpoolv1.UpdateUserRequest {
+	return &carpoolv1.UpdateUserRequest{FirstName: "  Ada  ", LastName: "  Lovelace  ", Phone: "  713-555-0100  "}
 }
 
 // TestUpdateUserCreatesAProfileForANewCaller checks the first write inserts
@@ -46,7 +46,7 @@ func TestUpdateUserCreatesAProfileForANewCaller(t *testing.T) {
 		t.Fatalf("UpdateUser() error = %v", err)
 	}
 
-	want := &v1.User{
+	want := &carpoolv1.User{
 		Id: id.String(), Email: id.String() + "@rice.edu",
 		FirstName: "Ada", LastName: "Lovelace", Phone: "713-555-0100",
 	}
@@ -118,7 +118,7 @@ func TestGetUserAcceptsADifferentlyCasedSelfID(t *testing.T) {
 	}
 
 	upper := strings.ToUpper(id.String())
-	got, err := server.GetUser(dbCaller(id), connect.NewRequest(&v1.GetUserRequest{UserId: &upper}))
+	got, err := server.GetUser(dbCaller(id), connect.NewRequest(&carpoolv1.GetUserRequest{UserId: &upper}))
 	if err != nil {
 		t.Fatalf("GetUser(%q) error = %v", upper, err)
 	}
@@ -137,13 +137,13 @@ func TestRideListsFilterAndOrderInSQL(t *testing.T) {
 		f.request.DepartureTime = timestamppb.New(base.Add(time.Duration(i) * time.Hour))
 		ids[i] = f.create(t)
 	}
-	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: ids[0]})); err != nil {
+	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: ids[0]})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.server.CancelRide(dbCaller(f.owner), connect.NewRequest(&v1.CancelRideRequest{Id: ids[3]})); err != nil {
+	if _, err := f.server.CancelRide(dbCaller(f.owner), connect.NewRequest(&carpoolv1.CancelRideRequest{Id: ids[3]})); err != nil {
 		t.Fatal(err)
 	}
-	owned, err := f.server.ListMyRides(dbCaller(f.owner), connect.NewRequest(&v1.ListMyRidesRequest{}))
+	owned, err := f.server.ListMyRides(dbCaller(f.owner), connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,24 +154,24 @@ func TestRideListsFilterAndOrderInSQL(t *testing.T) {
 	if diff := cmp.Diff([]string{ids[3], ids[2], ids[1], ids[0]}, gotIDs); diff != "" {
 		t.Errorf("owner history order mismatch (-want +got):\n%s", diff)
 	}
-	if got := owned.Msg.Rides[0].Status; got != v1.RideStatus_RIDE_STATUS_CANCELLED {
+	if got := owned.Msg.Rides[0].Status; got != carpoolv1.RideStatus_RIDE_STATUS_CANCELLED {
 		t.Errorf("cancelled ride status = %v, want it retained in history", got)
 	}
-	mine, err := f.server.ListMyRides(dbCaller(f.first), connect.NewRequest(&v1.ListMyRidesRequest{}))
+	mine, err := f.server.ListMyRides(dbCaller(f.first), connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 	if err != nil {
 		t.Fatalf("ListMyRides() for the passenger error = %v", err)
 	}
 	if len(mine.Msg.Rides) != 1 || mine.Msg.Rides[0].Id != ids[0] {
 		t.Errorf("passenger history = %d rides, want only the one they joined", len(mine.Msg.Rides))
 	}
-	other, err := f.server.ListMyRides(dbCaller(f.second), connect.NewRequest(&v1.ListMyRidesRequest{}))
+	other, err := f.server.ListMyRides(dbCaller(f.second), connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 	if err != nil {
 		t.Fatalf("ListMyRides() for an unrelated user error = %v", err)
 	}
 	if len(other.Msg.Rides) != 0 {
 		t.Errorf("unrelated history = %d rides, want none", len(other.Msg.Rides))
 	}
-	listed, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &f.request.DepartureLocationId, ArrivalLocationId: &f.request.ArrivalLocationId}))
+	listed, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureLocationId: &f.request.DepartureLocationId, ArrivalLocationId: &f.request.ArrivalLocationId}))
 	if err != nil {
 		t.Fatalf("ListRides() error = %v", err)
 	}
@@ -189,7 +189,7 @@ func TestRideListsFilterAndOrderInSQL(t *testing.T) {
 			assertContactsHidden(t, rider)
 		}
 	}
-	wrong, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &f.request.ArrivalLocationId}))
+	wrong, err := f.server.ListRides(dbCaller(f.second), connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureLocationId: &f.request.ArrivalLocationId}))
 	if err != nil {
 		t.Fatalf("ListRides() with a non-matching filter error = %v", err)
 	}
@@ -227,7 +227,7 @@ func TestRideLifecyclePersistsEachStep(t *testing.T) {
 	})
 
 	t.Run("a rejected capacity shrink changes nothing", func(t *testing.T) {
-		if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); err != nil {
+		if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id})); err != nil {
 			t.Fatalf("JoinRide() error = %v", err)
 		}
 
@@ -245,7 +245,7 @@ func TestRideLifecyclePersistsEachStep(t *testing.T) {
 	})
 
 	t.Run("leaving deletes the occupant row", func(t *testing.T) {
-		left, err := f.server.LeaveRide(dbCaller(f.first), connect.NewRequest(&v1.LeaveRideRequest{RideId: id}))
+		left, err := f.server.LeaveRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.LeaveRideRequest{RideId: id}))
 		if err != nil {
 			t.Fatalf("LeaveRide() error = %v", err)
 		}
@@ -258,11 +258,11 @@ func TestRideLifecyclePersistsEachStep(t *testing.T) {
 	})
 
 	t.Run("cancelling stores the new status", func(t *testing.T) {
-		cancelled, err := f.server.CancelRide(dbCaller(f.owner), connect.NewRequest(&v1.CancelRideRequest{Id: id}))
+		cancelled, err := f.server.CancelRide(dbCaller(f.owner), connect.NewRequest(&carpoolv1.CancelRideRequest{Id: id}))
 		if err != nil {
 			t.Fatalf("CancelRide() error = %v", err)
 		}
-		if cancelled.Msg.Ride.Status != v1.RideStatus_RIDE_STATUS_CANCELLED {
+		if cancelled.Msg.Ride.Status != carpoolv1.RideStatus_RIDE_STATUS_CANCELLED {
 			t.Errorf("response status = %v, want cancelled", cancelled.Msg.Ride.Status)
 		}
 		var status string

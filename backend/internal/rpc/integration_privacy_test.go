@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 // TestPastSharedRideGrantsSelectiveContactVisibility checks historical co-rider access.
@@ -15,11 +15,11 @@ func TestPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 	f := newDBMutationFixture(t)
 	f.request.Capacity = 3
 	id := f.create(t)
-	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&v1.JoinRideRequest{RideId: id})); err != nil {
+	if _, err := f.server.JoinRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.JoinRideRequest{RideId: id})); err != nil {
 		t.Fatal(err)
 	}
 	owner := f.owner.String()
-	before, err := f.server.GetUser(dbCaller(f.second), connect.NewRequest(&v1.GetUserRequest{UserId: &owner}))
+	before, err := f.server.GetUser(dbCaller(f.second), connect.NewRequest(&carpoolv1.GetUserRequest{UserId: &owner}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 	if _, err := f.db.Exec(`INSERT INTO ride_occupants (ride_id, user_id) VALUES ($1, $2), ($1, $3)`, past, f.owner, f.second); err != nil {
 		t.Fatal(err)
 	}
-	user, err := f.server.GetUser(dbCaller(f.second), connect.NewRequest(&v1.GetUserRequest{UserId: &owner}))
+	user, err := f.server.GetUser(dbCaller(f.second), connect.NewRequest(&carpoolv1.GetUserRequest{UserId: &owner}))
 	if err != nil {
 		t.Fatalf("GetUser() error = %v", err)
 	}
@@ -39,7 +39,7 @@ func TestPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 		t.Errorf("contacts = email %q phone %q, want both visible after a past shared ride",
 			user.Msg.User.Email, user.Msg.User.Phone)
 	}
-	ride, err := f.server.GetRide(dbCaller(f.second), connect.NewRequest(&v1.GetRideRequest{Id: id}))
+	ride, err := f.server.GetRide(dbCaller(f.second), connect.NewRequest(&carpoolv1.GetRideRequest{Id: id}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 	if !checkedRider {
 		t.Fatalf("ride %s has no rider %s, so its redaction was never checked", id, f.first)
 	}
-	mine, err := f.server.ListMyRides(dbCaller(f.first), connect.NewRequest(&v1.ListMyRidesRequest{}))
+	mine, err := f.server.ListMyRides(dbCaller(f.first), connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 	if err != nil {
 		t.Fatalf("ListMyRides() error = %v", err)
 	}
@@ -66,7 +66,7 @@ func TestPastSharedRideGrantsSelectiveContactVisibility(t *testing.T) {
 	if mine.Msg.Rides[0].Owner.Email == "" {
 		t.Error("owner email is hidden in the participant's own history, want it visible")
 	}
-	participant, err := f.server.GetRide(dbCaller(f.first), connect.NewRequest(&v1.GetRideRequest{Id: id}))
+	participant, err := f.server.GetRide(dbCaller(f.first), connect.NewRequest(&carpoolv1.GetRideRequest{Id: id}))
 	if err != nil {
 		t.Fatalf("GetRide() error = %v", err)
 	}

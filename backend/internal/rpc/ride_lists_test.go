@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestListRidesRejectsMalformedFilters(t *testing.T) {
@@ -19,12 +19,12 @@ func TestListRidesRejectsMalformedFilters(t *testing.T) {
 
 	for _, tc := range []struct {
 		name    string
-		request *v1.ListRidesRequest
+		request *carpoolv1.ListRidesRequest
 	}{
-		{name: "departure location", request: &v1.ListRidesRequest{DepartureLocationId: &bad}},
-		{name: "arrival location", request: &v1.ListRidesRequest{ArrivalLocationId: &bad}},
-		{name: "departure after", request: &v1.ListRidesRequest{DepartureAfter: &timestamppb.Timestamp{Seconds: math.MaxInt64}}},
-		{name: "departure before", request: &v1.ListRidesRequest{DepartureBefore: &timestamppb.Timestamp{Nanos: -1}}},
+		{name: "departure location", request: &carpoolv1.ListRidesRequest{DepartureLocationId: &bad}},
+		{name: "arrival location", request: &carpoolv1.ListRidesRequest{ArrivalLocationId: &bad}},
+		{name: "departure after", request: &carpoolv1.ListRidesRequest{DepartureAfter: &timestamppb.Timestamp{Seconds: math.MaxInt64}}},
+		{name: "departure before", request: &carpoolv1.ListRidesRequest{DepartureBefore: &timestamppb.Timestamp{Nanos: -1}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -51,7 +51,7 @@ func TestListRidesForwardsTimeBounds(t *testing.T) {
 	before := time.Now().Add(48 * time.Hour)
 
 	_, err := newTestServer(fake).ListRides(testContext(uuid.New(), "viewer@rice.edu"),
-		connect.NewRequest(&v1.ListRidesRequest{DepartureBefore: timestamppb.New(before)}))
+		connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureBefore: timestamppb.New(before)}))
 	if err != nil {
 		t.Fatalf("ListRides() error = %v", err)
 	}
@@ -70,7 +70,7 @@ func TestListMyRidesUsesTheVerifiedCaller(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	if _, err := newTestServer(fake).ListMyRides(testContext(caller, "caller@rice.edu"),
-		connect.NewRequest(&v1.ListMyRidesRequest{})); err != nil {
+		connect.NewRequest(&carpoolv1.ListMyRidesRequest{})); err != nil {
 		t.Fatalf("ListMyRides() error = %v", err)
 	}
 
@@ -98,7 +98,7 @@ func TestRideListsConvertEveryResult(t *testing.T) {
 	}
 	ctx := testContext(owner.ID, owner.Email)
 
-	discovered, err := newTestServer(fake).ListRides(ctx, connect.NewRequest(&v1.ListRidesRequest{}))
+	discovered, err := newTestServer(fake).ListRides(ctx, connect.NewRequest(&carpoolv1.ListRidesRequest{}))
 	if err != nil {
 		t.Fatalf("ListRides() error = %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRideListsConvertEveryResult(t *testing.T) {
 		t.Errorf("ListRides() returned %d rides, want %d", len(discovered.Msg.Rides), len(rides))
 	}
 
-	history, err := newTestServer(fake).ListMyRides(ctx, connect.NewRequest(&v1.ListMyRidesRequest{}))
+	history, err := newTestServer(fake).ListMyRides(ctx, connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 	if err != nil {
 		t.Fatalf("ListMyRides() error = %v", err)
 	}

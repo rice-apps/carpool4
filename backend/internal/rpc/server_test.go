@@ -19,7 +19,7 @@ import (
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/auth"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1/carpoolv1connect"
 )
 
@@ -62,17 +62,17 @@ func publicRideFixture() app.LoadedRide {
 
 // assertGuestRide fails t unless ride carries trip facts and nothing personal.
 // It diffs the whole message so a newly added field cannot leak unnoticed.
-func assertGuestRide(t *testing.T, got *v1.Ride, want app.LoadedRide) {
+func assertGuestRide(t *testing.T, got *carpoolv1.Ride, want app.LoadedRide) {
 	t.Helper()
-	expected := &v1.Ride{
+	expected := &carpoolv1.Ride{
 		Id:                want.ID.String(),
 		DepartureTime:     timestamppb.New(want.DepartureTime),
-		DepartureLocation: &v1.Location{Id: want.Departure.ID.String(), Title: want.Departure.Title},
-		ArrivalLocation:   &v1.Location{Id: want.Arrival.ID.String(), Title: want.Arrival.Title},
+		DepartureLocation: &carpoolv1.Location{Id: want.Departure.ID.String(), Title: want.Departure.Title},
+		ArrivalLocation:   &carpoolv1.Location{Id: want.Arrival.ID.String(), Title: want.Arrival.Title},
 		Capacity:          want.Capacity,
 		OccupiedSeats:     int32(len(want.Riders)),
-		Status:            v1.RideStatus_RIDE_STATUS_ACTIVE,
-		Riders:            []*v1.User{},
+		Status:            carpoolv1.RideStatus_RIDE_STATUS_ACTIVE,
+		Riders:            []*carpoolv1.User{},
 	}
 	if diff := cmp.Diff(expected, got, protocmp.Transform()); diff != "" {
 		t.Errorf("guest ride mismatch (-want +got):\n%s", diff)
@@ -90,7 +90,7 @@ func TestRegisterServesGuestReads(t *testing.T) {
 	rides := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
 
 	t.Run("ListRides", func(t *testing.T) {
-		listed, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{}))
+		listed, err := rides.ListRides(context.Background(), connect.NewRequest(&carpoolv1.ListRidesRequest{}))
 		if err != nil {
 			t.Fatalf("ListRides() error = %v", err)
 		}
@@ -101,7 +101,7 @@ func TestRegisterServesGuestReads(t *testing.T) {
 	})
 
 	t.Run("GetRide", func(t *testing.T) {
-		got, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: ride.ID.String()}))
+		got, err := rides.GetRide(context.Background(), connect.NewRequest(&carpoolv1.GetRideRequest{Id: ride.ID.String()}))
 		if err != nil {
 			t.Fatalf("GetRide() error = %v", err)
 		}
@@ -109,7 +109,7 @@ func TestRegisterServesGuestReads(t *testing.T) {
 	})
 
 	t.Run("ListLocations", func(t *testing.T) {
-		got, err := rides.ListLocations(context.Background(), connect.NewRequest(&v1.ListLocationsRequest{}))
+		got, err := rides.ListLocations(context.Background(), connect.NewRequest(&carpoolv1.ListLocationsRequest{}))
 		if err != nil {
 			t.Fatalf("ListLocations() error = %v", err)
 		}
@@ -126,13 +126,13 @@ func TestRegisterRefusesGuestsOnProtectedReads(t *testing.T) {
 	users := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
 
 	t.Run("ListMyRides", func(t *testing.T) {
-		_, err := rides.ListMyRides(context.Background(), connect.NewRequest(&v1.ListMyRidesRequest{}))
+		_, err := rides.ListMyRides(context.Background(), connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
 		if got := connect.CodeOf(err); got != connect.CodeUnauthenticated {
 			t.Errorf("ListMyRides() code = %v, want %v", got, connect.CodeUnauthenticated)
 		}
 	})
 	t.Run("GetUser", func(t *testing.T) {
-		_, err := users.GetUser(context.Background(), connect.NewRequest(&v1.GetUserRequest{}))
+		_, err := users.GetUser(context.Background(), connect.NewRequest(&carpoolv1.GetUserRequest{}))
 		if got := connect.CodeOf(err); got != connect.CodeUnauthenticated {
 			t.Errorf("GetUser() code = %v, want %v", got, connect.CodeUnauthenticated)
 		}
@@ -166,19 +166,19 @@ func TestRegisterRefusesAnySuppliedCredential(t *testing.T) {
 				send func() error
 			}{
 				{"ListRides", func() error {
-					req := connect.NewRequest(&v1.ListRidesRequest{})
+					req := connect.NewRequest(&carpoolv1.ListRidesRequest{})
 					req.Header().Set("Authorization", tc.authorization)
 					_, err := rides.ListRides(context.Background(), req)
 					return err
 				}},
 				{"GetRide", func() error {
-					req := connect.NewRequest(&v1.GetRideRequest{Id: ride.ID.String()})
+					req := connect.NewRequest(&carpoolv1.GetRideRequest{Id: ride.ID.String()})
 					req.Header().Set("Authorization", tc.authorization)
 					_, err := rides.GetRide(context.Background(), req)
 					return err
 				}},
 				{"ListLocations", func() error {
-					req := connect.NewRequest(&v1.ListLocationsRequest{})
+					req := connect.NewRequest(&carpoolv1.ListLocationsRequest{})
 					req.Header().Set("Authorization", tc.authorization)
 					_, err := rides.ListLocations(context.Background(), req)
 					return err
@@ -200,13 +200,13 @@ func TestRegisterRejectsMalformedGuestRequests(t *testing.T) {
 	bad := "bad-id"
 
 	t.Run("GetRide", func(t *testing.T) {
-		_, err := rides.GetRide(context.Background(), connect.NewRequest(&v1.GetRideRequest{Id: bad}))
+		_, err := rides.GetRide(context.Background(), connect.NewRequest(&carpoolv1.GetRideRequest{Id: bad}))
 		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 			t.Errorf("GetRide() code = %v, want %v", got, connect.CodeInvalidArgument)
 		}
 	})
 	t.Run("ListRides", func(t *testing.T) {
-		_, err := rides.ListRides(context.Background(), connect.NewRequest(&v1.ListRidesRequest{DepartureLocationId: &bad}))
+		_, err := rides.ListRides(context.Background(), connect.NewRequest(&carpoolv1.ListRidesRequest{DepartureLocationId: &bad}))
 		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 			t.Errorf("ListRides() code = %v, want %v", got, connect.CodeInvalidArgument)
 		}
@@ -218,7 +218,7 @@ func TestRegisterServesBothServices(t *testing.T) {
 	id := uuid.New()
 	server, _ := registeredServer(t, &fakeDatabase{users: map[uuid.UUID]app.UserRecord{id: testUser(id, "caller@rice.edu")}})
 
-	userReq := connect.NewRequest(&v1.GetUserRequest{})
+	userReq := connect.NewRequest(&carpoolv1.GetUserRequest{})
 	userReq.Header().Set("X-Test-User", id.String())
 	user, err := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL).GetUser(context.Background(), userReq)
 	if err != nil {
@@ -228,7 +228,7 @@ func TestRegisterServesBothServices(t *testing.T) {
 		t.Errorf("GetUser() id = %q, want %q", user.Msg.User.Id, id)
 	}
 
-	rideReq := connect.NewRequest(&v1.ListLocationsRequest{})
+	rideReq := connect.NewRequest(&carpoolv1.ListLocationsRequest{})
 	rideReq.Header().Set("X-Test-User", id.String())
 	if _, err := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL).ListLocations(context.Background(), rideReq); err != nil {
 		t.Errorf("ListLocations() error = %v", err)
@@ -255,7 +255,7 @@ func TestRegisterAuthenticatesBeforeValidating(t *testing.T) {
 			// Protovalidate rejects the raw 101-character name. The application
 			// would trim it to "A" and save successfully, so only the interceptor
 			// can produce this rejection.
-			req := connect.NewRequest(&v1.UpdateUserRequest{FirstName: strings.Repeat(" ", 100) + "A", LastName: "User"})
+			req := connect.NewRequest(&carpoolv1.UpdateUserRequest{FirstName: strings.Repeat(" ", 100) + "A", LastName: "User"})
 			if tc.authenticated {
 				req.Header().Set("X-Test-User", uuid.NewString())
 			}
@@ -280,7 +280,7 @@ func TestRegisterLimitsRequestBody(t *testing.T) {
 	server, _ := registeredServer(t, &fakeDatabase{})
 	client := carpoolv1connect.NewRideServiceClient(server.Client(), server.URL)
 
-	_, err := client.CreateRide(context.Background(), connect.NewRequest(&v1.CreateRideRequest{Notes: strings.Repeat("x", 70<<10)}))
+	_, err := client.CreateRide(context.Background(), connect.NewRequest(&carpoolv1.CreateRideRequest{Notes: strings.Repeat("x", 70<<10)}))
 
 	if got := connect.CodeOf(err); got != connect.CodeResourceExhausted {
 		t.Errorf("CreateRide() with a 70KB body: code = %v, want %v", got, connect.CodeResourceExhausted)
@@ -294,7 +294,7 @@ func TestRegisterSanitizesUnknownErrors(t *testing.T) {
 	const secret = "postgres://service-role:secret@db.internal/carpool"
 	server, logs := registeredServer(t, (&fakeDatabase{}).failing(opFindUser, errors.New(secret)))
 	client := carpoolv1connect.NewUserServiceClient(server.Client(), server.URL)
-	req := connect.NewRequest(&v1.GetUserRequest{})
+	req := connect.NewRequest(&carpoolv1.GetUserRequest{})
 	req.Header().Set("X-Test-User", uuid.NewString())
 
 	_, err := client.GetUser(context.Background(), req)

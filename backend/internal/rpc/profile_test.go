@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rice-apps/carpool4/backend/internal/app"
-	v1 "github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
 )
 
 func TestGetUserRejectsMalformedTargetID(t *testing.T) {
@@ -19,7 +19,7 @@ func TestGetUserRejectsMalformedTargetID(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	_, err := newTestServer(fake).GetUser(testContext(uuid.New(), "caller@rice.edu"),
-		connect.NewRequest(&v1.GetUserRequest{UserId: &target}))
+		connect.NewRequest(&carpoolv1.GetUserRequest{UserId: &target}))
 
 	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 		t.Errorf("GetUser(%q) code = %v, want %v", target, got, connect.CodeInvalidArgument)
@@ -39,7 +39,7 @@ func TestGetUserKeepsStorageDetailOffTheWire(t *testing.T) {
 	fake := (&fakeDatabase{}).failing(opFindUser, wrapped)
 
 	_, err := newTestServer(fake).GetUser(testContext(uuid.New(), "caller@rice.edu"),
-		connect.NewRequest(&v1.GetUserRequest{}))
+		connect.NewRequest(&carpoolv1.GetUserRequest{}))
 
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
@@ -68,7 +68,7 @@ func TestUpdateUserSavesTheVerifiedCallersProfile(t *testing.T) {
 	fake := &fakeDatabase{}
 
 	got, err := newTestServer(fake).UpdateUser(testContext(caller, "caller@rice.edu"),
-		connect.NewRequest(&v1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace", Phone: "713-555-0100"}))
+		connect.NewRequest(&carpoolv1.UpdateUserRequest{FirstName: "Ada", LastName: "Lovelace", Phone: "713-555-0100"}))
 	if err != nil {
 		t.Fatalf("UpdateUser() error = %v", err)
 	}
