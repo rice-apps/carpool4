@@ -76,7 +76,7 @@ func (r rideRepository) UpdateRide(ctx context.Context, id uuid.UUID, params app
 	}
 
 	if rowsChanged == 0 {
-		return app.ErrRideNotFound
+		return translateRideError(sql.ErrNoRows)
 	}
 
 	return nil
@@ -100,7 +100,7 @@ func (r rideRepository) CancelRide(ctx context.Context, id uuid.UUID) error {
 	if numbOfRows == 0 {
 		return translateRideError(sql.ErrNoRows)
 	}
-	return app.ErrRideCancelled
+	return nil
 }
 
 // AddRideOccupant adds a user to a ride.

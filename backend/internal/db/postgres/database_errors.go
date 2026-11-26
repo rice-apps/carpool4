@@ -10,46 +10,52 @@ import (
 	"github.com/rice-apps/carpool4/backend/internal/app"
 )
 
-// translateUserError maps a missing user row to the application sentinel and
-// passes other errors through transaction conflict classification.
+// PostgreSQL error codes this package reacts to. See
+// https://www.postgresql.org/docs/current/errcodes-appendix.html.
+const (
+	foreignKeyViolation  = "23503"
+	checkViolation       = "23514"
+	serializationFailure = "40001"
+)
+
+// translateUserError reports a missing profile as app.ErrUserNotFound.
 func translateUserError(err error) error {
-	// Translate a missing SQL row into the application-level user error.
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("%w: %w", app.ErrUserNotFound, err)
 	}
 	return translateTransactionError(err)
 }
 
-// translateRideError maps a missing ride row to the application sentinel and
-// passes other errors through transaction conflict classification.
+// translateRideError reports a missing ride as app.ErrRideNotFound.
 func translateRideError(err error) error {
-	// Translate a missing SQL row into the application-level ride error.
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("%w: %w", app.ErrRideNotFound, err)
 	}
 	return translateTransactionError(err)
 }
 
-// translateRideWriteError maps foreign-key and check failures to invalid
-// ride input, leaving the PostgreSQL cause available through errors.Is/As.
+// translateRideWriteError reports a rejected ride write as invalid input. A
+// missing referenced row or a failed table constraint both mean the caller
+// supplied something the schema will not accept, which is their problem to fix
+// rather than a server fault.
 func translateRideWriteError(err error) error {
-	if err == nil {
-		return nil
-	}
-	// A missing related row or failed ride constraint means invalid input.
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "23514") {
+	if errors.As(err, &pgErr) && (pgErr.Code == foreignKeyViolation || pgErr.Code == checkViolation) {
 		return fmt.Errorf("%w: %w", app.ErrInvalidRideWrite, err)
 	}
 	return translateTransactionError(err)
 }
 
-// translateTransactionError maps SQLSTATE 40001 to a retryable application
-// conflict while retaining the original error; all other errors pass through.
+// translateTransactionError reports a lost serializable race as
+// app.ErrTransactionConflict, which tells callers to rerun the whole use case
+// in a fresh transaction. Every other error passes through unchanged.
+//
+// All four translators keep the original error wrapped, so the PostgreSQL
+// detail stays available to errors.Is and errors.As for server logs even
+// though it never reaches a client.
 func translateTransactionError(err error) error {
-	// Preserve the database cause while giving callers a conflict they can retry.
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "40001" {
+	if errors.As(err, &pgErr) && pgErr.Code == serializationFailure {
 		return fmt.Errorf("%w: %w", app.ErrTransactionConflict, err)
 	}
 	return err

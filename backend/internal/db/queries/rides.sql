@@ -6,12 +6,12 @@ SELECT sqlc.embed(r),
        sqlc.embed(al),
        ride_riders(r.id) riders
 FROM rides r
-    JOIN users u
-        ON r.owner_id = u.id
-    JOIN locations dl
-        ON r.departure_location_id = dl.id
-    JOIN locations al
-         ON r.arrival_location_id = al.id
+         JOIN users u
+              ON r.owner_id = u.id
+         JOIN locations dl
+              ON r.departure_location_id = dl.id
+         JOIN locations al
+              ON r.arrival_location_id = al.id
 WHERE r.id = $1;
 
 -- CreateRide: Store a new ride and return its ID.
@@ -44,10 +44,11 @@ INSERT INTO ride_occupants (ride_id, user_id)
 VALUES ($1, $2);
 
 -- RemoveRideOccupant: Remove a user's ride membership and report whether a row changed.
--- TODO(student): Write the RemoveRideOccupant SQL query.
 -- name: RemoveRideOccupant :execrows
-DELETE FROM ride_occupants
-    WHERE ride_id = $1 and user_id = $2;
+DELETE
+FROM ride_occupants
+WHERE ride_id = $1
+  and user_id = $2;
 
 -- ListRides: Find active rides matching the supplied route and time filters.
 -- name: ListRides :many
@@ -56,15 +57,17 @@ SELECT sqlc.embed(r),
        sqlc.embed(al),
        sqlc.embed(u),
        ride_riders(r.id) AS riders
-    FROM rides r
-        INNER JOIN locations AS dl ON r.departure_location_id = dl.id
-        INNER JOIN locations AS al ON r.arrival_location_id = al.id
-        INNER JOIN users AS u ON u.id = r.owner_id WHERE r.status = 'active'
-            AND (sqlc.narg('departure_location_id')::uuid IS NULL OR r.departure_location_id = sqlc.narg('departure_location_id'))
-            AND (sqlc.narg('arrival_location_id')::uuid IS NULL OR r.arrival_location_id = sqlc.narg('arrival_location_id'))
-            AND (sqlc.narg('departure_before')::timestamptz IS NULL OR r.departure_time <= sqlc.narg('departure_before'))
-            AND (r.departure_time >= sqlc.arg('departure_after'))
-                 ORDER BY r.departure_time ASC, r.id ASC;
+FROM rides r
+         INNER JOIN locations AS dl ON r.departure_location_id = dl.id
+         INNER JOIN locations AS al ON r.arrival_location_id = al.id
+         INNER JOIN users AS u ON u.id = r.owner_id
+WHERE r.status = 'active'
+  AND (sqlc.narg('departure_location_id')::uuid IS NULL OR r.departure_location_id = sqlc.narg('departure_location_id'))
+  AND (sqlc.narg('arrival_location_id')::uuid IS NULL OR r.arrival_location_id = sqlc.narg('arrival_location_id'))
+  AND (sqlc.narg('departure_before')::timestamptz IS NULL OR r.departure_time <= sqlc.narg('departure_before'))
+  AND (r.departure_time >= sqlc.arg('departure_after'))
+ORDER BY r.departure_time ASC, r.id ASC;
+
 -- ListMyRides: Return the viewer's owned and joined rides, including history.
 -- name: ListMyRides :many
 SELECT sqlc.embed(r),
@@ -73,13 +76,15 @@ SELECT sqlc.embed(r),
        sqlc.embed(al),
        ride_riders(r.id) riders
 FROM rides r
-         INNER JOIN ride_occupants ro
-                    ON r.id = ro.ride_id
          INNER JOIN users u
                     ON u.id = r.owner_id
          INNER JOIN locations dl
                     ON r.departure_location_id = dl.id
          INNER JOIN locations al
                     ON r.arrival_location_id = al.id
-WHERE ro.user_id = sqlc.arg(viewerID)
+WHERE r.owner_id = sqlc.arg(viewerID)
+   OR EXISTS (SELECT 1
+              FROM ride_occupants ro
+              WHERE ro.ride_id = r.id
+                AND ro.user_id = sqlc.arg(viewerID))
 ORDER BY r.departure_time DESC, r.id DESC;

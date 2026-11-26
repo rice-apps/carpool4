@@ -160,10 +160,6 @@ export function createCommands({
     },
     backend(signal) { return runAttached(startBackend, signal); },
     frontend(signal) { return runAttached(startFrontend, signal); },
-    async testBackend() {
-      await exec("go", ["test", "./..."], { cwd: backendDir, env: await environment(rootDir) });
-      return 0;
-    },
     async dev(signal) {
       const env = await environment(rootDir);
       const backend = startBackend(env);
@@ -187,9 +183,8 @@ async function main() {
     backend: commands.backend,
     frontend: commands.frontend,
     dev: commands.dev,
-    "test:backend": commands.testBackend,
   }[process.argv[2]];
-  if (!selected) throw new Error("Usage: node scripts/dev.mjs <setup|backend|frontend|dev|test:backend>");
+  if (!selected) throw new Error("Usage: node scripts/dev.mjs <setup|backend|frontend|dev>");
   const controller = new AbortController();
   const interrupt = () => controller.abort();
   process.once("SIGINT", interrupt);

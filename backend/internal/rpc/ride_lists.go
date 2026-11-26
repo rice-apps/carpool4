@@ -35,11 +35,17 @@ func (s *Server) ListRides(ctx context.Context, req *connect.Request[carpoolv1.L
 	requestInput := app.ListRidesInput{}
 
 	if req.Msg.GetDepartureAfter() != nil {
+		if !req.Msg.DepartureAfter.IsValid() {
+			return nil, convertToConnectError(fmt.Errorf("%w: departure after", app.ErrInvalidArgument))
+		}
 		departureAfterTime := req.Msg.DepartureAfter.AsTime()
 		requestInput.DepartureAfter = &departureAfterTime
 	}
 
 	if req.Msg.GetDepartureBefore() != nil {
+		if !req.Msg.DepartureBefore.IsValid() {
+			return nil, convertToConnectError(fmt.Errorf("%w: departure before", app.ErrInvalidArgument))
+		}
 		departureBeforeTime := req.Msg.DepartureBefore.AsTime()
 		requestInput.DepartureBefore = &departureBeforeTime
 	}

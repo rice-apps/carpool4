@@ -75,10 +75,13 @@ func NewInterceptor(ctx context.Context, supabaseURL string) (connect.UnaryInter
 	// Find the signing keys published by this Supabase project.
 	issuer := strings.TrimRight(supabaseURL, "/") + "/auth/v1"
 	jwksURL := issuer + "/.well-known/jwks.json"
-	returnErrorOnInitialFetchFailure := false
+	// Refuse to start without the signing keys. keyfunc defaults to starting
+	// anyway, which would leave the server rejecting every request with no clue
+	// why.
+	startWithoutKeys := false
 	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
 		HTTPTimeout:               jwksFetchTimeout,
-		NoErrorReturnFirstHTTPReq: &returnErrorOnInitialFetchFailure,
+		NoErrorReturnFirstHTTPReq: &startWithoutKeys,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("initialize JWKS: %w", err)
@@ -98,6 +101,10 @@ func NewInterceptor(ctx context.Context, supabaseURL string) (connect.UnaryInter
 				tokenStr,
 				&c,
 				kf.KeyfuncCtx(ctx),
+				// Supabase signs with ES256. Stating the allowed algorithm keeps a
+				// forged header from choosing a weaker one, rather than relying on
+				// the JWKS key type to reject it.
+				jwt.WithValidMethods([]string{jwt.SigningMethodES256.Alg()}),
 				jwt.WithExpirationRequired(),
 				jwt.WithIssuer(issuer),
 				jwt.WithAudience(authenticatedAudience),

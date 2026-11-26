@@ -1,0 +1,123 @@
+package rpc
+
+import (
+	"math"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/rice-apps/carpool4/backend/internal/app"
+	"github.com/rice-apps/carpool4/backend/internal/gen/carpool/v1"
+)
+
+func TestListRidesRejectsMalformedFilters(t *testing.T) {
+	t.Parallel()
+	bad := "not-a-uuid"
+
+	for _, tc := range []struct {
+		name    string
+		request *carpoolv1.ListRidesRequest
+	}{
+		{name: "departure location", request: &carpoolv1.ListRidesRequest{DepartureLocationId: &bad}},
+		{name: "arrival location", request: &carpoolv1.ListRidesRequest{ArrivalLocationId: &bad}},
+		{name: "departure after", request: &carpoolv1.ListRidesRequest{DepartureAfter: &timestamppb.Timestamp{Seconds: math.MaxInt64}}},
+		{name: "departure before", request: &carpoolv1.ListRidesRequest{DepartureBefore: &timestamppb.Timestamp{Nanos: -1}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fake := &fakeDatabase{}
+
+			_, err := newTestServer(fake).ListRides(testContext(uuid.New(), "viewer@rice.edu"), connect.NewRequest(tc.request))
+
+			if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
+				t.Errorf("ListRides() code = %v, want %v", got, connect.CodeInvalidArgument)
+			}
+			if fake.called(opBegin) {
+				t.Error("ListRides reached storage with an unparseable filter")
+			}
+		})
+	}
+}
+
+// TestListRidesForwardsTimeBounds checks both wire timestamps reach the service.
+// The lower bound is later than the discovery lookback, so it survives the
+// clamp the application applies to earlier bounds.
+func TestListRidesForwardsTimeBounds(t *testing.T) {
+	t.Parallel()
+	fake := &fakeDatabase{}
+	after := time.Now().Add(2 * time.Hour).Truncate(time.Microsecond)
+	before := time.Now().Add(48 * time.Hour)
+
+	_, err := newTestServer(fake).ListRides(testContext(uuid.New(), "viewer@rice.edu"),
+		connect.NewRequest(&carpoolv1.ListRidesRequest{
+			DepartureAfter:  timestamppb.New(after),
+			DepartureBefore: timestamppb.New(before),
+		}))
+	if err != nil {
+		t.Fatalf("ListRides() error = %v", err)
+	}
+
+	if got := fake.ridesQuery.DepartureAfter; !got.Equal(after.UTC()) {
+		t.Errorf("DepartureAfter = %v, want the caller's lower bound %v", got, after.UTC())
+	}
+	if fake.ridesQuery.DepartureBefore == nil {
+		t.Fatal("DepartureBefore = nil, want the caller's upper bound")
+	}
+	if got := *fake.ridesQuery.DepartureBefore; !got.Equal(before.UTC()) {
+		t.Errorf("DepartureBefore = %v, want %v", got, before.UTC())
+	}
+}
+
+func TestListMyRidesUsesTheVerifiedCaller(t *testing.T) {
+	t.Parallel()
+	caller := uuid.New()
+	fake := &fakeDatabase{}
+
+	if _, err := newTestServer(fake).ListMyRides(testContext(caller, "caller@rice.edu"),
+		connect.NewRequest(&carpoolv1.ListMyRidesRequest{})); err != nil {
+		t.Fatalf("ListMyRides() error = %v", err)
+	}
+
+	if fake.historyOwner != caller {
+		t.Errorf("ListMyRides queried %v, want the verified caller %v", fake.historyOwner, caller)
+	}
+}
+
+// TestRideListsConvertEveryResult checks the handlers convert the whole page
+// rather than only its first entry.
+func TestRideListsConvertEveryResult(t *testing.T) {
+	t.Parallel()
+	owner := testUser(uuid.New(), "owner@rice.edu")
+	rides := make([]app.LoadedRide, 3)
+	for i := range rides {
+		rides[i] = app.LoadedRide{
+			ID: uuid.New(), DepartureTime: time.Now().Add(time.Hour), Owner: owner,
+			Riders: []app.UserRecord{owner}, Capacity: 2, Status: app.RideStatusActive,
+		}
+	}
+	fake := &fakeDatabase{
+		users:     map[uuid.UUID]app.UserRecord{owner.ID: owner},
+		discovery: rides,
+		history:   rides,
+	}
+	ctx := testContext(owner.ID, owner.Email)
+
+	discovered, err := newTestServer(fake).ListRides(ctx, connect.NewRequest(&carpoolv1.ListRidesRequest{}))
+	if err != nil {
+		t.Fatalf("ListRides() error = %v", err)
+	}
+	if len(discovered.Msg.Rides) != len(rides) {
+		t.Errorf("ListRides() returned %d rides, want %d", len(discovered.Msg.Rides), len(rides))
+	}
+
+	history, err := newTestServer(fake).ListMyRides(ctx, connect.NewRequest(&carpoolv1.ListMyRidesRequest{}))
+	if err != nil {
+		t.Fatalf("ListMyRides() error = %v", err)
+	}
+	if len(history.Msg.Rides) != len(rides) {
+		t.Errorf("ListMyRides() returned %d rides, want %d", len(history.Msg.Rides), len(rides))
+	}
+}
