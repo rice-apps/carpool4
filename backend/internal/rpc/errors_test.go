@@ -32,6 +32,7 @@ func TestConvertToConnectErrorMapsApplicationVocabulary(t *testing.T) {
 		{app.ErrAlreadyJoined, connect.CodeFailedPrecondition},
 		{app.ErrFullCapacity, connect.CodeFailedPrecondition},
 		{app.ErrNotJoined, connect.CodeFailedPrecondition},
+		{app.ErrRideDeparted, connect.CodeFailedPrecondition},
 		{app.ErrNotImplemented, connect.CodeUnimplemented},
 		{context.Canceled, connect.CodeCanceled},
 		{context.DeadlineExceeded, connect.CodeDeadlineExceeded},

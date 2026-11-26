@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -83,7 +84,7 @@ func TestJoinRideFillsTheLastSeat(t *testing.T) {
 	}
 }
 
-func TestJoinRideRejectsImpossibleJoins(t *testing.T) {
+func TestJoinRideEnforcesItsPreconditions(t *testing.T) {
 	t.Parallel()
 	join := func(s *Service, f rideFixture) error {
 		_, err := s.JoinRide(t.Context(), CurrentUser{ID: f.passenger}, f.ride.ID)
@@ -106,6 +107,22 @@ func TestJoinRideRejectsImpossibleJoins(t *testing.T) {
 			f.editRide(func(r *LoadedRide) { r.Status = RideStatusCancelled })
 		}, join)
 	})
+	t.Run("departed before the lookback", func(t *testing.T) {
+		t.Parallel()
+		rejects(t, ErrRideDeparted, func(f *rideFixture) {
+			f.editRide(func(r *LoadedRide) { r.DepartureTime = time.Now().Add(-rideDiscoveryLookback - time.Minute) })
+		}, join)
+	})
+}
+
+func TestJoinRideAllowsARideWithinTheLookback(t *testing.T) {
+	t.Parallel()
+	f := newRideFixture(t)
+	f.editRide(func(r *LoadedRide) { r.DepartureTime = time.Now().Add(-rideDiscoveryLookback / 2) })
+
+	if _, err := NewService(f.fake).JoinRide(t.Context(), CurrentUser{ID: f.passenger}, f.ride.ID); err != nil {
+		t.Errorf("JoinRide() within the lookback error = %v, want success", err)
+	}
 }
 
 func TestLeaveRideRejectsNonMembers(t *testing.T) {

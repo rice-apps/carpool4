@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -43,6 +44,12 @@ func (s *Service) JoinRide(ctx context.Context, currentUser CurrentUser, rideID 
 	if ride.Status != RideStatusActive {
 		return Ride{}, ErrRideCancelled
 	}
+
+	// prevent users from joining a historic ride (e.g. through shared links)
+	if ride.DepartureTime.Before(time.Now().Add(-rideDiscoveryLookback)) {
+		return Ride{}, ErrRideDeparted
+	}
+
 	//check if the original owner is the current user and if so, return empty ride and error
 	if ride.Owner.ID == currentUser.ID {
 		return Ride{}, ErrOwnerCannotChangeMembership

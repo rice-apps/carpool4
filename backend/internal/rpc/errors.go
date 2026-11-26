@@ -64,7 +64,8 @@ func convertToConnectError(err error) error {
 		errors.Is(err, app.ErrOwnerCannotChangeMembership),
 		errors.Is(err, app.ErrAlreadyJoined),
 		errors.Is(err, app.ErrFullCapacity),
-		errors.Is(err, app.ErrNotJoined):
+		errors.Is(err, app.ErrNotJoined),
+		errors.Is(err, app.ErrRideDeparted):
 		code = connect.CodeFailedPrecondition
 	}
 	if code == connect.CodeInternal {
