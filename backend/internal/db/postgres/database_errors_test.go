@@ -11,6 +11,7 @@ import (
 // TestClassifyErrors checks missing rows and invalid ride writes map to their
 // application sentinels while unrelated failures pass through.
 func TestClassifyErrors(t *testing.T) {
+	t.Parallel()
 	if got := translateUserError(sql.ErrNoRows); !errors.Is(got, app.ErrUserNotFound) {
 		t.Fatalf("translateUserError(sql.ErrNoRows) = %v, want ErrUserNotFound", got)
 	}
@@ -32,6 +33,7 @@ func TestClassifyErrors(t *testing.T) {
 // TestTranslateTransactionError checks SQLSTATE 40001 mapping and retention of
 // the original cause, with unrelated errors unchanged.
 func TestTranslateTransactionError(t *testing.T) {
+	t.Parallel()
 	cause := &pgconn.PgError{Code: "40001", Message: "could not serialize access"}
 	got := translateTransactionError(cause)
 	if !errors.Is(got, app.ErrTransactionConflict) {
@@ -50,16 +52,47 @@ func TestTranslateTransactionError(t *testing.T) {
 // TestSpecializedClassifiersPreserveTransactionConflicts checks each area
 // classifier preserves the conflict sentinel and PostgreSQL cause.
 func TestSpecializedClassifiersPreserveTransactionConflicts(t *testing.T) {
+	t.Parallel()
 	cause := &pgconn.PgError{Code: "40001", Message: "could not serialize access"}
-	for name, classify := range map[string]func(error) error{
-		"user":       translateUserError,
-		"ride":       translateRideError,
-		"ride write": translateRideWriteError,
+	for _, tc := range []struct {
+		name     string
+		classify func(error) error
+	}{
+		{"translateUserError", translateUserError},
+		{"translateRideError", translateRideError},
+		{"translateRideWriteError", translateRideWriteError},
 	} {
-		t.Run(name, func(t *testing.T) {
-			got := classify(cause)
-			if !errors.Is(got, app.ErrTransactionConflict) || !errors.Is(got, cause) {
-				t.Fatalf("classifier(40001) = %v, want conflict retaining cause", got)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.classify(cause)
+
+			if !errors.Is(got, app.ErrTransactionConflict) {
+				t.Errorf("%s(40001) = %v, want ErrTransactionConflict", tc.name, got)
+			}
+			if !errors.Is(got, cause) {
+				t.Errorf("%s(40001) dropped the PostgreSQL cause: %v", tc.name, got)
+			}
+		})
+	}
+}
+
+// TestTranslatorsPassNilThrough checks every translator can be applied to a
+// successful call without inventing an error, so callers need no nil guard.
+func TestTranslatorsPassNilThrough(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		classify func(error) error
+	}{
+		{"translateUserError", translateUserError},
+		{"translateRideError", translateRideError},
+		{"translateRideWriteError", translateRideWriteError},
+		{"translateTransactionError", translateTransactionError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.classify(nil); got != nil {
+				t.Errorf("%s(nil) = %v, want nil", tc.name, got)
 			}
 		})
 	}

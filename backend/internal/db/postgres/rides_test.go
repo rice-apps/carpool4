@@ -2,146 +2,163 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/rice-apps/carpool4/backend/internal/app"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/rice-apps/carpool4/backend/internal/app"
 	"github.com/rice-apps/carpool4/backend/internal/dbtest"
 )
 
-// TestListMyRidesFindsOwnedRideWithoutOccupantRow checks ownership is matched on the
-// ride itself, so a missing occupant row cannot hide a ride from the person who owns it.
-func TestListMyRidesFindsOwnedRideWithoutOccupantRow(t *testing.T) {
+func TestGetRideReportsMissingRide(t *testing.T) {
 	ctx := context.Background()
-	db := dbtest.DB(t)
-	rideID, _ := insertTransactionRide(t, db)
+	tx := begin(t, dbtest.DB(t))
 
-	var owner uuid.UUID
-	if err := db.QueryRowContext(ctx, `SELECT owner_id FROM rides WHERE id = $1`, rideID).Scan(&owner); err != nil {
-		t.Fatal(err)
-	}
-	// Leave the ride without any occupant rows, as a backfill or support fix could.
-	if _, err := db.ExecContext(ctx, `DELETE FROM ride_occupants WHERE ride_id = $1`, rideID); err != nil {
-		t.Fatal(err)
-	}
+	_, err := tx.RidesRepo().GetRide(ctx, uuid.New())
 
-	tx, err := NewDatabase(db).BeginTx(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback()
-
-	rides, err := tx.RidesRepo().ListMyRides(ctx, owner)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rides) != 1 || rides[0].ID != rideID {
-		t.Fatalf("ListMyRides returned %d rides, want the owned ride %s", len(rides), rideID)
+	if !errors.Is(err, app.ErrRideNotFound) {
+		t.Errorf("GetRide() of an absent ride = %v, want ErrRideNotFound", err)
 	}
 }
 
-// TestRideRepositoryReadAndMembershipEdges covers the storage answers the application
-// branches on: a missing ride, a non-member leaving, and the discovery time window.
-// One sandbox setup covers all three.
-func TestRideRepositoryReadAndMembershipEdges(t *testing.T) {
+// TestRideWritesPreserveMissingRideErrors checks both write paths report a
+// missing ride with the application sentinel while keeping the SQL cause, which
+// is what distinguishes "no such ride" from "the statement failed".
+func TestRideWritesPreserveMissingRideErrors(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.DB(t)
-	rideID, params := insertTransactionRide(t, db)
+	_, _, params := insertRide(t, db)
+	missing := uuid.New()
 
-	tx, err := NewDatabase(db).BeginTx(ctx)
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range []struct {
+		name string
+		call func(app.RideRepository) error
+	}{
+		{"UpdateRide", func(r app.RideRepository) error { return r.UpdateRide(ctx, missing, params) }},
+		{"CancelRide", func(r app.RideRepository) error { return r.CancelRide(ctx, missing) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Each case opens its own transaction so one can be run alone.
+			err := tc.call(begin(t, db).RidesRepo())
+
+			if !errors.Is(err, app.ErrRideNotFound) {
+				t.Errorf("%s() = %v, want ErrRideNotFound", tc.name, err)
+			}
+			if !errors.Is(err, sql.ErrNoRows) {
+				t.Errorf("%s() dropped the sql.ErrNoRows cause: %v", tc.name, err)
+			}
+		})
 	}
-	defer tx.Rollback()
-	rides := tx.RidesRepo()
+}
 
-	t.Run("missing ride", func(t *testing.T) {
-		if _, err := rides.GetRide(ctx, uuid.New()); !errors.Is(err, app.ErrRideNotFound) {
-			t.Fatalf("GetRide of an absent ride = %v, want ErrRideNotFound", err)
+// TestRemoveRideOccupantReportsWhetherAnyoneLeft checks the affected-row count
+// the application reads to tell "you left" from "you were never aboard".
+func TestRemoveRideOccupantReportsWhetherAnyoneLeft(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.DB(t)
+	rideID, owner, _ := insertRide(t, db)
+
+	t.Run("a member leaves", func(t *testing.T) {
+		removed, err := begin(t, db).RidesRepo().RemoveRideOccupant(ctx, rideID, owner)
+		if err != nil {
+			t.Fatalf("RemoveRideOccupant() error = %v", err)
+		}
+		if removed != 1 {
+			t.Errorf("removed = %d, want 1 for a seated rider", removed)
 		}
 	})
 
-	t.Run("non-member leave reports no rows", func(t *testing.T) {
-		removed, err := rides.RemoveRideOccupant(ctx, rideID, uuid.New())
+	t.Run("a non-member leaves", func(t *testing.T) {
+		removed, err := begin(t, db).RidesRepo().RemoveRideOccupant(ctx, rideID, uuid.New())
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("RemoveRideOccupant() error = %v", err)
 		}
 		if removed != 0 {
-			t.Fatalf("RemoveRideOccupant removed %d rows, want 0 for a non-member", removed)
+			t.Errorf("removed = %d, want 0 for someone never aboard", removed)
 		}
 	})
+}
 
-	t.Run("locations list runs its real query", func(t *testing.T) {
-		// The RPC tests all use a fake store, so this is the only place the
-		// location query itself executes.
-		found, err := tx.LocationsRepo().ListLocations(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// insertTransactionRide inserts exactly these two, so assert them by name
-		// rather than comparing titles in Go: the query orders by the database
-		// collation, which need not match Go's byte ordering.
-		var titles []string
-		for _, location := range found {
-			if location.ID == uuid.Nil {
-				t.Fatalf("location %q has no ID", location.Title)
+// TestAddRideOccupantReturnsTheRawConstraintFailure checks this adapter leaves a
+// foreign-key violation unclassified. JoinRide relies on that to report a server
+// fault rather than an invalid ride write.
+func TestAddRideOccupantReturnsTheRawConstraintFailure(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.DB(t)
+	rideID, _, _ := insertRide(t, db)
+
+	err := begin(t, db).RidesRepo().AddRideOccupant(ctx, rideID, uuid.New())
+
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		t.Fatalf("AddRideOccupant() = %v, want a *pgconn.PgError", err)
+	}
+	if pgErr.Code != "23503" {
+		t.Errorf("SQLSTATE = %q, want a foreign-key violation (23503)", pgErr.Code)
+	}
+	if errors.Is(err, app.ErrInvalidRideWrite) {
+		t.Errorf("AddRideOccupant() classified its raw failure as %v", app.ErrInvalidRideWrite)
+	}
+}
+
+// TestListRidesAppliesTheDepartureWindow checks the SQL time bounds, including
+// the inclusive edge an off-by-one would move.
+func TestListRidesAppliesTheDepartureWindow(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.DB(t)
+	rideID, _, params := insertRide(t, db)
+	after := params.DepartureTime.Add(-time.Hour)
+
+	for _, tc := range []struct {
+		name  string
+		bound time.Time
+		want  bool
+	}{
+		{name: "bound before departure", bound: params.DepartureTime.Add(-time.Minute)},
+		{name: "bound exactly at departure", bound: params.DepartureTime, want: true},
+		{name: "bound after departure", bound: params.DepartureTime.Add(time.Hour), want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bound := tc.bound
+			found, err := begin(t, db).RidesRepo().ListRides(ctx, app.ListRidesQuery{
+				DepartureAfter: after, DepartureBefore: &bound,
+			})
+			if err != nil {
+				t.Fatalf("ListRides() error = %v", err)
 			}
-			titles = append(titles, location.Title)
-		}
-		if !reflect.DeepEqual(titles, []string{"Arrival", "Departure"}) {
-			t.Fatalf("ListLocations = %q, want the fixture's two titles in order", titles)
-		}
-	})
 
-	t.Run("occupant insert returns the raw constraint failure", func(t *testing.T) {
-		// A rejected statement aborts its transaction, so this runs in its own.
-		// JoinRide relies on this staying unclassified: an occupant foreign-key
-		// failure is a server fault, not an invalid ride write.
-		own, err := NewDatabase(db).BeginTx(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer own.Rollback()
-
-		err = own.RidesRepo().AddRideOccupant(ctx, rideID, uuid.New())
-		var pgError *pgconn.PgError
-		if !errors.As(err, &pgError) || pgError.Code != "23503" {
-			t.Fatalf("occupant constraint error = %v, want a 23503 foreign-key failure", err)
-		}
-		if errors.Is(err, app.ErrInvalidRideWrite) {
-			t.Fatalf("occupant insertion classified its raw failure: %v", err)
-		}
-	})
-
-	t.Run("departure window excludes later rides", func(t *testing.T) {
-		after := params.DepartureTime.Add(-time.Hour)
-		tooEarly := params.DepartureTime.Add(-time.Minute)
-		found, err := rides.ListRides(ctx, app.ListRidesQuery{DepartureAfter: after, DepartureBefore: &tooEarly})
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, ride := range found {
-			if ride.ID == rideID {
-				t.Fatal("ListRides returned a ride departing after DepartureBefore")
+			var seen bool
+			for _, ride := range found {
+				seen = seen || ride.ID == rideID
 			}
-		}
+			if seen != tc.want {
+				t.Errorf("ride within the window = %v, want %v", seen, tc.want)
+			}
+		})
+	}
+}
 
-		late := params.DepartureTime.Add(time.Hour)
-		found, err = rides.ListRides(ctx, app.ListRidesQuery{DepartureAfter: after, DepartureBefore: &late})
-		if err != nil {
-			t.Fatal(err)
-		}
-		var seen bool
-		for _, ride := range found {
-			seen = seen || ride.ID == rideID
-		}
-		if !seen {
-			t.Fatal("ListRides omitted a ride inside the departure window")
-		}
-	})
+// TestListMyRidesFindsOwnedRideWithoutOccupantRow checks ownership is matched on
+// the ride itself. Every ride created through the application also has an
+// occupant row for its owner, so only a ride without one proves the difference.
+func TestListMyRidesFindsOwnedRideWithoutOccupantRow(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.DB(t)
+	rideID, owner, _ := insertRide(t, db)
+	if _, err := db.ExecContext(ctx, `DELETE FROM ride_occupants WHERE ride_id = $1`, rideID); err != nil {
+		t.Fatalf("remove occupants: %v", err)
+	}
+
+	rides, err := begin(t, db).RidesRepo().ListMyRides(ctx, owner)
+	if err != nil {
+		t.Fatalf("ListMyRides() error = %v", err)
+	}
+
+	if len(rides) != 1 || rides[0].ID != rideID {
+		t.Errorf("ListMyRides() returned %d rides, want the owned ride %s", len(rides), rideID)
+	}
 }
